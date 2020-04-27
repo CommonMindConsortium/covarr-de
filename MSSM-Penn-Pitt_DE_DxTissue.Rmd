@@ -108,7 +108,8 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 })
 
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Dx.Tissue", "RIN2", "(1|Institution)", "ageOfDeath", "EV.1", "PMI", "(1|Reported_Gender)", "EV.4","EV.2","RIN", "EV.3", "EV.5", "IntronicRate")
+adjust.covars <- c("Dx.Tissue", "RIN2", "ageOfDeath", "EV.1", "PMI", "EV.4","EV.2","RIN", "EV.3", "EV.5", "IntronicRate")
+random_effect <- c("Individual_ID", "Institution", "Reported_Gender")
 ```
 
 ### Normalisation - Dx.Tissue
@@ -116,14 +117,13 @@ adjust.covars <- c("Dx.Tissue", "RIN2", "(1|Institution)", "ageOfDeath", "EV.1",
 2. Individual_ID is chosen as random effect
 
 ```{r iterative.normalisation, results='asis'}
-writeLines(paste('Using following covariates in the model:',
-                 paste(adjust.covars, collapse=', '),
-                 'as fixed effects and Individual_ID is chosen as random effect'))
+writeLines(glue::glue('Using following covariates in the model:',
+                 glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
+                 ' as fixed effects and',
+                 glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
 
 # Post adjusted formula
-random_effect <- "Individual_ID"
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + ")) %>% 
-  glue::glue(" + (1|{random_effect})")
+formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
@@ -165,7 +165,7 @@ ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
                                         data = COVARIATES,
                                         computeResiduals = TRUE)
 
-col_type <- dplyr::select(COVARIATES, c(adjust.covars, "Individual_ID")) %>%
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
   dplyr::summarise_all(class) %>% 
   tidyr::gather(variable, class)
 
@@ -294,8 +294,8 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
-formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + ")) %>% 
-  glue::glue(" + (1|{random_effect})")
+formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+
 ```
 
 `r formula`
