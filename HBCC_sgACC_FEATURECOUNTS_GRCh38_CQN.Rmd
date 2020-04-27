@@ -11,7 +11,7 @@ library(knit2synapse)
 
 synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "./cmc-rnaseq-de/HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
                                           parentId ="syn21435176",
                                           folderName = 'HBCC - sgACC - DREAM - FEATURECOUNTS - GRCh38 - CQN')
 ```
@@ -565,16 +565,15 @@ preAdjustedSigCovars[["PC_res"]][[2]]$plotData
 ```{r phase1}
 #Fit a base model with the following covariates
 base_covars <- "Dx"
-random_effect <- "Individual_ID"
 
 # Set base formula
-base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + ")) %>%
-  glue::glue(" + (1|{random_effect})")
+base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + "))
 
+COVARIATES <- droplevels(COVARIATES)
 # Stepwise regression
 phase1 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = base_formula,
-                         data = COVARIATES,
+                         data = bar,
                          variables = array(c("(1|Reported_Gender)", "scale(PMI)",
                                              "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
                                              "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
