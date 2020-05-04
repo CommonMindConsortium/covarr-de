@@ -11,7 +11,7 @@ library(knit2synapse)
 
 synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "MSSM-Penn-Pitt_ACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/MSSM-Penn-Pitt_ACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
                                  parentId ="syn22012942",
                                  folderName = "MSSM-Penn-Pitt - ACC - DREAM - FEATURECOUNTS - GRCh38 - CQN")
 ```
