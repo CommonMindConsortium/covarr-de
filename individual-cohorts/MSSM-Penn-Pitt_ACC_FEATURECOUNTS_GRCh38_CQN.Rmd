@@ -58,7 +58,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r synapse.parameters, include=FALSE, cache=FALSE}
-parentId = 'syn21435176';
+parentId = 'syn22012942';
 activityName = 'Covariate adjustments';
 activityDescription = 'Covariate analysis of GRCh38 feature counts with CQN normalisation (ACC)';
 
