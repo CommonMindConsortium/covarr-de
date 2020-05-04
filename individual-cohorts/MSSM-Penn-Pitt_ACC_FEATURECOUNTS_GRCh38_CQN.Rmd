@@ -385,7 +385,8 @@ outliers <- c(outliers, as.character(plotdata$SampleID[c(which(plotdata$PC2 < me
   
 plotdata <- left_join(plotdata, rownameToFirstColumn(COVARIATES, "SampleID")) %>%
   dplyr::mutate(label = SampleID) %>% 
-  dplyr::mutate(label = ifelse((label %in% outliers), label, NA))
+  dplyr::mutate(label = ifelse((label %in% outliers), label, NA)) %>% 
+  dplyr::mutate(Tissue = "ACC")
 
 p <- ggplot(plotdata, aes(x=PC1, y=PC2))
 p <- p + geom_point(aes(color=Institution, shape=Tissue, size=ageOfDeath))
@@ -403,7 +404,7 @@ tmp1 = voom(PROCESSED_COUNTS$filteredExprMatrix$counts)$E %>%
 p = ggplot(tmp1 %>%
              dplyr::filter(SampleID %in% outliers),
            aes(x = logCPM, color = SampleID)) + geom_density() 
-p = p + theme(legend.position = 'top') + facet_grid(Dx, scale = 'free')
+p = p + theme(legend.position = 'top') + facet_grid("Dx", scale = 'free')
 p
 
 indToRetain = setdiff(colnames(PROCESSED_COUNTS$filteredExprMatrix$counts), outliers)
@@ -520,7 +521,6 @@ preAdjustedSigCovars[["PC_res"]][[2]]$plotData
 # Fit a base model with the following covariates
 base_covars <- "Dx"
 
-
 # Set base formula
 base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + "))
 
@@ -531,7 +531,7 @@ phase1 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          variables = array(c("(1|Institution)", "(1|Reported_Gender)", "scale(PMI)",
                                                              "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
                                                              "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
-phase1
+kable(phase1)
 ```
 
 #### Phase II (batch effects)
@@ -541,7 +541,7 @@ phase2 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
                          variables = array(c("(1|LibraryBatch)", "(1|FlowcellBatch)")))
-phase2
+kable(phase2)
 ```
 
 #### Phase III (RNASeq alignment specific covariates)
@@ -552,7 +552,7 @@ phase3 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          data = COVARIATES,
                          variables = array(c("scale(IntragenicRate)", "scale(IntronicRate)","scale(IntergenicRate)","scale(rRNARate)", 
                                              "scale(TotalReads)", "scale(GenesDetected)", "scale(MappedReads)")))
-phase3
+kable(phase3)
 ```
 
 #### Variables included in the model 
