@@ -36,6 +36,7 @@ library(variancePartition)
 library(synapser)
 library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
+library(mvIC) # devtools::install_github("GabrielHoffman/mvIC", repos=BiocManager::repositories())
 
 synLogin()
 
@@ -525,7 +526,7 @@ base_covars <- "Dx"
 base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + "))
 
 # Stepwise regression
-phase1 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
+phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = base_formula,
                          data = COVARIATES,
                          variables = array(c("(1|Institution)", "(1|Reported_Gender)", "scale(PMI)",
@@ -537,7 +538,7 @@ kable(phase1)
 #### Phase II (batch effects)
 ```{r phase2}
 # Fit a base model with the following covariates
-phase2 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
+phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
                          variables = array(c("(1|LibraryBatch)", "(1|FlowcellBatch)")))
@@ -547,7 +548,7 @@ kable(phase2)
 #### Phase III (RNASeq alignment specific covariates)
 ```{r phase3}
 # Fit a base model with the following covariates
-phase3 <- mvBIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
+phase3 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase2$formula, 
                          data = COVARIATES,
                          variables = array(c("scale(IntragenicRate)", "scale(IntronicRate)","scale(IntergenicRate)","scale(rRNARate)", 
