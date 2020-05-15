@@ -565,7 +565,7 @@ phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = base_formula,
                          data = COVARIATES,
                          variables = array(c("(1|Reported_Gender)", "scale(PMI)",
-                                             "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
+                                             "ageOfDeath", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
                                              "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
 kable(phase1$settings)
 kable(phase1$trace)
