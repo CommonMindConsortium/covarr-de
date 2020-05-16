@@ -578,7 +578,7 @@ as.character(phase1$formula)[2]
 phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
-                         variables = array(c("(1|LibraryBatch)", "(1|FlowcellBatch)")))
+                         variables = array(c("LibraryBatch", "FlowcellBatch")))
 kable(phase2$settings)
 kable(phase2$trace)
 as.character(phase2$formula)[2]
