@@ -366,19 +366,19 @@ pl = list()
 pl[[1]] = ggplot(DE %>% 
                    arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = log10(Length), y = logFC, color = Direction)) + geom_point() 
 pl[[1]] = pl[[1]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = log10(Length), y = logFC))
-pl[[1]] = pl[[1]] + facet_grid(Tissue~.) + scale_color_manual(values = c('green','grey','red'))
+pl[[1]] = pl[[1]] + scale_color_manual(values = c('green','grey','red'))
 pl[[1]] = pl[[1]] + theme(legend.position = 'top')
 
 pl[[2]] = ggplot(DE %>% 
                    arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = percentage_gene_gc_content, y = logFC, color = Direction)) + geom_point()
 pl[[2]] = pl[[2]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = percentage_gene_gc_content, y = logFC))
-pl[[2]] = pl[[2]] + facet_grid(Tissue~.) + scale_color_manual(values = c('green','grey','red'))
+pl[[2]] = pl[[2]] + scale_color_manual(values = c('green','grey','red'))
 pl[[2]] = pl[[2]] + theme(legend.position = 'top')
 
 pl[[3]] = ggplot(DE %>% 
                     arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = AveExpr, y = logFC, color = Direction)) + geom_point()
 pl[[3]] = pl[[3]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = AveExpr, y = logFC))
-pl[[3]] = pl[[3]] + facet_grid(Tissue~.) + scale_color_manual(values = c('green','grey','red'))
+pl[[3]] = pl[[3]] + scale_color_manual(values = c('green','grey','red'))
 pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 
 multiplot(plotlist = pl, cols = 3)
