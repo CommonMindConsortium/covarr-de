@@ -94,6 +94,7 @@ metadata = downloadFile_version(METADATA_QC_dsACC_ID, version = 20) %>%
   dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 
                 Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
                                       'rnaSeq_dissection:Brain_Region',
+                                      'rnaSeq_isolation:RNA_Isolation_Batch',
                                       'rnaSeq_report:Ribozero_Batch', 'rnaSeq_report:Library_Batch', 
                                       'rnaSeq_report:Flowcell_Batch', 'rnaSeq_report:Exclude?',
                                       'rnaSeq_report:Mapped_Reads',
@@ -148,7 +149,7 @@ METADATA = metadata %>%
                 SampleID = Sample_RNA_ID,
                 LibraryBatch = `rnaSeq_report:Library_Batch`,
                 FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
-                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
+                IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`, #isolation batch to replace ribozero batch
                 MappedReads = `rnaSeq_report:Mapped_Reads`,
                 IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
                 IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
@@ -576,7 +577,7 @@ as.character(phase1$formula)[2]
 phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
-                         variables = array(c("(1|LibraryBatch)", "(1|FlowcellBatch)")))
+                         variables = array(c("(1|IsolationBatch)")))
 kable(phase2$settings)
 kable(phase2$trace)
 as.character(phase2$formula)[2]
