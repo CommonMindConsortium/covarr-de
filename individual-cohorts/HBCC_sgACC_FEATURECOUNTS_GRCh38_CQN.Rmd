@@ -579,7 +579,9 @@ phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          variables = array(c("(1|Reported_Gender)", "scale(PMI)",
                                              "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
                                              "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
-phase1
+kable(phase1$settings)
+kable(phase1$trace)
+as.character(phase1$formula)[2]
 ```
 
 #### Phase II (batch effects)
@@ -589,7 +591,9 @@ phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
                          variables = array(c("(1|LibraryBatch)", "(1|IsolationBatch)")))
-phase2
+kable(phase2$settings)
+kable(phase2$trace)
+as.character(phase2$formula)[2]
 ```
 
 #### Phase III (RNASeq alignment specific covariates)
@@ -600,13 +604,15 @@ phase3 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          data = COVARIATES,
                          variables = array(c("scale(IntragenicRate)", "scale(IntronicRate)","scale(IntergenicRate)","scale(rRNARate)", 
                                              "scale(TotalReads)", "scale(GenesDetected)", "scale(MappedReads)")))
-phase3
+kable(phase3$settings)
+kable(phase3$trace)
+as.character(phase3$formula)[2]
 ```
 
 #### Variables included in the model 
 Covariates were added as fixed and random effects iteratively in three phases if model improvement by BIC criteria was observed. Clinical, ancestry and sample-specific technical variables were tested for model improvement first. Covariates related to batch effects were next tested for model improvement and finally, RNASeq alignment-specific covariates.
 
-The model for clinical, technical and batch variables selected after phase I, II and III is `r paste(phase3$formula)`
+The model for clinical, technical and batch variables selected after phase I, II and III is `r as.character(phase3$formula)[2]`
 
 
 ### Store files in synapse
