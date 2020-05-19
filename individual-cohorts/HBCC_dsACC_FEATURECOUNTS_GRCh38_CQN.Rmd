@@ -157,7 +157,7 @@ METADATA = metadata %>%
                 TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
   dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, 
                 RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
-                LibraryBatch, FlowcellBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
+                LibraryBatch, FlowcellBatch, IsolationBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
                 IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
   dplyr::filter(SampleID %in% colnames(COUNT), !is.na(SampleID)) %>% 
   dplyr::mutate(Dx = forcats::fct_recode(Dx, Other = "BP", Other = "MDD", Control = "Control", SCZ = "SCZ"))
@@ -500,7 +500,7 @@ p
 Tree based clustering of samples
 ```{r decompse.normalise.data.1, fig.height=6, fig.width=10, results='asis'}
 # Eucledian tree based analysis
-COVARIATES.tmp = data.matrix(COVARIATES[,c("Reported_Gender", "LibraryBatch", "Dx")])
+COVARIATES.tmp = data.matrix(COVARIATES[,c("Reported_Gender", "Dx")])
 COVARIATES.tmp[is.na(COVARIATES.tmp)] = 0
 
 tree = hclust(as.dist(t(CQN.GENE_EXPRESSION$E)))
