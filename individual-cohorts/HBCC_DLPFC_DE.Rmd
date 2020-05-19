@@ -95,15 +95,6 @@ COVAR_ID = "syn22082458"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
 COVARIATES = downloadFile(COVAR_ID) 
 
-# dropped individual id 
-MD_ID = "syn16816488"
-ALL_USED_IDs = c(ALL_USED_IDs, COUNTS_ID)
-METADATA = downloadFile(MD_ID) %>% 
-  dplyr::select(Individual_ID, Sample_RNA_ID)
-
-COVARIATES = right_join(METADATA, COVARIATES, by = c("Sample_RNA_ID" = "SampleID")) %>% 
-  tibble::column_to_rownames(var = "Sample_RNA_ID")
-
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
 COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
