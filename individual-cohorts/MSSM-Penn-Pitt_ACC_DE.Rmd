@@ -63,7 +63,7 @@ parentId = 'syn22012953';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
 
-thisFileName <- 'MSSM-Penn-Pitt_ACC_DE_Dx.Rmd'
+thisFileName <- 'MSSM-Penn-Pitt_ACC_DE.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
@@ -93,8 +93,16 @@ NEW.COUNTS = downloadFile(COUNTS_ID) %>%
 # Get covariates
 COVAR_ID = "syn22013150"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
-COVARIATES = downloadFile(COVAR_ID) %>% 
-  tibble::column_to_rownames(var = "SampleID")
+COVARIATES = downloadFile(COVAR_ID) 
+
+# dropped individual id 
+MD_ID = "syn16816488"
+ALL_USED_IDs = c(ALL_USED_IDs, COUNTS_ID)
+METADATA = downloadFile(MD_ID) %>% 
+  dplyr::select(Individual_ID, Sample_RNA_ID)
+
+COVARIATES = right_join(METADATA, COVARIATES, by = c("Sample_RNA_ID" = "SampleID")) %>% 
+  tibble::column_to_rownames(var = "Sample_RNA_ID")
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Institution", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
@@ -254,8 +262,6 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
-# remove RIN2 as RIN and RIN2 are highly correlated
-adjust.covars <- c("Dx", "ageOfDeath", "EV.1", "PMI", "EV.4","EV.2","RIN", "EV.3", "EV.5", "IntronicRate")
 formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
 ```
 #drop redundancy - RIN2 or RIN
@@ -412,7 +418,7 @@ CODE <- synStore(CODE)
 # Store residual gene expression for network analysis
 RESIDUAL.GENE_EXPRESSION %>%
   rownameToFirstColumn('ensembl_gene_id') %>%
-  write.table(file = 'CMC_ACC_netResidualExpression.tsv', sep = '\t', row.names=F, quote=F)
+  write.table(file = 'CMC_ACC_Dx_netResidualExpression.tsv', sep = '\t', row.names=F, quote=F)
 nEXP_OBJ = File('CMC_ACC_Dx_netResidualExpression.tsv', 
                 name = 'Dx Normalised, covariates removed residual expression (for network analysis)', 
                 parentId = CODE$properties$id)
