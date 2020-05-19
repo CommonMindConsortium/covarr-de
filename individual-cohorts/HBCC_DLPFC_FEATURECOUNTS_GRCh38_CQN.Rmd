@@ -106,7 +106,7 @@ metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
   dplyr::filter(`rnaSeq_dissection:Brain_Region` %in% c("DLPFC"))
 
 ## Download reprocessed counts (DLPFC)
-counts = 'syn21754352'
+counts = 'syn21886235'
 ALL_USED_IDs[length(ALL_USED_IDs)+1] = counts
 COUNT = downloadFile(counts) %>% data.frame()
 COUNT$Chr <- NULL
