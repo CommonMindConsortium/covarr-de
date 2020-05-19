@@ -94,7 +94,7 @@ NEW.COUNTS = downloadFile(COUNTS_ID) %>%
 COVAR_ID = "syn22082458"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
 COVARIATES = downloadFile(COVAR_ID) %>% 
-  column_to_rownames(var = "SampleID")
+  tibble::column_to_rownames(var = "SampleID")
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
@@ -108,7 +108,7 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 })
 
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Dx", "scale(ageOfDeath)", "scale(RIN)", "scale(IntronicRate)", "scale(IntragenicRate)", "scale(IntergenicRate)")
+adjust.covars <- c("Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
 random_effect <- c("Reported_Gender")
 ```
 
@@ -120,6 +120,18 @@ writeLines(glue::glue('Using following covariates in the model:',
                  glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
                  ' as fixed effects and',
                  glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
+
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+  dplyr::summarise_all(class) %>% 
+  tidyr::gather(variable, class)
+
+# Scale continuous variables
+adjust.covars = sapply(1:length(col_type$class), function(i){
+  switch(col_type$class[i], 
+    "factor" = paste0(col_type$variable[i]),
+    "numeric" = paste0('scale(', col_type$variable[i], ')')
+  )
+  })
 
 # Post adjusted formula
 formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
@@ -164,15 +176,12 @@ ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
                                         data = COVARIATES,
                                         computeResiduals = TRUE)
 
-col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
-  dplyr::summarise_all(class) %>% 
-  tidyr::gather(variable, class)
-
 # Model categorical variables as random to report variance fractions
 formula_for_variance_fractions = sapply(1:length(col_type$class), function(i){
   switch(col_type$class[i], 
     "factor" = paste0('(1|', col_type$variable[i], ')'),
-    "numeric" = col_type$variable[i])
+    "numeric" = paste0('scale(', col_type$variable[i], ')')
+  )
   })
 
 formula_for_variance_fractions <- glue::glue("~ ", glue::glue_collapse(formula_for_variance_fractions, sep = " + "))
