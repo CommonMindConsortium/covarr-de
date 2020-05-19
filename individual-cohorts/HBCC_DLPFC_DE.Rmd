@@ -242,7 +242,7 @@ p
 
 ```{r decompose.normalise.data2.1, fig.height=8, fig.width=12, results='asis'}
 # Eucledian tree based analysis
-COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx')])
+COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx'), drop = FALSE])
 
 tree = hclust(as.dist(t(RESIDUAL.GENE_EXPRESSION)))
 cols = WGCNA::labels2colors(COVARIATES.tmp);
@@ -252,7 +252,7 @@ WGCNA::plotDendroAndColors(tree,
                            dendroLabels = FALSE, 
                            abHeight = 0.80, 
                            main = "Sample dendrogram",
-                           groupLabels = colnames(COVARIATES.tmp[,c('Dx')]))
+                           groupLabels = colnames(COVARIATES.tmp[,c('Dx'), drop = FALSE]))
 ```
 
 ```{r temp1, include=F}
