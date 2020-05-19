@@ -93,7 +93,8 @@ NEW.COUNTS = downloadFile(COUNTS_ID) %>%
 # Get covariates
 COVAR_ID = "syn22082458"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
-COVARIATES = downloadFile(COVAR_ID) 
+COVARIATES = downloadFile(COVAR_ID) %>% 
+  column_to_rownames(var = "SampleID")
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
@@ -107,7 +108,7 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 })
 
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
+adjust.covars <- c("Dx", "scale(ageOfDeath)", "scale(RIN)", "scale(IntronicRate)", "scale(IntragenicRate)", "scale(IntergenicRate)")
 random_effect <- c("Reported_Gender")
 ```
 
