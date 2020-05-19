@@ -554,11 +554,9 @@ preAdjustedSigCovars[["PC_res"]][[2]]$plotData
 ```{r phase1}
 #Fit a base model with the following covariates
 base_covars <- "Dx"
-random_effect <- "Individual_ID"
 
 # Set base formula
-base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + ")) %>%
-  glue::glue(" + (1|{random_effect})")
+base_formula <- glue::glue("~ ", glue::glue_collapse(base_covars, sep = " + "))
 
 # Stepwise regression
 phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
@@ -578,7 +576,7 @@ as.character(phase1$formula)[2]
 phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
-                         variables = array(c("LibraryBatch", "FlowcellBatch")))
+                         variables = array(c("(1|LibraryBatch)", "(1|FlowcellBatch)")))
 kable(phase2$settings)
 kable(phase2$trace)
 as.character(phase2$formula)[2]
