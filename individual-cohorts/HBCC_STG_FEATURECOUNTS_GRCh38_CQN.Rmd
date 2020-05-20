@@ -1,6 +1,6 @@
 ---
-title: "HBCC - sgACC - FEATURECOUNTS - GRCh38 - CQN"
-author: "Kelsey Montgomery, Gabriel Hoffman and Thanneer Perumal"
+title: "HBCC - STG - FEATURECOUNTS - GRCh38 - CQN"
+author: "Kelsey Montgomery, Gabriel Hoffman, Thanneer Perumal"
 date: "`r date()`"
 output: html_document
 ---
@@ -11,9 +11,9 @@ library(knit2synapse)
 
 synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/HBCC_STG_FEATURECOUNTS_GRCh38_CQN.Rmd",
                                           parentId ="syn22012942",
-                                          folderName = 'HBCC - sgACC - DREAM - FEATURECOUNTS - GRCh38 - CQN')
+                                          folderName = 'HBCC - STG - DREAM - FEATURECOUNTS - GRCh38 - CQN')
 ```
 
 
@@ -44,7 +44,6 @@ library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
 library(mvIC) # devtools::install_github("GabrielHoffman/mvIC", repos=BiocManager::repositories())
 
-
 synLogin()
 
 library(doParallel)
@@ -52,6 +51,7 @@ library(foreach)
 library(future)
 
 cl = makeCluster((availableCores()-2)/2)
+
 
 registerDoParallel(cl)
 
@@ -69,9 +69,9 @@ knitr::opts_chunk$set(
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
 parentId = 'syn22012942';
 activityName = 'Covariate adjustments';
-activityDescription = 'Covariate analysis of GRCh38 feature counts with CQN normalisation (sgACC)';
+activityDescription = 'Covariate analysis of GRCh38 feature counts with CQN normalisation (STG)';
 
-thisFileName <- 'HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd'
+thisFileName <- 'HBCC_STG_FEATURECOUNTS_GRCh38_CQN.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
@@ -81,22 +81,22 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual
 #### Obtain effective count matrix and metadata from synapse.
 ```{r download.data, cache=TRUE}
 downloadFile <- function(id){
-  fread(synGet(id)$path, data.table = F)
+  fread(synGet(id)$path, data.table = F, check.names = F)
 }
 downloadFile_version <- function(id , version){
   fread(synGet(id, version = version)$path, data.table = F)
 }
 
 # Get RNASeq QCmetadata
-METADATA_QC_ACC_ID = 'syn16816488' 
-ALL_USED_IDs = METADATA_QC_ACC_ID
-metadata = downloadFile_version(METADATA_QC_ACC_ID, version = 20) %>%
-  dplyr::select(`Individual_ID`, Institution, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 
-                Sample_RNA_ID, one_of('Cohort',
-                                      'rnaSeq_isolation:RIN',
+METADATA_QC_STG_ID = 'syn16816488' 
+ALL_USED_IDs = METADATA_QC_STG_ID
+metadata = downloadFile_version(METADATA_QC_STG_ID, version = 20) %>%
+  dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 
+                Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
                                       'rnaSeq_dissection:Brain_Region',
+                                      'rnaSeq_isolation:RNA_Isolation_Batch',
                                       'rnaSeq_report:Ribozero_Batch', 'rnaSeq_report:Library_Batch', 
-                                      'rnaSeq_isolation:RNA_Isolation_Batch', 'rnaSeq_report:Exclude?',
+                                      'rnaSeq_report:Flowcell_Batch', 'rnaSeq_report:Exclude?',
                                       'rnaSeq_report:Mapped_Reads',
                                       'rnaSeq_report:Intragenic_Rate','rnaSeq_report:Intronic_Rate',
                                       'rnaSeq_report:Intergenic_Rate','rnaSeq_report:Genes_Detected',
@@ -104,17 +104,17 @@ metadata = downloadFile_version(METADATA_QC_ACC_ID, version = 20) %>%
                                       'rnaSeq_report:rRNA_Rate',
                                       'rnaSeq_report:Total_Reads', 'rnaSeq_report:Percent_Aligned',
                                       'rnaSeq_report:Transcripts_Detected')) %>% 
-  dplyr::filter(`rnaSeq_dissection:Brain_Region` %in% c("sgACC")) %>% 
-  dplyr::filter(Cohort %in% c("NIMH-HBCC-5"))
+  dplyr::filter(`rnaSeq_dissection:Brain_Region` %in% c("STG"))
 
-## Download reprocessed counts (ACC)
-counts = 'syn21867762'
+## Download reprocessed counts (STG)
+counts = 'syn21867866'
 ALL_USED_IDs[length(ALL_USED_IDs)+1] = counts
 COUNT = downloadFile(counts) %>% data.frame()
 COUNT$Chr <- NULL
 COUNT$Start <- NULL
 COUNT$End <- NULL
 COUNT$Strand <- NULL
+colnames(COUNT) <- gsub("X6", "6", colnames(COUNT))
 
 # Parse gene lengths
 gene_lengths = COUNT[,c("Geneid", "Length")]
@@ -132,8 +132,8 @@ GENOTYPE_ID = 'syn16816490'
 ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
 GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
   dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
-  dplyr::inner_join(ANCESTRY) %>%
-  dplyr::filter(is.na(`SNP_report:Exclude?`)) #Remove excluded samples here because there are duplicate individuals
+  dplyr::inner_join(ANCESTRY) %>% 
+  dplyr::filter(is.na(`SNP_report:Exclude?`))
 ```
 
 ### Data preprocessing
@@ -148,23 +148,20 @@ METADATA = metadata %>%
                 GenotypeExclude = `SNP_report:Exclude?`,
                 SampleID = Sample_RNA_ID,
                 LibraryBatch = `rnaSeq_report:Library_Batch`,
-                IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`,
-                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
+                FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
+                IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`, #isolation batch to replace ribozero batch
                 MappedReads = `rnaSeq_report:Mapped_Reads`,
                 IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
                 IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
                 ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
                 TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
-  dplyr::select(SampleID, Individual_ID, Institution, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, 
+  dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, 
                 RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
-                LibraryBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
+                LibraryBatch, FlowcellBatch, IsolationBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
                 IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
+  dplyr::filter(SampleID %in% colnames(COUNT), !is.na(SampleID)) %>% 
   dplyr::mutate(Dx = forcats::fct_recode(Dx, Other = "BP", Other = "MDD", Control = "Control", SCZ = "SCZ"))
-
-# Limit HBCC ACC Counts
-rownames(COUNT) = COUNT$Geneid
-COUNT <- COUNT[,colnames(COUNT) %in% METADATA$SampleID]
-
+  
 ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
 writeLines(paste('Following',length(ind),'samples are marked exclude'))
 writeLines(paste(ind, collapse = ', '))
@@ -190,11 +187,6 @@ writeLines(paste('Following', length(ind), 'counts are missing age of death'))
 writeLines(paste(ind, collapse = ', '))
 METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
 
-ind = METADATA$SampleID [is.na(METADATA$RIN)]
-writeLines(paste('Following', length(ind), 'counts are missing RIN'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
-
 ind = METADATA$SampleID [is.na(METADATA$EV.1)]
 writeLines(paste('Following', length(ind), 'counts are missing ancestry information'))
 writeLines(paste(ind, collapse = ', '))
@@ -204,8 +196,8 @@ METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
 ```{r preprocess.data1, results='asis'}
 # Match covariates to expression data
 indToRetain = intersect(METADATA$SampleID, colnames(COUNT))
-removedIDs = setdiff(colnames(COUNT), METADATA$SampleID)
 
+rownames(COUNT) <- COUNT$Geneid
 COUNT = COUNT[,indToRetain]
 
 rownames(METADATA) = METADATA$SampleID
@@ -216,7 +208,7 @@ METADATA %>%
   dplyr::summarise(count = n()) %>% 
   kable()
 ```
-Following sample are removed `r paste(removedIDs, collapse = ',')`
+
 
 ```{r gene.param, include = F}
 ## Get GC content from biomart
@@ -225,8 +217,8 @@ backgroundGenes = data.frame(gene_id = rownames(COUNT)) %>%
   tidyr::separate(id, c('ensembl_gene_id','position'), sep = '\\.')
 
 # Define biomart object
-mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", 
-                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL",
+                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)",
                 dataset = "hsapiens_gene_ensembl")
 
 # Query biomart
@@ -288,7 +280,7 @@ p
 ### Covariates clustering
 Determine relationship between covariates. 
 ```{r covariates.clustering}
-FactorCovariates <- c('Individual_ID', "Reported_Gender", "LibraryBatch", "Dx", "IsolationBatch")
+FactorCovariates <- c('Individual_ID', "Reported_Gender", "IsolationBatch", "Dx")
 ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
                     "GenesDetected", "ExpProfEfficiency", "rRNARate", "TotalReads", "AlignmentRate",
                     "EV.1", "EV.2", "EV.3", "EV.4", "EV.5")
@@ -311,11 +303,11 @@ ContCovariates = c(ContCovariates, 'RIN2')
 ```
 Correlation/association between covariates at an FDR <= 0.1
 ```{r covariates.correlation, fig.width=10, fig.height=8}
-COVARIATES.CORRELATION = CovariateAnalysis::getAssociationStatistics(COVARIATES, PVAL = 0.05)
+COVARIATES.CORRELATION = getAssociationStatistics(COVARIATES, PVAL = 0.05)
 tmp = COVARIATES.CORRELATION$ESTIMATE
 tmp[COVARIATES.CORRELATION$PVAL > 0.05] = 0
 h = Heatmap(tmp, col = colorRamp2(c(-1,0,1), c('blue','white','red')), name = 'AssocEstimate')
-draw(h, heatmap_legend_side = 'left')
+ComplexHeatmap::draw(h, heatmap_legend_side = 'left')
 ```
 
 ## Explore metatdata
@@ -428,11 +420,11 @@ outliers <- c(outliers, as.character(plotdata$SampleID[c(which(plotdata$PC2 < me
 plotdata <- left_join(plotdata, rownameToFirstColumn(COVARIATES, "SampleID")) %>%
   dplyr::mutate(label = SampleID) %>% 
   dplyr::mutate(label = ifelse((label %in% outliers), label, NA)) %>% 
-  dplyr::mutate(Tissue = "sgACC") %>% 
-  dplyr::mutate(Institution = "NIMH-HBCC")
+  dplyr::mutate(Institution = "NIMH-HBCC") %>% 
+  dplyr::mutate(Tissue = "STG")
 
 p <- ggplot(plotdata, aes(x=PC1, y=PC2))
-p <- p + geom_point(aes(shape= Tissue, color = Institution, size = ageOfDeath))
+p <- p + geom_point(aes(shape= Tissue, color = Institution, size=ageOfDeath))
 p <- p + theme_bw() %+replace% theme(legend.position="right")
 p <- p + geom_text(aes(label= label), size=4, hjust=0)
 p
@@ -442,6 +434,11 @@ tmp1 = voom(PROCESSED_COUNTS$filteredExprMatrix$counts)$E %>%
   tidyr::gather(SampleID, logCPM, -ensembl_gene_id) %>%
   left_join(COVARIATES %>%
               rownameToFirstColumn('SampleID'))
+# p = ggplot(tmp1 %>%
+#              dplyr::filter(SampleID %in% indToRemove),
+#            aes(x = logCPM, color = SampleID)) + geom_density() 
+# p = p + theme_bw() %+replace% theme(legend.position = 'none') + facet_grid(Dx~., scale = 'free')
+# p
 
 indToRetain = setdiff(colnames(PROCESSED_COUNTS$filteredExprMatrix$counts), outliers)
 PROCESSED_COUNTS$filteredExprMatrix$counts = PROCESSED_COUNTS$filteredExprMatrix$counts[,indToRetain]
@@ -450,7 +447,7 @@ COVARIATES = COVARIATES[indToRetain,]
 tmp = COVARIATES %>%
   group_by(Dx) %>%
   dplyr::summarise(count = n())
-  
+
 NEW.COUNTS = PROCESSED_COUNTS$filteredExprMatrix$counts
 ```
 Processing `r dim(PROCESSED_COUNTS$filteredExprMatrix)[1]` genes in `r dim(PROCESSED_COUNTS$filteredExprMatrix)[2]` samples from `r length(unique(COVARIATES$Individual_ID))` unique individuals
@@ -473,11 +470,6 @@ CQN.GENE_EXPRESSION = cqn(NEW.COUNTS,
 CQN.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION$y + CQN.GENE_EXPRESSION$offset
 ```
 
-Remove 0 variance gene: ENSG00000210082.2
-```{r zero_var}
-CQN.GENE_EXPRESSION$E <- subset(CQN.GENE_EXPRESSION$E, rownames(CQN.GENE_EXPRESSION$E) != "ENSG00000210082.2")
-```
-
 ### Co-expression distribution
 Coexpression of genes 
 ```{r coexp1, cache=FALSE, fig.height=5, fig.width=5}
@@ -495,23 +487,20 @@ plotdata <- data.frame(SampleID=rownames(PC$rotation),
                        PC1=PC$rotation[,1], 
                        PC2=PC$rotation[,2])
 
-plotdata <- left_join(plotdata, rownameToFirstColumn(COVARIATES, 'SampleID')) %>%
-  dplyr::mutate(Tissue = "sgACC") %>% 
-  dplyr::mutate(Institution = "NIMH-HBCC")
+plotdata <- left_join(plotdata, rownameToFirstColumn(COVARIATES, 'SampleID')) %>% 
+  dplyr::mutate(Institution = "NIMH-HBCC") %>% 
+  dplyr::mutate(Tissue = "STG")
 
 p <- ggplot(plotdata, aes(x=PC1, y=PC2))
-p <- p + geom_point(aes(shape= Tissue, color = Institution, size = ageOfDeath))
-p <- p + theme_bw() %+replace% theme(legend.position="top", plot.title = element_text(hjust=0.5, size = 15)) + ggtitle ("PCA HBCC Cohort") + 
-  guides(colour = guide_legend(nrow = 2),
-         shape = guide_legend(nrow = 2),
-         size = guide_legend(nrow = 2))
-p
+p <- p + geom_point(aes(color=Institution, shape=Tissue, size=ageOfDeath))
+p <- p + theme_bw() + theme(legend.position="right") + facet_grid(Tissue~.)
 # p <- p + geom_text(aes(label= SampleID), size=4, hjust=0)
+p
 ```
 Tree based clustering of samples
 ```{r decompse.normalise.data.1, fig.height=6, fig.width=10, results='asis'}
 # Eucledian tree based analysis
-COVARIATES.tmp = data.matrix(COVARIATES[,c("Reported_Gender", "LibraryBatch", "Dx")])
+COVARIATES.tmp = data.matrix(COVARIATES[,c("Reported_Gender", "Dx")])
 COVARIATES.tmp[is.na(COVARIATES.tmp)] = 0
 
 tree = hclust(as.dist(t(CQN.GENE_EXPRESSION$E)))
@@ -524,7 +513,6 @@ WGCNA::plotDendroAndColors(tree,
                            main = "Sample dendrogram",
                            groupLabels = colnames(COVARIATES.tmp))
 ```
-
 
 ```{r temp, include = F}
 dev.off()
@@ -576,8 +564,8 @@ phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = base_formula,
                          data = COVARIATES,
                          variables = array(c("(1|Reported_Gender)", "scale(PMI)",
-                                                             "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
-                                                             "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
+                                             "ageOfDeath", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
+                                             "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
 kable(phase1$settings)
 kable(phase1$trace)
 as.character(phase1$formula)[2]
@@ -589,7 +577,7 @@ as.character(phase1$formula)[2]
 phase2 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = phase1$formula, 
                          data = COVARIATES,
-                         variables = array(c("(1|LibraryBatch)", "(1|IsolationBatch)")))
+                         variables = array(c("(1|IsolationBatch)")))
 kable(phase2$settings)
 kable(phase2$trace)
 as.character(phase2$formula)[2]
@@ -611,8 +599,10 @@ as.character(phase3$formula)[2]
 #### Variables included in the model 
 Covariates were added as fixed and random effects iteratively in three phases if model improvement by BIC criteria was observed. Clinical, ancestry and sample-specific technical variables were tested for model improvement first. Covariates related to batch effects were next tested for model improvement and finally, RNASeq alignment-specific covariates.
 
-The model for clinical, technical and batch variables selected after phase I, II and III is `r as.character(phase3$formula)[2]`
-
+The model for clinical, technical and batch variables selected after phase I, II and III is:
+```{r selection_results}
+as.character(phase3$formula)[2]
+```
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}
@@ -622,7 +612,7 @@ all.annotations = list(
   dataSubtype = 'processed',
   assay	 = 'rnaSeq',
   
-  tissue	= 'anterior cingulate cortex', 
+  tissue	= 'dorsolateral prefrontal cortex, anterior cingulate cortex', 
   study = 'CMC', 
 
   species = 'Human',
@@ -636,13 +626,13 @@ all.annotations = list(
 )
 
 # Code
-CODE <- Folder(name = "HBCC - sgACC - DREAM - FEATURECOUNTS - GRCh38 - CQN", parentId = parentId)
+CODE <- Folder(name = "HBCC - STG - DREAM - FEATURECOUNTS - GRCh38 - CQN", parentId = parentId)
 CODE <- synStore(CODE)
 
 # Store covariates
 COVARIATES = rownameToFirstColumn(COVARIATES, 'SampleID')
-write.table(COVARIATES, file = 'CMC_HBCC_sgACC_Covariates.tsv', sep = '\t', row.names=F, quote=F)
-COV_OBJ = synapser::File('CMC_HBCC_sgACC_Covariates.tsv', name = 'Covariates', parentId = CODE$properties$id)
+write.table(COVARIATES, file = 'CMC_HBCC_STG_Covariates.tsv', sep = '\t', row.names=F, quote=F)
+COV_OBJ = synapser::File('CMC_HBCC_STG_Covariates.tsv', name = 'Covariates', parentId = CODE$properties$id)
 COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                    executed = thisFile, activityDescription = activityDescription)
 all.annotations$dataSubType = 'covariates'
@@ -651,8 +641,8 @@ synSetAnnotations(COV_OBJ, annotations = all.annotations)
 # Store filtered counts
 PROCESSED_COUNTS$filteredExprMatrix$counts %>%
   rownameToFirstColumn('ensembl_gene_id') %>%
-  write.table(file = 'CMC_HBCC_sgACC_Counts.tsv', sep = '\t', row.names=F, quote=F)
-COUNT_OBJ = File('CMC_HBCC_sgACC_Counts.tsv', name = 'Counts (filtered raw)', parentId = CODE$properties$id)
+  write.table(file = 'CMC_HBCC_STG_Counts.tsv', sep = '\t', row.names=F, quote=F)
+COUNT_OBJ = File('CMC_HBCC_STG_Counts.tsv', name = 'Counts (filtered raw)', parentId = CODE$properties$id)
 COUNT_OBJ = synStore(COUNT_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                      executed = thisFile, activityDescription = activityDescription)
 all.annotations$dataSubType = 'filteredCounts'
@@ -661,8 +651,8 @@ synSetAnnotations(COUNT_OBJ, annotations = all.annotations)
 # Store logCPM
 CQN.GENE_EXPRESSION$E %>%
   rownameToFirstColumn('ensembl_gene_id') %>%
-  write.table(file = 'CMC_HBCC_sgACC_logCPM.tsv', sep = '\t', row.names=F, quote=F)
-LCOUNT_OBJ = File('CMC_HBCC_sgACC_logCPM.tsv', name = 'Counts (filtered logCPM)', parentId = CODE$properties$id)
+  write.table(file = 'CMC_HBCC_STG_logCPM.tsv', sep = '\t', row.names=F, quote=F)
+LCOUNT_OBJ = File('CMC_HBCC_STG_logCPM.tsv', name = 'Counts (filtered logCPM)', parentId = CODE$properties$id)
 LCOUNT_OBJ = synStore(LCOUNT_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                       executed = thisFile, activityDescription = activityDescription)
 all.annotations$dataSubType = 'filteredLCPM'
@@ -671,8 +661,8 @@ synSetAnnotations(LCOUNT_OBJ, annotations = all.annotations)
 # Store cqn offsets
 CQN.GENE_EXPRESSION$offset %>%
   rownameToFirstColumn('ensembl_gene_id') %>%
-  write.table(file = 'CMC_HBCC_sgACC_offset.tsv', sep = '\t', row.names=F, quote=F)
-OFFSET_OBJ = File('CMC_HBCC_sgACC_offset.tsv', name = 'Gene length and GC content offset', parentId = CODE$properties$id)
+  write.table(file = 'CMC_HBCC_STG_offset.tsv', sep = '\t', row.names=F, quote=F)
+OFFSET_OBJ = File('CMC_HBCC_STG_offset.tsv', name = 'Gene length and GC content offset', parentId = CODE$properties$id)
 OFFSET_OBJ = synStore(OFFSET_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                       executed = thisFile, activityDescription = activityDescription)
 all.annotations$dataSubType = 'offset'
