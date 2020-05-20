@@ -180,13 +180,13 @@ ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION$E,
 formula_for_variance_fractions = sapply(1:length(col_type$class), function(i){
   switch(col_type$class[i], 
     "factor" = paste0('(1|', col_type$variable[i], ')'),
-    "numeric" = paste0('scale(', col_type$variable[i], ')')
+    "numeric" = paste0(col_type$variable[i])
   )
   })
 
 formula_for_variance_fractions <- glue::glue("~ ", glue::glue_collapse(formula_for_variance_fractions, sep = " + "))
 
-violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION,
+violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION$E,
                                                          formula = formula_for_variance_fractions,
                                                          data = COVARIATES)
 
