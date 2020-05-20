@@ -74,7 +74,7 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual
 #### Obtain filtered and CQN normalized counts
 ```{r download.data, cache=TRUE}
 downloadFile <- function(id){
-  fread(synGet(id)$path, data.table = F)
+  fread(synGet(id)$path, data.table = F, header = T)
 }
 
 # Download CQN counts
