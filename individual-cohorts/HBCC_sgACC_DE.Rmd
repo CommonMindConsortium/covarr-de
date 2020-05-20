@@ -177,6 +177,10 @@ ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION$E,
                                         computeResiduals = TRUE)
 
 # Model categorical variables as random to report variance fractions
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+  dplyr::summarise_all(class) %>% 
+  tidyr::gather(variable, class)
+
 formula_for_variance_fractions = sapply(1:length(col_type$class), function(i){
   switch(col_type$class[i], 
     "factor" = paste0('(1|', col_type$variable[i], ')'),
@@ -293,7 +297,7 @@ contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"),
 plotContrasts(L) 
 
 # Fit contrast
-FIT.CONTR = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+FIT.CONTR = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION$E,
                                      formula = formula,
                                      data = COVARIATES,
                                      L = L,
