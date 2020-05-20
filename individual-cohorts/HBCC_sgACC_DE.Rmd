@@ -118,23 +118,23 @@ random_effect <- c("Reported_Gender", "LibraryBatch")
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
                  glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
-                 ' as fixed effects and',
+                 ' as fixed effects and ',
                  glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
 
-col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+scaled_col_type <- dplyr::select(COVARIATES, c(adjust.covars)) %>%
   dplyr::summarise_all(class) %>% 
   tidyr::gather(variable, class)
 
 # Scale continuous variables
-adjust.covars = sapply(1:length(col_type$class), function(i){
-  switch(col_type$class[i], 
-    "factor" = paste0(col_type$variable[i]),
-    "numeric" = paste0('scale(', col_type$variable[i], ')')
+scaled_adjust_covars = sapply(1:length(scaled_col_type$class), function(i){
+  switch(scaled_col_type$class[i], 
+    "factor" = paste0(scaled_col_type$variable[i]),
+    "numeric" = paste0('scale(', scaled_col_type$variable[i], ')')
   )
   })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+formula <- glue::glue("~ ", glue::glue_collapse(scaled_adjust_covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))   
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
