@@ -262,6 +262,7 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
+adjust.covars <- adjust.covars[!(adjust.covars %in% "RIN2")]
 formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
 ```
 #drop redundancy - RIN2 or RIN
