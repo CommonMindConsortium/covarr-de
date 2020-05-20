@@ -97,7 +97,7 @@ COVARIATES = downloadFile(COVAR_ID) %>%
   tibble::column_to_rownames(var = "SampleID")
 
 # Set variable class
-FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "IsolationBatch")
+FactorCovariates <- c("Individual_ID", "Reported_Gender", "Dx", "IsolationBatch")
 COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
 
 ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
