@@ -11,7 +11,7 @@ library(knit2synapse)
 
 synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd",
                                           parentId ="syn22012942",
                                           folderName = 'HBCC - sgACC - DREAM - FEATURECOUNTS - GRCh38 - CQN')
 ```
@@ -75,7 +75,7 @@ thisFileName <- 'HBCC_sgACC_FEATURECOUNTS_GRCh38_CQN.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
 ```
 ### Data download
 #### Obtain effective count matrix and metadata from synapse.
@@ -576,8 +576,8 @@ phase1 <- mvIC::mvForwardStepwise(exprObj = CQN.GENE_EXPRESSION$E,
                          baseFormula = base_formula,
                          data = COVARIATES,
                          variables = array(c("(1|Reported_Gender)", "scale(PMI)",
-                                             "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
-                                             "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
+                                                             "scale(ageOfDeath)", "scale(RIN)", "scale(RIN2)", "scale(EV.1)",
+                                                             "scale(EV.2)", "scale(EV.3)", "scale(EV.4)", "scale(EV.5)")))
 kable(phase1$settings)
 kable(phase1$trace)
 as.character(phase1$formula)[2]
