@@ -1,0 +1,191 @@
+---
+title: "Graphics"
+author: "KM"
+date: "5/18/2020"
+output: html_document
+---
+
+```{r knit2synapse, eval=FALSE}
+library(synapser)
+library(knit2synapse)
+synLogin()
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/graphics_t_statistics.Rmd",
+                                          parentId ="syn22012942",
+                                          folderName = 't-statistics across cohorts')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(ComplexHeatmap)
+library(dendsort)
+
+synLogin()
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+## t-statistics from differential expression results
+
+- separate by comparison
+
+```{r data}
+mpp_acc <- readr::read_tsv(synGet("syn22079117")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`MSSM-Penn-Pitt ACC t-statistic` = t)
+mpp_dlpfc <- readr::read_tsv(synGet("syn22079472")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`MSSM-Penn-Pitt DLPFC t-statistic` = t)
+hbcc_dsACC <- readr::read_tsv(synGet("syn22086829")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`HBCC dsACC t-statistic` = t)
+hbcc_stg <- readr::read_tsv(synGet("syn22087386")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`HBCC STG t-statistic` = t)
+hbcc_sgACC <- readr::read_tsv(synGet("syn22085862")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`HBCC sgACC t-statistic` = t)
+hbcc_dlpfc <- readr::read_tsv(synGet("syn22084205")$path) %>% 
+  dplyr::select(Comparison, gene_id, t) %>% 
+  dplyr::rename(`HBCC DLPFC t-statistic` = t)
+  
+
+df <- inner_join(mpp_acc, mpp_dlpfc,
+                 by = c("Comparison", "gene_id"))
+df <- inner_join(df, hbcc_dsACC, by = c("Comparison", "gene_id"))
+df <- inner_join(df, hbcc_stg, by = c("Comparison", "gene_id"))
+df <- inner_join(df, hbcc_sgACC, by = c("Comparison", "gene_id"))
+df <- inner_join(df, hbcc_dlpfc, by = c("Comparison", "gene_id"))
+
+conditions = list(c(2,3), c(2,4), c(2,5), c(2,6), c(2,7), c(3,4), c(3,5),c(3,6), c(3,7), c(4,5), c(4,6), c(4,7), c(5,6), c(5,7), c(6,7))
+```
+
+```{r functions}
+plot_t <- function(df, conditions){
+  p = list()
+  for(i in seq_along(conditions)){
+  positions = conditions[i]
+  positions
+  x = df[unlist(positions)[1]]
+  y = df[unlist(positions)[2]]
+  computed_cor = cor(x, y, method = "spearman")
+  x_var <- names(x)
+  y_var <- names(y)
+  p[[i]] = ggplot(df, aes(x = .data[[x_var]], y = .data[[y_var]])) +
+  geom_hex() +
+  geom_abline() +
+  theme_bw() +
+  labs(
+    caption = paste0("spearman correlation between the statistics is ", round(computed_cor, digits = 3))
+  )
+  }
+multiplot(plotlist = p, cols = 2)
+}
+```
+
+# Control vs Other
+```{r plota, fig.width = 10, fig.height = 20}
+df_one <- df[df$Comparison %in% "Control_vs_Other",] %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
+
+plot_t(df_one, conditions)
+```
+
+```{r heatmapa, fig.width = 5, fig.height = 5 }
+for_fig <- dplyr::select(df_one, -Comparison)
+colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+  
+cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+
+colors <- colorRamp2(c(0, 1), c("white", "red"))
+dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
+
+Heatmap(as.matrix(cor$r), 
+        name = "spearman cor", 
+        rect_gp = gpar(col = "white", lwd = 2),
+        column_names_rot = 45,
+        col = colors,
+        cluster_rows = dend,
+        row_names_gp = gpar(fontsize = 10),
+        column_names_gp = gpar(fontsize = 10)
+        )
+```
+
+
+# Control vs SCZ
+```{r plotb, fig.width = 10, fig.height = 20}
+df_two <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
+
+plot_t(df_two, conditions)
+```
+
+
+```{r heatmapb, fig.width = 5, fig.height = 5 }
+for_fig <- dplyr::select(df_two, -Comparison)
+colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+  
+cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+
+colors <- colorRamp2(c(0, 1), c("white", "red"))
+dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
+
+Heatmap(as.matrix(cor$r), 
+        name = "spearman cor", 
+        rect_gp = gpar(col = "white", lwd = 2),
+        column_names_rot = 45,
+        col = colors,
+        cluster_rows = dend,
+        row_names_gp = gpar(fontsize = 10),
+        column_names_gp = gpar(fontsize = 10)
+        )
+```
+
+# Other vs SCZ
+```{r plotc, fig.width = 10, fig.height = 20}
+df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
+
+plot_t(df_three, conditions)
+```
+
+
+```{r heatmapc, fig.width = 5, fig.height = 5 }
+for_fig <- dplyr::select(df_three, -Comparison)
+colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+  
+cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+
+colors <- colorRamp2(c(0, 1), c("white", "red"))
+dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
+
+Heatmap(as.matrix(cor$r), 
+        name = "spearman cor", 
+        rect_gp = gpar(col = "white", lwd = 2),
+        column_names_rot = 45,
+        col = colors,
+        cluster_rows = dend,
+        row_names_gp = gpar(fontsize = 10),
+        column_names_gp = gpar(fontsize = 10)
+        )
+```
+
+
+
+```{r store.files}
+CODE <- Folder(name = "t-statistics across cohorts", parentId = "syn22012942")
+CODE <- synStore(CODE)
+```
