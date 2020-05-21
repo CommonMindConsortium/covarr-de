@@ -294,10 +294,13 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
+# remove RIN2 as RIN and RIN2 are highly correlated
+adjust.covars <- c("Dx.Tissue", "ageOfDeath", "EV.1", "PMI", "EV.4","EV.2","RIN", "EV.3", "EV.5", "IntronicRate")
 formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
-
 ```
-
+#drop redundancy - RIN2 or RIN
+#use canCorPairs() to test colinearity, don't want var of interest to be correlated
+#leave out random effects
 `r formula`
 
 ```{r diffExp, fig.height=10, fig.width=15}
@@ -344,7 +347,8 @@ plotContrasts(L)
 FIT.CONTR = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
                                      formula = formula,
                                      data = COVARIATES,
-                                     L = L)
+                                     L = L,
+                                     suppressWarnings = TRUE)
 
 # Get background genes 
 backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
