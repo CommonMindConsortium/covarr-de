@@ -108,7 +108,6 @@ plot_t <- function(df, conditions){
   p = list()
   for(i in seq_along(conditions[,1])){
   positions = conditions[i,]
-  positions
   x = df[positions[1]]
   y = df[positions[2]]
   computed_cor = cor(x, y, method = "spearman")
@@ -133,7 +132,8 @@ df_one <- df[df$Comparison %in% "Control_vs_Other",] %>%
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id") %>% 
-  dplyr::select_if( ~ !all(is.na(.)))
+  dplyr::select_if( ~ !all(is.na(.))) %>% 
+  dplyr::select(-Comparison)
 
 conditions <- gtools::combinations(n = ncol(df_one), 2, seq_len(ncol(df_one)))
 plot_t(df_one, conditions)
@@ -164,7 +164,8 @@ df_two <- df[df$Comparison %in% "Control_vs_SCZ",] %>%
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id") %>% 
-  dplyr::select_if( ~ !all(is.na(.)))
+  dplyr::select_if( ~ !all(is.na(.))) %>% 
+  dplyr::select(-Comparison)
 
 conditions <- gtools::combinations(n = ncol(df_two), 2, seq_len(ncol(df_two)))
 plot_t(df_two, conditions)
@@ -195,7 +196,8 @@ df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>%
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id") %>% 
-  dplyr::select_if( ~ !all(is.na(.)))
+  dplyr::select_if( ~ !all(is.na(.))) %>% 
+  dplyr::select(-Comparison)
 
 conditions <- gtools::combinations(n = ncol(df_three), 2, seq_len(ncol(df_three)))
 plot_t(df_three, conditions)
