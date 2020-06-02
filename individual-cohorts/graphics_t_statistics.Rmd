@@ -8,7 +8,6 @@ output: html_document
 ```{r knit2synapse, eval=FALSE}
 library(synapser)
 library(knit2synapse)
-synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/graphics_t_statistics.Rmd",
                                           parentId ="syn22012942",
                                           folderName = 't-statistics across cohorts')
@@ -19,7 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(dplyr)
 library(ComplexHeatmap)
-library(dendsort)
+library(readxl)
+library(gtools)
 
 synLogin()
 
@@ -30,6 +30,14 @@ knitr::opts_chunk$set(
   error = FALSE,
   tidy = FALSE,
   cache = TRUE)
+```
+
+```{r synapse.parameters, include=FALSE, cache=TRUE}
+thisFileName <- 'graphics_t_statistics.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
 ```
 
 ## t-statistics from differential expression results
@@ -55,6 +63,26 @@ hbcc_sgACC <- readr::read_tsv(synGet("syn22085862")$path) %>%
 hbcc_dlpfc <- readr::read_tsv(synGet("syn22084205")$path) %>% 
   dplyr::select(Comparison, gene_id, t) %>% 
   dplyr::rename(`HBCC DLPFC t-statistic` = t)
+# CMC Analysis 1
+CMC1 <- readr::read_tsv(synGet("syn5607603")$path) %>% 
+  dplyr::rename(gene_id = genes,
+                `CMC 1 t-statistic` = t) %>% 
+  dplyr::select(gene_id, `CMC 1 t-statistic`) %>% 
+  dplyr::mutate(Comparison = "Control_vs_SCZ")
+# HBCC-DLPFC microarray
+CMC_HBCC <- readr::read_tsv(synGet("syn4941553")$path) %>% 
+  dplyr::rename(gene_id = genes,
+                `HBCC microarray t-statistic` = t) %>% 
+  dplyr::select(gene_id, `HBCC microarray t-statistic`) %>%
+  dplyr::mutate(Comparison = "Control_vs_SCZ")
+# Gandal, Science 2018, Table S1
+# Use Tab:DGE
+# wget https://science.sciencemag.org/highwire/filestream/720110/field_highwire_adjunct_files/1/aat8127_Table_S1.xlsx
+gandal <- readxl::read_xlsx('../aat8127_Table_S1.xlsx', sheet = "DGE") %>% 
+  dplyr::rename(gene_id = ensembl_gene_id,
+                `Gandal, Science 2018 t-statistic` = `SCZ.t.value`) %>% 
+  dplyr::select(gene_id, `Gandal, Science 2018 t-statistic`) %>% 
+  dplyr::mutate(Comparison = "Control_vs_SCZ")
   
 
 df <- inner_join(mpp_acc, mpp_dlpfc,
@@ -63,18 +91,26 @@ df <- inner_join(df, hbcc_dsACC, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_stg, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_sgACC, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_dlpfc, by = c("Comparison", "gene_id"))
+#Remove transcript Ids
+df <- df %>% 
+  separate(gene_id, c("gene_id", "transcript")) %>% 
+  dplyr::select(-one_of("transcript"))
+df <- inner_join(df, CMC1, by = c("Comparison", "gene_id")) 
+df <- inner_join(df, CMC_HBCC, by = c("Comparison", "gene_id"))
+df <- inner_join(df, gandal, by = c("Comparison", "gene_id"))
 
-conditions = list(c(2,3), c(2,4), c(2,5), c(2,6), c(2,7), c(3,4), c(3,5),c(3,6), c(3,7), c(4,5), c(4,6), c(4,7), c(5,6), c(5,7), c(6,7))
+
+#conditions = list(c(2,3), c(2,4), c(2,5), c(2,6), c(2,7), c(3,4), c(3,5),c(3,6), c(3,7), c(4,5), c(4,6), c(4,7), c(5,6), c(5,7), c(6,7))
 ```
 
 ```{r functions}
 plot_t <- function(df, conditions){
   p = list()
-  for(i in seq_along(conditions)){
-  positions = conditions[i]
+  for(i in seq_along(conditions[,1])){
+  positions = conditions[i,]
   positions
-  x = df[unlist(positions)[1]]
-  y = df[unlist(positions)[2]]
+  x = df[positions[1]]
+  y = df[positions[2]]
   computed_cor = cor(x, y, method = "spearman")
   x_var <- names(x)
   y_var <- names(y)
@@ -84,19 +120,21 @@ plot_t <- function(df, conditions){
   theme_bw() +
   labs(
     caption = paste0("spearman correlation between the statistics is ", round(computed_cor, digits = 3))
-  )
+  ) +
+    theme(aspect.ratio=1)
   }
 multiplot(plotlist = p, cols = 2)
 }
 ```
 
 # Control vs Other
-```{r plota, fig.width = 10, fig.height = 20}
+```{r plota, fig.width = 20, fig.height = 40}
 df_one <- df[df$Comparison %in% "Control_vs_Other",] %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
 
+conditions <- gtools::combinations(n = ncol(df_one), 2, seq_len(ncol(df_one)))
 plot_t(df_one, conditions)
 ```
 
@@ -107,14 +145,12 @@ colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
 cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
-dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
 
 Heatmap(as.matrix(cor$r), 
         name = "spearman cor", 
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        cluster_rows = dend,
         row_names_gp = gpar(fontsize = 10),
         column_names_gp = gpar(fontsize = 10)
         )
@@ -122,7 +158,7 @@ Heatmap(as.matrix(cor$r),
 
 
 # Control vs SCZ
-```{r plotb, fig.width = 10, fig.height = 20}
+```{r plotb, fig.width = 20, fig.height = 40}
 df_two <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
@@ -139,21 +175,19 @@ colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
 cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
-dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
 
 Heatmap(as.matrix(cor$r), 
         name = "spearman cor", 
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        cluster_rows = dend,
         row_names_gp = gpar(fontsize = 10),
         column_names_gp = gpar(fontsize = 10)
         )
 ```
 
 # Other vs SCZ
-```{r plotc, fig.width = 10, fig.height = 20}
+```{r plotc, fig.width = 20, fig.height = 40}
 df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
@@ -170,20 +204,18 @@ colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
 cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
-dend <-  dendsort(hclust(dist(as.matrix(cor$r))))
 
 Heatmap(as.matrix(cor$r), 
         name = "spearman cor", 
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        cluster_rows = dend,
         row_names_gp = gpar(fontsize = 10),
         column_names_gp = gpar(fontsize = 10)
         )
 ```
 
-
+Code: `r thisFile`
 
 ```{r store.files}
 CODE <- Folder(name = "t-statistics across cohorts", parentId = "syn22012942")
