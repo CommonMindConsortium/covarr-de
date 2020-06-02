@@ -1,7 +1,7 @@
 ---
 title: "Graphics"
 author: "KM"
-date: "5/18/2020"
+date: "`r date()`"
 output: html_document
 ---
 
@@ -140,10 +140,9 @@ plot_t(df_one, conditions)
 ```
 
 ```{r heatmapa, fig.width = 5, fig.height = 5 }
-for_fig <- dplyr::select(df_one, -Comparison)
-colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+colnames(df_one) <- gsub(" t-statistic", "", colnames(df_one))
   
-cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+cor <- corr.test(df_one, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
 
@@ -173,10 +172,9 @@ plot_t(df_two, conditions)
 
 
 ```{r heatmapb, fig.width = 5, fig.height = 5 }
-for_fig <- dplyr::select(df_two, -Comparison)
-colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
-cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+cor <- corr.test(df_two, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
 
@@ -205,10 +203,9 @@ plot_t(df_three, conditions)
 
 
 ```{r heatmapc, fig.width = 5, fig.height = 5 }
-for_fig <- dplyr::select(df_three, -Comparison)
-colnames(for_fig) <- gsub(" t-statistic", "", colnames(for_fig))
+colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
-cor <- corr.test(for_fig, use = "pairwise.complete.obs", method = "spearman")
+cor <- corr.test(df_three, use = "pairwise.complete.obs", method = "spearman")
 
 colors <- colorRamp2(c(0, 1), c("white", "red"))
 
