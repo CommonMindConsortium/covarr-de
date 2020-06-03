@@ -143,19 +143,10 @@ colnames(df_one) <- gsub(" t-statistic", "", colnames(df_one))
   
 cor <- corr.test(df_one, use = "pairwise.complete.obs", method = "spearman")
 
-colors <- colorRamp2(c(0, 1), c("white", "red"))
-
-Heatmap(as.matrix(cor$r), 
-        name = "spearman cor", 
-        rect_gp = gpar(col = "white", lwd = 2),
-        column_names_rot = 45,
-        col = colors,
-        row_names_gp = gpar(fontsize = 12),
-        column_names_gp = gpar(fontsize = 12),
-        cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
-          }
-        )
+col2 <- colorRampPalette(rev(c("#67001F", "#B2182B", "#D6604D", "#F4A582",
+                           "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
+                           "#4393C3", "#2166AC", "#053061")))
+corrplot(cor$r, col = col2(200))
 ```
 
 
@@ -187,19 +178,7 @@ colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
 cor <- corr.test(df_two, use = "pairwise.complete.obs", method = "spearman")
 
-colors <- colorRamp2(c(0, 1), c("white", "red"))
-
-Heatmap(as.matrix(cor$r), 
-        name = "spearman cor", 
-        rect_gp = gpar(col = "white", lwd = 2),
-        column_names_rot = 45,
-        col = colors,
-        row_names_gp = gpar(fontsize = 12),
-        column_names_gp = gpar(fontsize = 12),
-        cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
-          }
-        )
+corrplot(cor$r, col = col2(200))
 ```
 
 # Other vs SCZ
@@ -228,19 +207,7 @@ colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
 cor <- corr.test(df_three, use = "pairwise.complete.obs", method = "spearman")
 
-colors <- colorRamp2(c(0, 1), c("white", "red"))
-
-Heatmap(as.matrix(cor$r), 
-        name = "spearman cor", 
-        rect_gp = gpar(col = "white", lwd = 2),
-        column_names_rot = 45,
-        col = colors,
-        row_names_gp = gpar(fontsize = 12),
-        column_names_gp = gpar(fontsize = 12),
-        cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
-          }
-        )
+corrplot(cor$r, col = col2(200))
 ```
 
 Code: `r thisFile`
