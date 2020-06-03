@@ -8,6 +8,7 @@ output: html_document
 ```{r knit2synapse, eval=FALSE}
 library(synapser)
 library(knit2synapse)
+synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/graphics_t_statistics.Rmd",
                                           parentId ="syn22012942",
                                           folderName = 't-statistics across cohorts')
@@ -117,8 +118,8 @@ multiplot(plotlist = p, cols = 2)
 ```
 
 # Control vs Other
-```{r plota, fig.width = 20, fig.height = 40}
-df_one <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
+```{r plota, fig.width = 10, fig.height = 100}
+df_one <- df[df$Comparison %in% "Control_vs_Other",] %>% 
   dplyr::select_if( ~ !all(is.na(.))) %>% 
   dplyr::select(-Comparison)
 
@@ -148,7 +149,10 @@ Heatmap(as.matrix(cor$r),
         column_names_rot = 45,
         col = colors,
         row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10)
+        column_names_gp = gpar(fontsize = 10),
+        cell_fun = function(j, i, x, y, width, height, fill) {
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+          }
         )
 ```
 
@@ -188,18 +192,27 @@ Heatmap(as.matrix(cor$r),
         column_names_rot = 45,
         col = colors,
         row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10)
+        column_names_gp = gpar(fontsize = 10),
+        cell_fun = function(j, i, x, y, width, height, fill) {
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+          }
         )
 ```
 
 # Other vs SCZ
-```{r plotc, fig.width = 20, fig.height = 40}
+```{r plotc, fig.width = 10, fig.height = 100}
 df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>% 
-  group_by(gene_id) %>% 
-  dplyr::filter(row_number()==1) %>% 
-  tibble::column_to_rownames(var = "gene_id") %>% 
   dplyr::select_if( ~ !all(is.na(.))) %>% 
   dplyr::select(-Comparison)
+
+#Remove transcript Ids
+df_three <- df_three %>% 
+  separate(gene_id, c("gene_id", "transcript")) %>% 
+  dplyr::select(-one_of("transcript"))
+df_three <- inner_join(df_three, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
 
 conditions <- gtools::combinations(n = ncol(df_three), 2, seq_len(ncol(df_three)))
 plot_t(df_three, conditions)
@@ -219,7 +232,10 @@ Heatmap(as.matrix(cor$r),
         column_names_rot = 45,
         col = colors,
         row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10)
+        column_names_gp = gpar(fontsize = 10),
+        cell_fun = function(j, i, x, y, width, height, fill) {
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+          }
         )
 ```
 
