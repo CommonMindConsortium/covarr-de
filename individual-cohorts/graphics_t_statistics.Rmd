@@ -111,7 +111,9 @@ plot_t <- function(df, conditions){
   labs(
     caption = paste0("spearman correlation between the statistics is ", round(computed_cor, digits = 3))
   ) +
-    theme(aspect.ratio=1)
+    theme(aspect.ratio=1, 
+          axis.text=element_text(size=12),
+          plot.caption = element_text(face = "bold", size = "12"))
   }
 multiplot(plotlist = p, cols = 2)
 }
@@ -127,7 +129,7 @@ df_one <- df[df$Comparison %in% "Control_vs_Other",] %>%
 df_one <- df_one %>% 
   separate(gene_id, c("gene_id", "transcript")) %>% 
   dplyr::select(-one_of("transcript"))
-df_one <- inner_join(df_one, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
+df_one <- inner_join(df_one, dplyr::select(gandal, gene_id,  `Gandal, SCZ t-statistic`,`Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -136,7 +138,7 @@ conditions <- gtools::combinations(n = ncol(df_one), 2, seq_len(ncol(df_one)))
 plot_t(df_one, conditions)
 ```
 
-```{r heatmapa, fig.width = 5, fig.height = 5 }
+```{r heatmapa, fig.width = 8, fig.height = 8 }
 colnames(df_one) <- gsub(" t-statistic", "", colnames(df_one))
   
 cor <- corr.test(df_one, use = "pairwise.complete.obs", method = "spearman")
@@ -148,10 +150,10 @@ Heatmap(as.matrix(cor$r),
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10),
+        row_names_gp = gpar(fontsize = 12),
+        column_names_gp = gpar(fontsize = 12),
         cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
           }
         )
 ```
@@ -169,7 +171,8 @@ df_two <- df_two %>%
   dplyr::select(-one_of("transcript"))
 df_two <- inner_join(df_two, CMC1, by = c("gene_id")) 
 df_two <- inner_join(df_two, CMC_HBCC, by = c("gene_id"))
-df_two <- inner_join(df_two, dplyr::select(gandal, gene_id, `Gandal, SCZ t-statistic`), by = c("gene_id")) %>% 
+df_two <- inner_join(df_two, dplyr::select(gandal, gene_id, `Gandal, SCZ t-statistic`, 
+                                           `Gandal, ASD t-statistic`, `Gandal, BD t-statistic`), by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -179,7 +182,7 @@ plot_t(df_two, conditions)
 ```
 
 
-```{r heatmapb, fig.width = 8, fig.height = 8 }
+```{r heatmapb, fig.width = 5, fig.height = 5 }
 colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
 cor <- corr.test(df_two, use = "pairwise.complete.obs", method = "spearman")
@@ -191,10 +194,10 @@ Heatmap(as.matrix(cor$r),
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10),
+        row_names_gp = gpar(fontsize = 12),
+        column_names_gp = gpar(fontsize = 12),
         cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
           }
         )
 ```
@@ -209,7 +212,8 @@ df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>%
 df_three <- df_three %>% 
   separate(gene_id, c("gene_id", "transcript")) %>% 
   dplyr::select(-one_of("transcript"))
-df_three <- inner_join(df_three, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
+df_three <- inner_join(df_three, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,
+                                               `Gandal, ASD t-statistic`, `Gandal, SCZ t-statistic`), by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -231,10 +235,10 @@ Heatmap(as.matrix(cor$r),
         rect_gp = gpar(col = "white", lwd = 2),
         column_names_rot = 45,
         col = colors,
-        row_names_gp = gpar(fontsize = 10),
-        column_names_gp = gpar(fontsize = 10),
+        row_names_gp = gpar(fontsize = 12),
+        column_names_gp = gpar(fontsize = 12),
         cell_fun = function(j, i, x, y, width, height, fill) {
-        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 8))
+        grid.text(sprintf("%.1f", as.matrix(cor$r)[i, j]), x, y, gp = gpar(fontsize = 12))
           }
         )
 ```
