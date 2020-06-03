@@ -67,22 +67,22 @@ hbcc_dlpfc <- readr::read_tsv(synGet("syn22084205")$path) %>%
 CMC1 <- readr::read_tsv(synGet("syn5607603")$path) %>% 
   dplyr::rename(gene_id = genes,
                 `CMC 1 t-statistic` = t) %>% 
-  dplyr::select(gene_id, `CMC 1 t-statistic`) %>% 
-  dplyr::mutate(Comparison = "Control_vs_SCZ")
+  dplyr::select(gene_id, `CMC 1 t-statistic`)
 # HBCC-DLPFC microarray
 CMC_HBCC <- readr::read_tsv(synGet("syn4941553")$path) %>% 
   dplyr::rename(gene_id = genes,
                 `HBCC microarray t-statistic` = t) %>% 
-  dplyr::select(gene_id, `HBCC microarray t-statistic`) %>%
-  dplyr::mutate(Comparison = "Control_vs_SCZ")
+  dplyr::select(gene_id, `HBCC microarray t-statistic`)
 # Gandal, Science 2018, Table S1
 # Use Tab:DGE
 # wget https://science.sciencemag.org/highwire/filestream/720110/field_highwire_adjunct_files/1/aat8127_Table_S1.xlsx
 gandal <- readxl::read_xlsx('../aat8127_Table_S1.xlsx', sheet = "DGE") %>% 
   dplyr::rename(gene_id = ensembl_gene_id,
-                `Gandal, Science 2018 t-statistic` = `SCZ.t.value`) %>% 
-  dplyr::select(gene_id, `Gandal, Science 2018 t-statistic`) %>% 
-  dplyr::mutate(Comparison = "Control_vs_SCZ")
+                `Gandal, SCZ t-statistic` = `SCZ.t.value`,
+                `Gandal, BD t-statistic` = `BD.t.value`,
+                `Gandal, ASD t-statistic` = `ASD.t.value`) %>%
+  dplyr::select(gene_id, `Gandal, SCZ t-statistic`,
+                `Gandal, BD t-statistic`, `Gandal, ASD t-statistic`)
   
 
 df <- inner_join(mpp_acc, mpp_dlpfc,
@@ -91,16 +91,6 @@ df <- inner_join(df, hbcc_dsACC, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_stg, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_sgACC, by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_dlpfc, by = c("Comparison", "gene_id"))
-#Remove transcript Ids
-df <- df %>% 
-  separate(gene_id, c("gene_id", "transcript")) %>% 
-  dplyr::select(-one_of("transcript"))
-df <- left_join(df, CMC1, by = c("Comparison", "gene_id")) 
-df <- left_join(df, CMC_HBCC, by = c("Comparison", "gene_id"))
-df <- left_join(df, gandal, by = c("Comparison", "gene_id"))
-
-
-#conditions = list(c(2,3), c(2,4), c(2,5), c(2,6), c(2,7), c(3,4), c(3,5),c(3,6), c(3,7), c(4,5), c(4,6), c(4,7), c(5,6), c(5,7), c(6,7))
 ```
 
 ```{r functions}
@@ -128,12 +118,18 @@ multiplot(plotlist = p, cols = 2)
 
 # Control vs Other
 ```{r plota, fig.width = 20, fig.height = 40}
-df_one <- df[df$Comparison %in% "Control_vs_Other",] %>% 
-  group_by(gene_id) %>% 
-  dplyr::filter(row_number()==1) %>% 
-  tibble::column_to_rownames(var = "gene_id") %>% 
+df_one <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
   dplyr::select_if( ~ !all(is.na(.))) %>% 
   dplyr::select(-Comparison)
+
+#Remove transcript Ids
+df_one <- df_one %>% 
+  separate(gene_id, c("gene_id", "transcript")) %>% 
+  dplyr::select(-one_of("transcript"))
+df_one <- inner_join(df_one, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
 
 conditions <- gtools::combinations(n = ncol(df_one), 2, seq_len(ncol(df_one)))
 plot_t(df_one, conditions)
@@ -158,20 +154,28 @@ Heatmap(as.matrix(cor$r),
 
 
 # Control vs SCZ
-```{r plotb, fig.width = 20, fig.height = 40}
+```{r plotb, fig.width = 10, fig.height = 100}
 df_two <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
-  group_by(gene_id) %>% 
-  dplyr::filter(row_number()==1) %>% 
-  tibble::column_to_rownames(var = "gene_id") %>% 
   dplyr::select_if( ~ !all(is.na(.))) %>% 
   dplyr::select(-Comparison)
+
+#Remove transcript Ids
+df_two <- df_two %>% 
+  separate(gene_id, c("gene_id", "transcript")) %>% 
+  dplyr::select(-one_of("transcript"))
+df_two <- inner_join(df_two, CMC1, by = c("gene_id")) 
+df_two <- inner_join(df_two, CMC_HBCC, by = c("gene_id"))
+df_two <- inner_join(df_two, dplyr::select(gandal, gene_id, `Gandal, SCZ t-statistic`), by = c("gene_id")) %>% 
+  group_by(gene_id) %>% 
+  dplyr::filter(row_number()==1) %>% 
+  tibble::column_to_rownames(var = "gene_id")
 
 conditions <- gtools::combinations(n = ncol(df_two), 2, seq_len(ncol(df_two)))
 plot_t(df_two, conditions)
 ```
 
 
-```{r heatmapb, fig.width = 5, fig.height = 5 }
+```{r heatmapb, fig.width = 8, fig.height = 8 }
 colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
 cor <- corr.test(df_two, use = "pairwise.complete.obs", method = "spearman")
