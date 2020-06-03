@@ -147,7 +147,7 @@ hcl = hclust(as.dist(1-cor))
 # reorder based on clustering
 reorder = cor[hcl$order, hcl$order]
 # plot clustering
-plot(hcl)
+plot(hcl, hang=-1)
 col2 <- colorRampPalette(rev(c("#67001F", "#B2182B", "#D6604D", "#F4A582",
                            "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
                            "#4393C3", "#2166AC", "#053061")))
@@ -187,7 +187,7 @@ hcl = hclust(as.dist(1-cor))
 # reorder based on clustering
 reorder = cor[hcl$order, hcl$order]
 # plot clustering
-plot(hcl)
+plot(hcl, hang=-1)
 corrplot(reorder, col = col2(200))
 ```
 
@@ -221,7 +221,7 @@ hcl = hclust(as.dist(1-cor))
 # reorder based on clustering
 reorder = cor[hcl$order, hcl$order]
 # plot clustering
-plot(hcl)
+plot(hcl, hang=-1)
 corrplot(reorder, col = col2(200))
 ```
 
