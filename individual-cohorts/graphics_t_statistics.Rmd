@@ -182,7 +182,7 @@ plot_t(df_two, conditions)
 ```
 
 
-```{r heatmapb, fig.width = 5, fig.height = 5 }
+```{r heatmapb, fig.width = 8, fig.height = 8 }
 colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
 cor <- corr.test(df_two, use = "pairwise.complete.obs", method = "spearman")
@@ -223,7 +223,7 @@ plot_t(df_three, conditions)
 ```
 
 
-```{r heatmapc, fig.width = 5, fig.height = 5 }
+```{r heatmapc, fig.width = 8, fig.height = 8 }
 colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
 cor <- corr.test(df_three, use = "pairwise.complete.obs", method = "spearman")
