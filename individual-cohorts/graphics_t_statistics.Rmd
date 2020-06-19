@@ -201,7 +201,7 @@ corrplot(reorder, col = col2(200))
 
 
 # Control vs SCZ
-```{r plotb, fig.width = 10, fig.height = 100}
+```{r plotb, fig.width = 10, fig.height = 150}
 df_two <- df[df$Comparison %in% "Control_vs_SCZ",] %>% 
   dplyr::select_if( ~ !all(is.na(.))) %>% 
   dplyr::select(-Comparison)
@@ -225,7 +225,7 @@ plot_t(df_two, conditions)
 ```{r heatmapb, fig.width = 8, fig.height = 8 }
 colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
-cor <- cor(df_one)
+cor <- cor(df_two)
 # clustering based on distance
 hcl = hclust(as.dist(1-cor))
 # reorder based on clustering
@@ -259,7 +259,7 @@ plot_t(df_three, conditions)
 ```{r heatmapc, fig.width = 8, fig.height = 8 }
 colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
-cor <- cor(df_one)
+cor <- cor(df_three)
 # clustering based on distance
 hcl = hclust(as.dist(1-cor))
 # reorder based on clustering
