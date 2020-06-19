@@ -21,6 +21,7 @@ library(dplyr)
 library(ComplexHeatmap)
 library(readxl)
 library(gtools)
+library(pvclust)
 
 synLogin()
 
@@ -84,8 +85,48 @@ gandal <- readxl::read_xlsx('../aat8127_Table_S1.xlsx', sheet = "DGE") %>%
                 `Gandal, ASD t-statistic` = `ASD.t.value`) %>%
   dplyr::select(gene_id, `Gandal, SCZ t-statistic`,
                 `Gandal, BD t-statistic`, `Gandal, ASD t-statistic`)
-  
 
+# AMP-AD RNASeq reprocessing GRCh37 - https://www.synapse.org/#!Synapse:syn9702085
+MSSM <- readr::read_tsv(synGet("syn10526259")$path) %>%
+  dplyr::filter(Comparison %in% "AD-CONTROL",
+                Model %in% "Diagnosis") %>%
+  dplyr::select(ensembl_gene_id, Tissue, t) %>%
+  dplyr::group_by(ensembl_gene_id, Tissue) %>% 
+  dplyr::filter(row_number() == 1) %>% 
+  tidyr::pivot_wider(names_from = Tissue,
+                     values_from = t) %>%
+  dplyr::rename(`AMP-AD MSSM FP AD t-statistic` = FP,
+                `AMP-AD MSSM IGF AD t-statistic` = IFG,
+                `AMP-AD MSSM PHG AD t-statistic` = PHG,
+                `AMP-AD MSSM STG AD t-statistic` = STG,
+                gene_id = ensembl_gene_id) %>% 
+  dplyr::select(gene_id, `AMP-AD MSSM STG AD t-statistic`) 
+MSSM <- MSSM[!is.na(MSSM$`AMP-AD MSSM STG AD t-statistic`),]
+  
+MAYO <- readr::read_tsv(synGet("syn8468023")$path) %>% 
+  dplyr::filter(Comparison %in% "AD-CONTROL",
+                Model %in% "Diagnosis") %>%
+  dplyr::select(ensembl_gene_id, `Tissue.ref`, t) %>%
+  dplyr::group_by(ensembl_gene_id, `Tissue.ref`) %>% 
+  dplyr::filter(row_number() == 1) %>% 
+  tidyr::pivot_wider(names_from = `Tissue.ref`,
+                     values_from = t) %>% 
+  dplyr::rename(`AMP-AD MAYO CBE AD t-statistic` = CBE,
+                `AMP-AD MAYO TCX AD t-statistic` = TCX,
+                gene_id = ensembl_gene_id) %>% 
+  dplyr::select(-`AMP-AD MAYO TCX AD t-statistic`)
+  
+ROSMAP <- readr::read_tsv(synGet("syn8456721")$path) %>%
+    dplyr::filter(Comparison %in% "AD-CONTROL",
+                Model %in% "Diagnosis") %>%
+  dplyr::rename(gene_id = ensembl_gene_id, 
+                `AMP-AD ROSMAP DLPFC AD t-statistic` = t) %>% 
+  dplyr::select(gene_id, `AMP-AD ROSMAP DLPFC AD t-statistic`)
+  
+out_group <- inner_join(MSSM, MAYO) %>% 
+  inner_join(., ROSMAP) %>% 
+  inner_join(., gandal)
+  
 df <- inner_join(mpp_acc, mpp_dlpfc,
                  by = c("Comparison", "gene_id"))
 df <- inner_join(df, hbcc_dsACC, by = c("Comparison", "gene_id"))
@@ -107,8 +148,11 @@ plot_t <- function(df, conditions){
   p[[i]] = ggplot(df, aes(x = .data[[x_var]], y = .data[[y_var]])) +
   geom_hex() +
   geom_abline() +
+  geom_smooth(method = "lm") +
   theme_bw() +
-  labs(
+  xlim(8,-8) + 
+  ylim(8,-8) +
+    labs(
     caption = paste0("spearman correlation between the statistics is ", round(computed_cor, digits = 3))
   ) +
     theme(aspect.ratio=1, 
@@ -129,7 +173,7 @@ df_one <- df[df$Comparison %in% "Control_vs_Other",] %>%
 df_one <- df_one %>% 
   separate(gene_id, c("gene_id", "transcript")) %>% 
   dplyr::select(-one_of("transcript"))
-df_one <- inner_join(df_one, dplyr::select(gandal, gene_id,  `Gandal, SCZ t-statistic`,`Gandal, BD t-statistic`,`Gandal, ASD t-statistic`), by = c("gene_id")) %>% 
+df_one <- inner_join(df_one, out_group, by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -143,9 +187,7 @@ colnames(df_one) <- gsub(" t-statistic", "", colnames(df_one))
 
 cor <- cor(df_one)
 # clustering based on distance
-hcl = hclust(as.dist(1-cor))
-# reorder based on clustering
-reorder = cor[hcl$order, hcl$order]
+hcl <- pvclust(cor)
 # plot clustering
 plot(hcl, hang=-1)
 col2 <- colorRampPalette(rev(c("#67001F", "#B2182B", "#D6604D", "#F4A582",
@@ -167,8 +209,7 @@ df_two <- df_two %>%
   dplyr::select(-one_of("transcript"))
 df_two <- inner_join(df_two, CMC1, by = c("gene_id")) 
 df_two <- inner_join(df_two, CMC_HBCC, by = c("gene_id"))
-df_two <- inner_join(df_two, dplyr::select(gandal, gene_id, `Gandal, SCZ t-statistic`, 
-                                           `Gandal, ASD t-statistic`, `Gandal, BD t-statistic`), by = c("gene_id")) %>% 
+df_two <- inner_join(df_two, out_group, by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -183,9 +224,7 @@ colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
 cor <- cor(df_two)
 # clustering based on distance
-hcl = hclust(as.dist(1-cor))
-# reorder based on clustering
-reorder = cor[hcl$order, hcl$order]
+hcl <- pvclust(cor)
 # plot clustering
 plot(hcl, hang=-1)
 corrplot(reorder, col = col2(200))
@@ -201,8 +240,7 @@ df_three <- df[df$Comparison %in% "Other_vs_SCZ",] %>%
 df_three <- df_three %>% 
   separate(gene_id, c("gene_id", "transcript")) %>% 
   dplyr::select(-one_of("transcript"))
-df_three <- inner_join(df_three, dplyr::select(gandal, gene_id,  `Gandal, BD t-statistic`,
-                                               `Gandal, ASD t-statistic`, `Gandal, SCZ t-statistic`), by = c("gene_id")) %>% 
+df_three <- inner_join(df_three, out_group, by = c("gene_id")) %>% 
   group_by(gene_id) %>% 
   dplyr::filter(row_number()==1) %>% 
   tibble::column_to_rownames(var = "gene_id")
@@ -217,9 +255,7 @@ colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
 cor <- cor(df_three)
 # clustering based on distance
-hcl = hclust(as.dist(1-cor))
-# reorder based on clustering
-reorder = cor[hcl$order, hcl$order]
+hcl <- pvclust(cor)
 # plot clustering
 plot(hcl, hang=-1)
 corrplot(reorder, col = col2(200))
