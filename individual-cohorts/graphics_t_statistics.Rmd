@@ -187,9 +187,12 @@ colnames(df_one) <- gsub(" t-statistic", "", colnames(df_one))
 
 cor <- cor(df_one)
 # clustering based on distance
-hcl <- pvclust(cor)
+hcl = hclust(as.dist(1-cor))
+# reorder based on clustering
+reorder = cor[hcl$order, hcl$order]
+results <- pvclust(cor)
 # plot clustering
-plot(hcl, hang=-1)
+plot(results, hang=-1)
 col2 <- colorRampPalette(rev(c("#67001F", "#B2182B", "#D6604D", "#F4A582",
                            "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
                            "#4393C3", "#2166AC", "#053061")))
@@ -222,11 +225,14 @@ plot_t(df_two, conditions)
 ```{r heatmapb, fig.width = 8, fig.height = 8 }
 colnames(df_two) <- gsub(" t-statistic", "", colnames(df_two))
   
-cor <- cor(df_two)
+cor <- cor(df_one)
 # clustering based on distance
-hcl <- pvclust(cor)
+hcl = hclust(as.dist(1-cor))
+# reorder based on clustering
+reorder = cor[hcl$order, hcl$order]
+results <- pvclust(cor)
 # plot clustering
-plot(hcl, hang=-1)
+plot(results, hang=-1)
 corrplot(reorder, col = col2(200))
 ```
 
@@ -253,11 +259,14 @@ plot_t(df_three, conditions)
 ```{r heatmapc, fig.width = 8, fig.height = 8 }
 colnames(df_three) <- gsub(" t-statistic", "", colnames(df_three))
   
-cor <- cor(df_three)
+cor <- cor(df_one)
 # clustering based on distance
-hcl <- pvclust(cor)
+hcl = hclust(as.dist(1-cor))
+# reorder based on clustering
+reorder = cor[hcl$order, hcl$order]
+results <- pvclust(cor)
 # plot clustering
-plot(hcl, hang=-1)
+plot(results, hang=-1)
 corrplot(reorder, col = col2(200))
 ```
 
