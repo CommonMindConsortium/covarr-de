@@ -26,6 +26,7 @@ library(readxl)
 library(gtools)
 library(corrplot)
 library(pvclust)
+library(metafor)
 
 synLogin()
 
@@ -38,7 +39,7 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r synapse.parameters, include=FALSE, cache=TRUE, eval=FALSE}
+```{r synapse.parameters, include=FALSE, cache=FALSE, eval=FALSE}
 thisFileName <- 'graphics_t_statistics.Rmd'
 
 # Github link
