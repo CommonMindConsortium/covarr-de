@@ -194,7 +194,7 @@ violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION,
 
 plotVarPart(sortCols(violin_plot))
 
-RESIDUAL.GENE_EXPRESSION = stats::residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
+RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
 
 ### Residual calculation
