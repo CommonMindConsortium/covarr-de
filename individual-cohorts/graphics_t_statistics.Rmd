@@ -1,5 +1,5 @@
 ---
-title: "Analysis of diferential expression results"
+title: "Sex-specific Meta-analysis in MSSM-Penn-Pitt and HBCC ACC/DLPFC"
 author: "KM and GH"
 date: "`r date()`"
 output: html_document
@@ -11,8 +11,8 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/graphics_t_statistics.Rmd",
-                                          parentId ="syn22012942",
-                                          folderName = 't-statistics across cohorts')
+                                          parentId ="syn21435176",
+                                          folderName = 'Sex-specific Meta-analysis')
 ```
 
 ```{r setup, include=FALSE}
@@ -520,6 +520,6 @@ corrplot(reorder, col = col2(200))
 Code: r thisFile
 
 ```{r store.files, eval=FALSE}
-CODE <- Folder(name = "t-statistics across cohorts", parentId = "syn22012942")
+CODE <- Folder(name = "Sex-specific Meta-analysis", parentId = "syn21435176")
 CODE <- synStore(CODE)
 ```
