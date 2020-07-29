@@ -59,7 +59,7 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r synapse.parameters, include=FALSE, cache=TRUE}
+```{r synapse.parameters, include=FALSE, cache=FALSE}
 parentId = 'syn22043922';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
