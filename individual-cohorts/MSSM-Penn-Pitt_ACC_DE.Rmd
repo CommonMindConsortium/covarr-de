@@ -26,6 +26,10 @@ library(lme4)
 library(variancePartition)
 library(synapser)
 library(knitr)
+library(githubr)
+library(CovariateAnalysis)
+library(edgeR)
+library(WGCNA)
 
 synLogin()
 
@@ -106,11 +110,13 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
   x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
 })
 # Test Dx-Sex
-COVARIATES <- COVARIATES %>% 
+COVARIATES <- COVARIATES %>%
+  tibble::rownames_to_column(var = "samples") %>% 
   tidyr::unite("Dx_Sex",
                dplyr::all_of(c("Dx", "Reported_Gender")),
                remove = TRUE) %>% 
-  dplyr::mutate(`Dx_Sex` = as.factor(`Dx_Sex`))
+  dplyr::mutate(`Dx_Sex` = as.factor(`Dx_Sex`)) %>% 
+  tibble::column_to_rownames(var = "samples")
 
 # Set covariates to adjust for from model selection
 adjust.covars <- c("Dx_Sex", "ageOfDeath", "RIN2", "RIN", "rRNARate", "IntronicRate", "IntragenicRate", "IntergenicRate")
@@ -188,18 +194,7 @@ violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION,
 
 plotVarPart(sortCols(violin_plot))
 
-# Residuals after normalisation
-RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
-
-# Find PC of residual gene expression and significant covariates that are highly correlated with PCs
-residualSigCovars = runPCAandPlotCorrelations(RESIDUAL.GENE_EXPRESSION, COVARIATES,
-                                              'adjusted design(voom-normalized)',
-                                              isKeyPlot=TRUE)
-```
-
-### Sanity check
-```{r residualSigCovars.manual, fig.width=12, fig.height=8}
-residualSigCovars[["PC_res"]][[2]]$plotData
+RESIDUAL.GENE_EXPRESSION = stats::residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
 
 ### Residual calculation
@@ -238,7 +233,7 @@ p
 
 ```{r decompose.normalise.data2.1, fig.height=8, fig.width=12, results='asis'}
 # Eucledian tree based analysis
-COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx','Institution')])
+COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx_Sex','Institution')])
 
 tree = hclust(as.dist(t(RESIDUAL.GENE_EXPRESSION)))
 cols = WGCNA::labels2colors(COVARIATES.tmp);
@@ -248,7 +243,7 @@ WGCNA::plotDendroAndColors(tree,
                            dendroLabels = FALSE, 
                            abHeight = 0.80, 
                            main = "Sample dendrogram",
-                           groupLabels = colnames(COVARIATES.tmp[,c('Dx','Institution')]))
+                           groupLabels = colnames(COVARIATES.tmp[,c('Dx_Sex','Institution')]))
 ```
 
 ```{r temp1, include=F}
@@ -281,11 +276,17 @@ L3 = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION,
                                    data = COVARIATES, 
                                    coefficient = c("Dx_SexOther_Female", "Dx_SexOther_Male"))
 
-L = cbind(L1, L2, L3, L4)
+# Manually set comparison between SCZ+Other vs. Control 
+L = cbind(L1, L2, L3, 
+          data.frame(L4 = c(1,0,-0.5, 0, -0.5, 0, 0, 0, 0, 0, 0, 0)),
+          data.frame(L5 = c(0, 1, 0, -0.5, 0, -0.5, 0, 0, 0, 0, 0, 0)))
 
 contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"), 
               glue::glue_collapse(names(L2[L2 != 0]), "-"),
-              glue::glue_collapse(names(L3[L3 != 0]), "-")
+              glue::glue_collapse(names(L3[L3 != 0]), "-"),
+              glue::glue("Dx_SexControl_Female-Dx_SexOther_FemaleDx_SexSCZ_Female"),
+              glue::glue("Dx_SexControl_Male-Dx_SexOther_MaleDx_SexSCZ_Male"),
+
 )
 
 # Visualize contrast matrix
@@ -325,7 +326,7 @@ Ensemble2HGNC <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol",
                        mart = mart)
 
 # Get differential expression
-DE = lapply(glue::glue("L{1:3}"), function(i, FIT){
+DE = lapply(glue::glue("L{1:5}"), function(i, FIT){
   topTable(FIT, coef=i, number = Inf) %>%
     rownameToFirstColumn('gene_id') %>% 
     left_join(backgroundGenes)
