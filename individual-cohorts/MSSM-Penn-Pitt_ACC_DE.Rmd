@@ -30,6 +30,7 @@ library(githubr)
 library(CovariateAnalysis)
 library(edgeR)
 library(WGCNA)
+library(biomaRt)
 
 synLogin()
 
@@ -257,9 +258,7 @@ Genes that are differentially expressed at an FDR <= 0.05 are:
 adjust.covars <- adjust.covars[!(adjust.covars %in% "RIN2")]
 formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
 ```
-#drop redundancy - RIN2 or RIN
-#use canCorPairs() to test colinearity, don't want var of interest to be correlated
-#leave out random effects
+
 `r formula`
 
 ```{r diffExp, fig.height=10, fig.width=15}
@@ -358,7 +357,7 @@ tmp1 = DE %>%
 
 kable(full_join(tmp,tmp1))
 
-p = ggplot(DE, aes(y = -log10(adj.P.Val), x = logFC, color = Direction)) + geom_point() + xlim(c(-1,1))
+p = ggplot(DE, aes(y = -log10(adj.P.Val), x = logFC, color = Direction)) + geom_point() + xlim(c(-1,1)) + ylim(c(0,100))
 p = p + scale_color_manual(values = c('green','grey','red')) + theme_bw() %+replace% theme(legend.position = 'top')
 p = p + facet_grid(.~Comparison, scales = 'fixed')
 p
