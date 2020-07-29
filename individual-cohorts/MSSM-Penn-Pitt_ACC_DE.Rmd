@@ -53,7 +53,7 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r synapse.parameters, include=FALSE, cache=TRUE}
+```{r synapse.parameters, include=FALSE, cache=FALSE}
 parentId = 'syn22012953';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx - Sex';
@@ -285,8 +285,7 @@ contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"),
               glue::glue_collapse(names(L2[L2 != 0]), "-"),
               glue::glue_collapse(names(L3[L3 != 0]), "-"),
               glue::glue("Dx_SexControl_Female-Dx_SexOther_FemaleDx_SexSCZ_Female"),
-              glue::glue("Dx_SexControl_Male-Dx_SexOther_MaleDx_SexSCZ_Male"),
-
+              glue::glue("Dx_SexControl_Male-Dx_SexOther_MaleDx_SexSCZ_Male")
 )
 
 # Visualize contrast matrix
