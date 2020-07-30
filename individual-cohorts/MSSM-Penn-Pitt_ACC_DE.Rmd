@@ -301,9 +301,11 @@ Ensemble2HGNC <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol",
                        mart = mart)
 
 # Get differential expression
-DE = topTable(FIT.CONTR, coef= "L1", number = Inf) %>% 
-    rownameToFirstColumn('gene_id') %>%
+DE = lapply(glue::glue("L1"), function(i, FIT){
+  topTable(FIT, coef=i, number = Inf) %>%
+    rownameToFirstColumn('gene_id') %>% 
     left_join(backgroundGenes)
+}, FIT.CONTR) 
 
 names(DE) <- contrast
 
