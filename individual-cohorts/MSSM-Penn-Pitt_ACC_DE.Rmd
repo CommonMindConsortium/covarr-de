@@ -58,7 +58,7 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r synapse.parameters, include=FALSE, cache=TRUE}
+```{r synapse.parameters, include=FALSE, cache=FALSE}
 parentId = 'syn22012953';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
@@ -193,16 +193,6 @@ plotVarPart(sortCols(violin_plot))
 
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
-
-# Find PC of residual gene expression and significant covariates that are highly correlated with PCs
-residualSigCovars = runPCAandPlotCorrelations(RESIDUAL.GENE_EXPRESSION, COVARIATES,
-                                              'adjusted design(voom-normalized)',
-                                              isKeyPlot=TRUE)
-```
-
-### Sanity check
-```{r residualSigCovars.manual, fig.width=12, fig.height=8}
-residualSigCovars[["PC_res"]][[2]]$plotData
 ```
 
 ### Residual calculation
@@ -264,9 +254,6 @@ Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
 formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
 ```
-#drop redundancy - RIN2 or RIN
-#use canCorPairs() to test colinearity, don't want var of interest to be correlated
-#leave out random effects
 `r formula`
 
 ```{r diffExp, fig.height=10, fig.width=15}
