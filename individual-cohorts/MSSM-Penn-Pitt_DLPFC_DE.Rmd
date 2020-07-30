@@ -106,7 +106,7 @@ COVARIATES = right_join(METADATA, COVARIATES, by = c("Sample_RNA_ID" = "SampleID
   tibble::column_to_rownames(var = "Sample_RNA_ID")
 
 # Set variable class
-FactorCovariates <- c("Individual_ID", "Institution", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
+FactorCovariates <- c("Individual_ID", "Institution", "LibraryBatch", "Dx_Sex", "RibozeroBatch", "FlowcellBatch")
 COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
 
 ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
@@ -127,7 +127,7 @@ COVARIATES <- COVARIATES %>%
 
 # Set covariates to adjust for from model selection
 adjust.covars <- c("Dx_Sex", "ageOfDeath", "RIN2", "RIN", "IntronicRate", "IntragenicRate")
-random_effect <- c("Institution", "Reported_Gender")
+random_effect <- c("Institution")
 ```
 
 ### Normalisation - Dx_Sex
