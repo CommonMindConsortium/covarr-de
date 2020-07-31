@@ -58,7 +58,7 @@ knitr::opts_chunk$set(
   cache = TRUE)
 ```
 
-```{r synapse.parameters, include=FALSE, cache=TRUE}
+```{r synapse.parameters, include=FALSE, cache=FALSE}
 parentId = 'syn22050019';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx_Sex';
@@ -288,7 +288,7 @@ contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"),
               glue::glue_collapse(names(L2[L2 != 0]), "-"),
               glue::glue_collapse(names(L3[L3 != 0]), "-"),
               glue::glue("Dx_SexControl_Female-Dx_SexOther_FemaleDx_SexSCZ_Female"),
-              glue::glue("Dx_SexControl_Male-Dx_SexOther_MaleDx_SexSCZ_Male"),
+              glue::glue("Dx_SexControl_Male-Dx_SexOther_MaleDx_SexSCZ_Male")
 )
 
 # Visualize contrast matrix
@@ -326,6 +326,8 @@ Ensemble2HGNC <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol",
                        filters = "ensembl_gene_id", 
                        values = backgroundGenes$ensembl_gene_id,
                        mart = mart)
+
+FIT.CONTR <- eBayes(FIT.CONTR)
 
 # Get differential expression
 DE = lapply(glue::glue("L{1:5}"), function(i, FIT){
@@ -369,7 +371,6 @@ p
 
 ### Associate differential expression results with gc content, gene length and average expression
 ```{r associate.de, fig.height=10, fig.width=15}
-stop("check for errors")
 pl = list()
 pl[[1]] = ggplot(DE %>% 
                    arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = log10(Length), y = logFC, color = Direction)) + geom_point() 
