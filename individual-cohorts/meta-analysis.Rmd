@@ -1,5 +1,5 @@
 ---
-title: "Meta-analysis on diagnosis in MSSM-Penn-Pitt and HBCC ACC/DLPFC"
+title: "Meta-analysis on diagnosis and sex in MSSM-Penn-Pitt and HBCC ACC/DLPFC"
 author: "KM and GH"
 date: "`r date()`"
 output: html_document
@@ -11,7 +11,7 @@ library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta-analysis.Rmd",
                                           parentId ="syn22276904",
-                                          folderName = 'Meta-analysis on diagnosis')
+                                          folderName = 'Meta-analysis on diagnosis and sex')
 ```
 
 ```{r setup, include=FALSE}
@@ -51,13 +51,13 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual
 ```
 
 ```{r input_data}
-mpp_acc <- readr::read_tsv(synGet("syn22079117")$path) %>% 
+mpp_acc <- readr::read_tsv(synGet("syn22276990")$path) %>% 
   dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
-mpp_dlpfc <- readr::read_tsv(synGet("syn22079472")$path) %>% 
+mpp_dlpfc <- readr::read_tsv(synGet("syn22277179")$path) %>% 
   dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
-hbcc_dsACC <- readr::read_tsv(synGet("syn22086829")$path) %>% 
+hbcc_dsACC <- readr::read_tsv(synGet("syn22280364")$path) %>% 
   dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) 
-hbcc_dlpfc <- readr::read_tsv(synGet("syn22084205")$path) %>% 
+hbcc_dlpfc <- readr::read_tsv(synGet("syn22280045")$path) %>% 
   dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
 ```
 
@@ -383,3 +383,4 @@ plot_forrest(dlpfcList, ensID)
 ```
 
 ### Source
+[markdown](`r thisFile`)
