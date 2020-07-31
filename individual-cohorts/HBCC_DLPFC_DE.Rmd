@@ -118,7 +118,6 @@ COVARIATES <- COVARIATES %>%
 
 # Set covariates to adjust for from model selection
 adjust.covars <- c("Dx_Sex", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
-random.effect <- c("Reported_Gender")
 ```
 
 ### Normalisation - Dx_Sex
@@ -129,7 +128,7 @@ writeLines(glue::glue('Using following covariates in the model:',
                  glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
                  ' as fixed effects.'))
 
-col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+col_type <- dplyr::select(COVARIATES, c(adjust.covars)) %>%
   dplyr::summarise_all(class) %>% 
   tidyr::gather(variable, class)
 
@@ -142,7 +141,7 @@ adjust.covars = sapply(1:length(col_type$class), function(i){
   })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "))    
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
@@ -261,7 +260,7 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
-formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "))    
 ```
 
 `r formula`
