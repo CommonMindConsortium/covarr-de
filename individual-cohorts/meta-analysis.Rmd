@@ -217,7 +217,7 @@ plot_forrest = function(resList, ensID) {
 }
 ```
 
-# Control vs SCZ
+# Control - Female vs Male
 ```{r meta_analysis.SZ}
 make_list <- function(mpp, hbcc, string) {
   list <- list(MPP = mpp %>%
@@ -230,8 +230,8 @@ make_list <- function(mpp, hbcc, string) {
                  as.data.frame)
 }
 
-dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_vs_SCZ")
-accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_vs_SCZ")
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_Female_vs_Control_Male")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_Female_vs_Control_Male")
 
 rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
 rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
@@ -255,7 +255,7 @@ plotVolcano( res_dlpfc, 20) + ggtitle("Meta analysis - DLPFC")
 plotVolcano( res_acc, 20) + ggtitle("Meta analysis - ACC")
 ```
 
-# Control vs Other/SCZ
+# SCZ - Female vs Male
 ```{r meta_analysis.SCZOther}
 make_list <- function(mpp, hbcc, string) {
   list <- list(MPP = mpp %>%
@@ -268,8 +268,8 @@ make_list <- function(mpp, hbcc, string) {
                  as.data.frame)
 }
 
-dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_vs_OtherSCZ")
-accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_vs_OtherSCZ")
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "SCZ_Female_vs_SCZ_Male")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "SCZ_Female_vs_SCZ_Male")
 
 rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
 rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
@@ -293,7 +293,7 @@ plotVolcano( res_dlpfc, 20) + ggtitle("Meta analysis - DLPFC")
 plotVolcano( res_acc, 20) + ggtitle("Meta analysis - ACC")
 ```
 
-# Control vs Other
+#Other - Female vs Male
 ```{r meta_analysis.CTOther}
 make_list <- function(mpp, hbcc, string) {
   list <- list(MPP = mpp %>%
@@ -306,8 +306,8 @@ make_list <- function(mpp, hbcc, string) {
                  as.data.frame)
 }
 
-dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_vs_Other")
-accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_vs_Other")
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Other_Female_vs_Other_Male")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Other_Female_vs_Other_Male")
 
 rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
 rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
@@ -331,7 +331,7 @@ plotVolcano( res_dlpfc, 20) + ggtitle("Meta analysis - DLPFC")
 plotVolcano( res_acc, 20) + ggtitle("Meta analysis - ACC")
 ```
 
-# Other vs SCZ
+# Female - Control vs Other/SCZ
 ```{r meta_analysis.OtherSCZ}
 make_list <- function(mpp, hbcc, string) {
   list <- list(MPP = mpp %>%
@@ -344,8 +344,46 @@ make_list <- function(mpp, hbcc, string) {
                  as.data.frame)
 }
 
-dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Other_vs_SCZ")
-accList <- make_list(mpp_acc, hbcc_dsACC, string = "Other_vs_SCZ")
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_Female_vs_Other_FemaleSCZ_Female")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_Female_vs_Other_FemaleSCZ_Female")
+
+rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
+rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
+
+res_dlpfc = run_meta_analysis( dlpfcList, "FE")
+res_dlpfc$Dataset = "Meta-analysis"
+
+rownames(accList[['MPP']]) = accList[['MPP']]$gene_id
+rownames(accList[['HBCC']]) = accList[['HBCC']]$gene_id
+
+res_acc = run_meta_analysis( accList, "FE")
+res_acc$Dataset = "Meta-analysis"
+```
+
+```{r plot.meta_analysisOtherSCZ}
+kable(table(res_dlpfc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))
+kable(table(res_acc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))
+
+plotVolcano( res_dlpfc, 20) + ggtitle("Meta analysis - DLPFC")
+
+plotVolcano( res_acc, 20) + ggtitle("Meta analysis - ACC")
+```
+
+# Male - Control vs Other/SCZ
+```{r meta_analysis.OtherSCZ}
+make_list <- function(mpp, hbcc, string) {
+  list <- list(MPP = mpp %>%
+                 unique() %>% 
+                 dplyr::filter(Comparison == string) %>% 
+                 as.data.frame,
+               HBCC = hbcc %>% 
+                 unique() %>% 
+                 dplyr::filter(Comparison == string) %>% 
+                 as.data.frame)
+}
+
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_Male_vs_Other_MaleSCZ_Male")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_Male_vs_Other_MaleSCZ_Male")
 
 rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
 rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
