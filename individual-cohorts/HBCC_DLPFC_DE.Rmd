@@ -110,7 +110,7 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 COVARIATES <- dplyr::rename(COVARIATES, Sex = Reported_Gender)
 
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Sex", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
+adjust.covars <- c("Sex", "Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
 ```
 
 ### Normalisation - Sex

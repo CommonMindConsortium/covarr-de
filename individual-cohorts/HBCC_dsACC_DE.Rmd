@@ -110,7 +110,7 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 COVARIATES <- dplyr::rename(COVARIATES, Sex = Reported_Gender)
 
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Sex", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate", "ageOfDeath")
+adjust.covars <- c("Sex", "Dx", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate", "ageOfDeath")
 random_effect <- c("IsolationBatch")
 ```
 
