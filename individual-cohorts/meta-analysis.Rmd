@@ -271,11 +271,12 @@ plot_forrest(dlpfcList, ensID)
 
 ```{r store}
 # Code
-CODE <- Folder(name = "Meta-analysis on sex", parentId = parentId)
+CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22276904") # Make sure these match the folder name and parent Id in the first chunk.
 CODE <- synStore(CODE)
 
 # Store meta-analysis
 res_dlpfc %>%
+  tibble::rownames_to_column(var = "gene_id") %>% 
   write.table(file = 'CMC_dlpfc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
 nEXP_OBJ = File('CMC_dlpfc_Sex_meta_analysis.tsv', 
                 name = 'Sex Normalised, meta-analysis (DLPFC)', 
@@ -283,6 +284,7 @@ nEXP_OBJ = File('CMC_dlpfc_Sex_meta_analysis.tsv',
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, activityName = activityName, 
                     executed = thisFile, activityDescription = activityDescription)
 res_acc %>%
+  tibble::rownames_to_column(var = "gene_id") %>% 
   write.table(file = 'CMC_acc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
 nEXP_OBJ = File('CMC_acc_Sex_meta_analysis.tsv', 
                 name = 'Sex Normalised, meta-analysis (ACC)', 
