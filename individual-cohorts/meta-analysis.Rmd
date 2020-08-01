@@ -281,16 +281,16 @@ res_dlpfc %>%
 nEXP_OBJ = File('CMC_dlpfc_Sex_meta_analysis.tsv', 
                 name = 'Sex Normalised, meta-analysis (DLPFC)', 
                 parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, activityName = activityName, 
-                    executed = thisFile, activityDescription = activityDescription)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
 res_acc %>%
   tibble::rownames_to_column(var = "gene_id") %>% 
   write.table(file = 'CMC_acc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
 nEXP_OBJ = File('CMC_acc_Sex_meta_analysis.tsv', 
                 name = 'Sex Normalised, meta-analysis (ACC)', 
                 parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, activityName = activityName, 
-                    executed = thisFile, activityDescription = activityDescription)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
 ```
 
 
