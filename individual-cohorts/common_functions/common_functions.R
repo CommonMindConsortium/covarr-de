@@ -1,68 +1,4 @@
----
-title: "Meta-analysis on sex in MSSM-Penn-Pitt and HBCC ACC/DLPFC"
-author: "KM and GH"
-date: "`r date()`"
-output: html_document
----
 
-```{r knit2synapse, eval=FALSE}
-library(synapser)
-library(knit2synapse)
-synLogin()
-knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta-analysis.Rmd",
-                                          parentId ="syn22276904",
-                                          folderName = 'Meta-analysis on sex')
-```
-
-```{r setup, include=FALSE}
-library(synapser)
-
-synLogin()
-
-library(ggplot2)
-library(dplyr)
-library(ComplexHeatmap)
-library(readxl)
-library(gtools)
-library(corrplot)
-library(pvclust)
-library(metafor)
-library(cowplot)
-library(org.Hs.eg.db)
-library(ggrepel)
-library(metafor)
-library(patchwork)
-
-knitr::opts_chunk$set(
-  echo = FALSE,
-  warning=FALSE,
-  message=FALSE,
-  error = FALSE,
-  tidy = FALSE,
-  cache = TRUE)
-```
-
-```{r synapse.parameters, include=FALSE, cache=FALSE, eval=TRUE}
-thisFileName <- 'meta-analysis.Rmd'
-
-# Github link
-thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
-```
-
-```{r input_data}
-mpp_acc <- readr::read_tsv(synGet("syn22278494")$path) %>% 
-  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
-mpp_dlpfc <- readr::read_tsv(synGet("syn22278597")$path) %>% 
-  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
-hbcc_dsACC <- readr::read_tsv(synGet("syn22280959")$path) %>% 
-  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) 
-hbcc_dlpfc <- readr::read_tsv(synGet("syn22280588")$path) %>% 
-  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)
-Ids <- c("syn22278494", "syn22278597", "syn22280959", "syn22280588")
-```
-
-```{r multiplot}
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -108,9 +44,8 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
-```
 
-```{r custom.functions}
+
 # perform meta-analysis given fits from limma
 run_meta_analysis = function(tabList, method="FE") {
 
@@ -216,83 +151,3 @@ plot_forrest = function(resList, ensID) {
   # plot_grid(fig1, fig2, align='vh')
   fig1 + fig2
 }
-```
-
-# Female vs Male
-```{r meta_analysis.SZ}
-make_list <- function(mpp, hbcc, string) {
-  list <- list(MPP = mpp %>%
-                 unique() %>% 
-                 dplyr::filter(Comparison == string) %>% 
-                 as.data.frame,
-               HBCC = hbcc %>% 
-                 unique() %>% 
-                 dplyr::filter(Comparison == string) %>% 
-                 as.data.frame)
-}
-
-dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Female_vs_Male")
-accList <- make_list(mpp_acc, hbcc_dsACC, string = "Female_vs_Male")
-
-rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
-rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
-
-res_dlpfc = run_meta_analysis( dlpfcList, "FE")
-res_dlpfc$Dataset = "Meta-analysis"
-
-rownames(accList[['MPP']]) = accList[['MPP']]$gene_id
-rownames(accList[['HBCC']]) = accList[['HBCC']]$gene_id
-
-res_acc = run_meta_analysis( accList, "FE")
-res_acc$Dataset = "Meta-analysis"
-```
-
-```{r plot.meta_analysisSCZ}
-kable(table(res_dlpfc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))
-kable(table(res_acc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))
-
-plotVolcano( res_dlpfc, 20) + ggtitle("Meta analysis - DLPFC")
-
-plotVolcano( res_acc, 20) + ggtitle("Meta analysis - ACC")
-```
-
-## RCSD1
-
-Forest plot of example top gene.
-
-```{r specific-gene}
-# forrest plot of meta-analysis
-ensID = 'ENSG00000198771.11'
-kable(res_dlpfc[ensID,])
-lapply(dlpfcList, function(x) x[ensID,])
-ensID = rownames(res_dlpfc)[which.min(res_dlpfc$adj.P.Val)][1]
-plot_forrest(dlpfcList, ensID)
-```
-
-```{r store}
-# Code
-CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22276904") # Make sure these match the folder name and parent Id in the first chunk.
-CODE <- synStore(CODE)
-
-# Store meta-analysis
-res_dlpfc %>%
-  tibble::rownames_to_column(var = "gene_id") %>% 
-  write.table(file = 'CMC_dlpfc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
-nEXP_OBJ = File('CMC_dlpfc_Sex_meta_analysis.tsv', 
-                name = 'Sex Normalised, meta-analysis (DLPFC)', 
-                parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
-                    executed = thisFile)
-res_acc %>%
-  tibble::rownames_to_column(var = "gene_id") %>% 
-  write.table(file = 'CMC_acc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
-nEXP_OBJ = File('CMC_acc_Sex_meta_analysis.tsv', 
-                name = 'Sex Normalised, meta-analysis (ACC)', 
-                parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
-                    executed = thisFile)
-```
-
-
-### Source
-[markdown](`r thisFile`)
