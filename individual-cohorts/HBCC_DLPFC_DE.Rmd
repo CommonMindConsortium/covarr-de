@@ -108,12 +108,8 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
 })
 
 # Set covariates to adjust for from model selection
-<<<<<<< HEAD
 interaction <- c("Dx", "Reported_Gender")
 adjust.covars <- c("ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
-=======
-adjust.covars <- c("Sex", "Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
->>>>>>> e0eb7b8ce96d46d4699e1602c8cbd15b2a24a9e0
 ```
 
 ### Normalisation - Dx*Sex
