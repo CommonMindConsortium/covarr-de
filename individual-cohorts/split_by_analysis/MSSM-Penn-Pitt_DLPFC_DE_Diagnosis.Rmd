@@ -1,0 +1,476 @@
+---
+title: "Differential Expression - MSSM-Penn-Pitt - DLPFC - Dx"
+author: "Kelsey Montgomery, Gabriel Hoffman, Thanneer Perumal"
+date: "`r date()`"
+output: html_document
+---
+
+```{r knit2synapse, eval=FALSE}
+library(synapser)
+library(knit2synapse)
+
+synLogin()
+
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/split_by_analysis/MSSM-Penn-Pitt_DLPFC_DE_Diagnosis.Rmd",
+                                 parentId ="syn22043922",
+                                 folderName = "Differential Expression - Dx")
+```
+
+```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+## Load required libraries
+library(CovariateAnalysis) # get the package from devtools::install_github('th1vairam/CovariateAnalysis@dev')
+library(data.table)
+library(tidyr)
+library(plyr)
+library(dplyr)
+library(stringr)
+library(R.utils)
+library(ggplot2)
+library(limma)
+library(psych)
+library(lme4)
+library(biomaRt)
+library(variancePartition)
+library(edgeR)
+library(synapser)
+library(knitr)
+library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
+library(WGCNA)
+
+synLogin()
+
+library(foreach)
+library(future)
+library(BiocParallel)
+
+# See dream documentation to customize parallel processing       http://bioconductor.org/packages/release/bioc/vignettes/variancePartition/inst/doc/dream.html#parallel-processing
+param = SnowParam((availableCores()-2)/2, "SOCK", progressbar=TRUE)
+
+register(param)
+
+options(xtable.type="html")
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+```{r synapse.parameters, include=FALSE, cache=FALSE}
+parentId = 'syn22043922';
+activityName = 'Differential Expression';
+activityDescription = 'Differential Expression - Dx';
+
+thisFileName <- 'MSSM-Penn-Pitt_DLPFC_DE.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
+```
+
+### Data download
+#### Obtain filtered and CQN normalized counts
+```{r download.data, cache=TRUE}
+downloadFile <- function(id){
+  fread(synGet(id)$path, data.table = F)
+}
+
+# Download CQN counts
+CQN_ID = "syn22045741"
+ALL_USED_IDs = c(CQN_ID)
+CQN.GENE_EXPRESSION = downloadFile(CQN_ID) %>% 
+  tibble::column_to_rownames(var = "ensembl_gene_id") %>% 
+  data.matrix()
+  
+# Download filtered counts
+COUNTS_ID = "syn22045729"
+ALL_USED_IDs = c(ALL_USED_IDs, COUNTS_ID)
+NEW.COUNTS = downloadFile(COUNTS_ID) %>% 
+  tibble::column_to_rownames(var = "ensembl_gene_id")
+  
+# Get covariates
+COVAR_ID = "syn22045728"
+ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
+COVARIATES = downloadFile(COVAR_ID) 
+
+# dropped individual id 
+MD_ID = "syn16816488"
+ALL_USED_IDs = c(ALL_USED_IDs, COUNTS_ID)
+METADATA = downloadFile(MD_ID) %>% 
+  dplyr::select(Individual_ID, Sample_RNA_ID)
+
+COVARIATES = right_join(METADATA, COVARIATES, by = c("Sample_RNA_ID" = "SampleID")) %>% 
+  tibble::column_to_rownames(var = "Sample_RNA_ID")
+
+# Set variable class
+FactorCovariates <- c("Individual_ID", "Institution", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
+COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
+
+ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
+                    "GenesDetected", "ExpProfEfficiency", "rRNARate", "TotalReads","AlignmentRate", 
+                    "EV.1", "EV.2", "EV.3", "EV.4", "EV.5")
+COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
+  x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
+})
+
+# Set covariates to adjust for from model selection
+adjust.covars <- c("Dx", "ageOfDeath", "RIN2", "RIN", "IntronicRate", "IntragenicRate")
+random_effect <- c("Institution", "Reported_Gender")
+```
+
+### Normalisation - Dx
+1. Dx is chosen as the primary variable of interest (i.e., covariate adjustments is conditioned on diagnosis)
+
+```{r iterative.normalisation, results='asis'}
+writeLines(glue::glue('Using following covariates in the model:',
+                 glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
+                 ' as fixed effects and',
+                 glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
+
+# Post adjusted formula
+formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+
+# Estimate voom weights with DREAM
+geneExpr = DGEList(NEW.COUNTS)
+geneExpr = edgeR::calcNormFactors(geneExpr)
+
+VOOM.GENE_EXPRESSION = variancePartition::voomWithDreamWeights(counts = geneExpr, 
+                                                               formula = formula,
+                                                               data = COVARIATES,
+                                                               save.plot = TRUE)
+
+# How to plot a voom object if save.plot=TRUE
+# Set plot generic to voom result EList
+#' @export
+setMethod("plot", signature(x="EList", y="missing"),
+  function(x,  y, ...){
+    if( is.null(x$voom.xy) || is.null(x$voom.line)){
+        stop("x does not contain the trend information.\nvoom() must be run with save.plot=TRUE")
+    }
+    # points
+    df = data.frame(x = x$voom.xy$x,
+                    y = x$voom.xy$y)
+    # trend line
+    df.line = data.frame(x = x$voom.line$x,
+                        y = x$voom.line$y)
+    ggplot(df, aes(x,y)) + geom_point(size=.1) + theme_bw(15) + 
+      theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + 
+      geom_line(data=df.line, aes(x,y), color="red") + xlab(bquote(log[2](count + 0.5))) + 
+      ylab(expression( sqrt("standard deviation"))) + ggtitle("Voom: Mean-variance trend") + 
+      ylim(0, max(df$y))
+  }
+)
+  
+plot(VOOM.GENE_EXPRESSION)
+
+# Fit linear model using new weights and new design
+VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
+ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+                                        formula = formula,
+                                        data = COVARIATES,
+                                        computeResiduals = TRUE)
+
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+  dplyr::summarise_all(class) %>% 
+  tidyr::gather(variable, class)
+
+# Model categorical variables as random to report variance fractions
+formula_for_variance_fractions = sapply(1:length(col_type$class), function(i){
+  switch(col_type$class[i], 
+    "factor" = paste0('(1|', col_type$variable[i], ')'),
+    "numeric" = col_type$variable[i])
+  })
+
+formula_for_variance_fractions <- glue::glue("~ ", glue::glue_collapse(formula_for_variance_fractions, sep = " + "))
+
+violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION,
+                                                         formula = formula_for_variance_fractions,
+                                                         data = COVARIATES)
+
+plotVarPart(sortCols(violin_plot))
+
+# Residuals after normalisation
+RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
+```
+
+### Residual calculation
+Calculate weighted residuals and add back "Dx" to the residuals
+```{r varsToAddBack}
+# Add variable of interest back to the residuals
+varsToAddIn = grep("Dx", colnames(ADJUSTED.FIT$design), value = T)
+RESIDUAL.GENE_EXPRESSION = RESIDUAL.GENE_EXPRESSION +
+  ADJUSTED.FIT$coefficients[,varsToAddIn] %*% t(ADJUSTED.FIT$design[,varsToAddIn])
+```
+
+### Coexpression of residual expression 
+```{r coexp2, cache=FALSE, fig.height=5, fig.width=5}
+cr = cor(t(RESIDUAL.GENE_EXPRESSION))
+hist(cr, main = 'Distribution of correlation between genes', xlab = 'Correlation')
+```
+
+### Clustering residual data
+```{r decompse.normalise.data2, fig.height=8, fig.width=8, results='asis'}
+# Find principal components of expression to plot
+PC <- prcomp(RESIDUAL.GENE_EXPRESSION, scale.=T, center = T)
+
+# Plot first 4 PCs
+plotdata <- data.frame(SampleID=rownames(PC$rotation), 
+                       PC1=PC$rotation[,1], 
+                       PC2=PC$rotation[,2])
+
+plotdata <- left_join(plotdata, rownameToFirstColumn(COVARIATES, 'SampleID')) %>% 
+  dplyr::mutate(Tissue = "DLPFC")
+
+p <- ggplot(plotdata, aes(x=PC1, y=PC2))
+p <- p + geom_point(aes(color=Institution, shape=Tissue, size=ageOfDeath))
+p <- p + theme_bw() + theme(legend.position="right") + facet_grid(Tissue~., scales = 'free_y')
+p
+```
+
+```{r decompose.normalise.data2.1, fig.height=8, fig.width=12, results='asis'}
+# Eucledian tree based analysis
+COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx','Institution')])
+
+tree = hclust(as.dist(t(RESIDUAL.GENE_EXPRESSION)))
+cols = WGCNA::labels2colors(COVARIATES.tmp);
+
+WGCNA::plotDendroAndColors(tree, 
+                           colors = cols, 
+                           dendroLabels = FALSE, 
+                           abHeight = 0.80, 
+                           main = "Sample dendrogram",
+                           groupLabels = colnames(COVARIATES.tmp[,c('Dx','Institution')]))
+```
+
+```{r temp1, include=F}
+dev.off()
+gc()
+```
+
+### Differential expression analysis (SCZ - Control - Other)
+Genes that are differentially expressed at an FDR <= 0.05 are:
+```{r set-formula}
+adjust.covars <- adjust.covars[!(adjust.covars %in% "RIN2")]
+formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+```
+
+`r formula`
+
+```{r diffExp, fig.height=10, fig.width=15}
+L1 = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION, 
+                                   formula = formula, 
+                                   data = COVARIATES, 
+                                   coefficient = c("DxOther", "DxControl"))
+L2 = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION, 
+                                   formula = formula, 
+                                   data = COVARIATES, 
+                                   coefficient = c("DxSCZ", "DxControl"))
+L3 = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION, 
+                                   formula = formula, 
+                                   data = COVARIATES, 
+                                   coefficient = c("DxSCZ", "DxOther"))
+# Manually set comparison of SCZ-Other to Control
+L = cbind(L1, L2, L3, data.frame(L4 = c(1, -0.5, -0.5, 0, 0, 0, 0)))
+
+contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"), 
+              glue::glue_collapse(names(L2[L2 != 0]), "-"),
+              glue::glue_collapse(names(L3[L3 != 0]), "-"),
+              glue::glue("DxControl-DxOtherDxSCZ")
+)
+
+# Visualize contrast matrix
+plotContrasts(L) 
+
+# Fit contrast
+FIT.CONTR = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+                                     formula = formula,
+                                     data = COVARIATES,
+                                     L = L,
+                                     suppressWarnings = TRUE)
+
+# Get background genes 
+backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
+  dplyr::mutate(id = gene_id) %>%
+  tidyr::separate(id, c('ensembl_gene_id','position'), sep = '\\.')
+
+# Get gene lengths
+counts = 'syn21867938'
+ALL_USED_IDs = counts
+counts = downloadFile(counts) %>% data.frame()
+gene_lengths = counts[,c("Geneid", "Length")] %>% 
+  dplyr::rename(gene_id = Geneid)
+rm(counts)
+
+# Define biomart object
+mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
+                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+                dataset = "hsapiens_gene_ensembl")
+
+# Query biomart
+Ensemble2HGNC <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol", 
+                                      "percentage_gene_gc_content", "gene_biotype", 
+                                      "chromosome_name"),
+                       filters = "ensembl_gene_id", 
+                       values = backgroundGenes$ensembl_gene_id,
+                       mart = mart)
+
+# Get differential expression
+DE = lapply(glue::glue("L{1:4}"), function(i, FIT){
+  topTable(FIT, coef=i, number = Inf) %>%
+    rownameToFirstColumn('gene_id') %>% 
+    left_join(backgroundGenes)
+}, FIT.CONTR) 
+names(DE) <- contrast
+
+DE = DE %>% 
+  rbindlist(idcol = 'Comparison') %>%
+  dplyr::mutate(Comparison = gsub('Dx','',Comparison),
+                Direction = logFC/abs(logFC),
+                Direction = factor(Direction, c(-1,1), c('-1' = 'DOWN', '1' = 'UP')),
+                Direction = as.character(Direction)) %>%
+  tidyr::separate(Comparison, into = c('ref.state','to.state'), sep = '-') %>%
+  tidyr::unite(Comparison, `ref.state`, `to.state`, sep = '_vs_') %>%
+  left_join(Ensemble2HGNC) %>%
+  left_join(gene_lengths)
+DE$Direction[DE$adj.P.Val > 0.05 | abs(DE$logFC) < log2(1.2)] = 'NONE'
+
+tmp = DE %>%
+  dplyr::filter(adj.P.Val <= 0.05) %>%
+  dplyr::select(ensembl_gene_id, Comparison) %>%
+  group_by(Comparison) %>%
+  dplyr::summarise(FDR_0_05 = length(unique(ensembl_gene_id)))
+
+tmp1 = DE %>%
+  dplyr::filter(adj.P.Val <= 0.05, abs(logFC) >= log2(1.2)) %>%
+  dplyr::select(ensembl_gene_id, Comparison) %>%
+  group_by(Comparison) %>%
+  dplyr::summarise(FDR_0_05_FC_1.2 = length(unique(ensembl_gene_id)))
+
+kable(full_join(tmp,tmp1))
+
+p = ggplot(DE, aes(y = -log10(adj.P.Val), x = logFC, color = Direction)) + geom_point() + xlim(c(-1,1))
+p = p + scale_color_manual(values = c('green','grey','red')) + theme_bw() %+replace% theme(legend.position = 'top')
+p = p + facet_grid(.~Comparison, scales = 'fixed')
+p
+```
+
+### Associate differential expression results with gc content, gene length and average expression
+```{r associate.de, fig.height=10, fig.width=15}
+pl = list()
+pl[[1]] = ggplot(DE %>% 
+                   arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = log10(Length), y = logFC, color = Direction)) + geom_point() 
+pl[[1]] = pl[[1]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = log10(Length), y = logFC))
+pl[[1]] = pl[[1]] + scale_color_manual(values = c('green','grey','red'))
+pl[[1]] = pl[[1]] + theme(legend.position = 'top')
+
+pl[[2]] = ggplot(DE %>% 
+                   arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = percentage_gene_gc_content, y = logFC, color = Direction)) + geom_point()
+pl[[2]] = pl[[2]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = percentage_gene_gc_content, y = logFC))
+pl[[2]] = pl[[2]] + scale_color_manual(values = c('green','grey','red'))
+pl[[2]] = pl[[2]] + theme(legend.position = 'top')
+
+pl[[3]] = ggplot(DE %>% 
+                    arrange(match(Direction, c("NONE", "UP", "DOWN"))), aes(x = AveExpr, y = logFC, color = Direction)) + geom_point()
+pl[[3]] = pl[[3]] + geom_smooth(method = 'loess', inherit.aes = FALSE, aes(x = AveExpr, y = logFC))
+pl[[3]] = pl[[3]] + scale_color_manual(values = c('green','grey','red'))
+pl[[3]] = pl[[3]] + theme(legend.position = 'top')
+
+multiplot(plotlist = pl, cols = 3)
+```
+
+### Store files in synapse
+```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}
+# Set annotations
+all.annotations = list(
+  dataType = 'geneExpression',
+  dataSubtype = 'processed',
+  assay	 = 'rnaSeq',
+  
+  tissue	= 'dorsolateral prefrontal cortex', 
+  study = 'CMC', 
+
+  species = 'Human',
+  consortium	= 'CMC',
+   
+  analysisType	= "data normalization",
+  
+  transcriptNormalizationMethod	= 'CQN',
+  transcriptQuantificationMethod = 'featureCounts',
+  referenceSet = 'GRCh38'
+)
+
+# Code
+CODE <- Folder(name = "Differential Expression - Dx", parentId = parentId)
+CODE <- synStore(CODE)
+
+# Store residual gene expression for network analysis
+RESIDUAL.GENE_EXPRESSION %>%
+  rownameToFirstColumn('ensembl_gene_id') %>%
+  write.table(file = 'CMC_DLPFC_Dx_netResidualExpression.tsv', sep = '\t', row.names=F, quote=F)
+nEXP_OBJ = File('CMC_DLPFC_Dx_netResidualExpression.tsv', 
+                name = 'Dx Normalised, covariates removed residual expression (for network analysis)', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                    executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(nEXP_OBJ, annotations = all.annotations)
+
+# Store differential expression results
+write.table(DE, file = 'CMC_DLPFC_Dx_DiffExpression.tsv', sep = '\t', row.names=F, quote=F)
+DEXP_OBJ = File('CMC_DLPFC_Dx_DiffExpression.tsv', 
+                name = 'Differential Expression Results (Dx)', 
+                parentId = CODE$properties$id)
+DEXP_OBJ = synStore(DEXP_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                    executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(DEXP_OBJ, annotations = all.annotations)
+
+# Store adjusted fit linear mixed model object as RDS - Dx
+saveRDS(ADJUSTED.FIT, file = 'CMC_DLPFC_Dx_dream-output.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_dream-output.rds',
+               name = 'Dream Output object - Dx', 
+               parentId = CODE$properties$id)
+ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
+                   executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
+
+# Store variancePartition
+saveRDS(sortCols(violin_plot), file = 'CMC_DLPFC_Dx_variancePartition.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_variancePartition.rds',
+               name = 'Variance Partition result', 
+               parentId = CODE$properties$id)
+ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
+                   executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
+
+
+# Store voom object
+saveRDS(VOOM.GENE_EXPRESSION, file = 'CMC_DLPFC_Dx_voom.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_voom.rds',
+               name = 'voom object', 
+               parentId = CODE$properties$id)
+ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
+                   executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
+
+# Store contrasts
+saveRDS(L, file = 'CMC_DLPFC_Dx_contrasts.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_contrasts.rds',
+               name = 'contrast matrix', 
+               parentId = CODE$properties$id)
+ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
+                   executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
+
+
+# Store contrasts
+saveRDS(formula, file = 'CMC_DLPFC_Dx_formula.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_formula.rds',
+               name = 'formula', 
+               parentId = CODE$properties$id)
+ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
+                   executed = thisFile, activityDescription = activityDescription)
+synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
+
+```
