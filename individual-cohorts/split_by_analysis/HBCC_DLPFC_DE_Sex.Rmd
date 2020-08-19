@@ -6,6 +6,9 @@ output: html_document
 ---
 
 ```{r knit2synapse, eval=FALSE}
+ml git pandoc
+rmarkdown::render("individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Sex.Rmd")
+
 library(synapser)
 library(knit2synapse)
 
@@ -63,11 +66,11 @@ parentId = 'syn22050019';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Sex';
 
-thisFileName <- 'HBCC_DLPFC_DE.Rmd'
+thisFileName <- 'HBCC_DLPFC_DE_Sex.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
 ### Data download
