@@ -170,7 +170,7 @@ setMethod("plot", signature(x="EList", y="missing"),
 plot(VOOM.GENE_EXPRESSION)
 
 # Fit linear model using new weights and new design
-# VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
+VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
 ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
                                         formula = formula,
                                         data = COVARIATES,

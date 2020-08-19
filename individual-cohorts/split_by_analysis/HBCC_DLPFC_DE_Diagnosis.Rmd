@@ -6,6 +6,9 @@ output: html_document
 ---
 
 ```{r knit2synapse, eval=FALSE}
+render::rmarkdown("individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Diagnosis.Rmd")
+
+
 library(synapser)
 library(knit2synapse)
 
@@ -13,7 +16,8 @@ synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Diagnosis.Rmd",
                                  parentId ="syn22050019",
-                                 folderName = "Differential Expression - Dx")
+                                 folderName = "Differential Expression - Dx",
+                                 knitmd=FALSE)
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -170,7 +174,7 @@ setMethod("plot", signature(x="EList", y="missing"),
 plot(VOOM.GENE_EXPRESSION)
 
 # Fit linear model using new weights and new design
-# VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
+VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
 ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
                                         formula = formula,
                                         data = COVARIATES,
