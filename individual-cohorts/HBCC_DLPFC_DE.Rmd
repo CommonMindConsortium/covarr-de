@@ -1,5 +1,5 @@
- ---
-title: "Differential Expression - HBCC - DLPFC - Sex"
+---
+title: "Differential Expression - HBCC - DLPFC - Dx - Sex"
 author: "Kelsey Montgomery, Gabriel Hoffman, Thanneer Perumal"
 date: "`r date()`"
 output: html_document
@@ -13,7 +13,7 @@ synLogin()
 
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/HBCC_DLPFC_DE.Rmd",
                                  parentId ="syn22050019",
-                                 folderName = "Differential Expression - Sex")
+                                 folderName = "Differential Expression - Dx - Sex")
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
@@ -61,7 +61,7 @@ knitr::opts_chunk$set(
 ```{r synapse.parameters, include=FALSE, cache=FALSE}
 parentId = 'syn22050019';
 activityName = 'Differential Expression';
-activityDescription = 'Differential Expression - Sex';
+activityDescription = 'Differential Expression - Dx_Sex';
 
 thisFileName <- 'HBCC_DLPFC_DE.Rmd'
 
@@ -107,19 +107,20 @@ COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
   x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
 })
 
-COVARIATES <- dplyr::rename(COVARIATES, Sex = Reported_Gender)
-
 # Set covariates to adjust for from model selection
-adjust.covars <- c("Sex", "Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
+interaction <- c("Dx", "Reported_Gender")
+adjust.covars <- c("ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
 ```
 
-### Normalisation - Sex
-1. Sex is chosen as the primary variable of interest (i.e., covariate adjustments is conditioned on diagnosis)
+### Normalisation - Dx*Sex
+1. Dx*Sex is chosen as the primary variable of interest
 
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
-                 glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
-                 ' as fixed effects.'))
+                      glue::glue_collapse(interaction, sep = ", "),
+                      ', ',
+                      glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
+                      ' as fixed effects.'))
 
 col_type <- dplyr::select(COVARIATES, c(adjust.covars)) %>%
   dplyr::summarise_all(class) %>% 
@@ -134,7 +135,7 @@ adjust.covars = sapply(1:length(col_type$class), function(i){
   })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "))    
+formula <- glue::glue("~ ", glue::glue_collapse(interaction, sep = "*")," + ", glue::glue_collapse(adjust.covars, sep = " + "))    
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
@@ -184,7 +185,12 @@ formula_for_variance_fractions = sapply(1:length(col_type$class), function(i){
   )
   })
 
-formula_for_variance_fractions <- glue::glue("~ ", glue::glue_collapse(formula_for_variance_fractions, sep = " + "))
+# Manually specify interaction
+interaction <- c(interaction, "Dx:Reported_Gender")
+interaction_variance <- glue::glue("(1|{interaction})")
+all <- c(interaction_variance, formula_for_variance_fractions)
+
+formula_for_variance_fractions <- glue::glue("~ ", glue::glue_collapse(all, sep = " + "))
 
 violin_plot <- variancePartition::fitExtractVarPartModel(VOOM.GENE_EXPRESSION,
                                                          formula = formula_for_variance_fractions,
@@ -195,12 +201,12 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
-
+`r formula`
 ### Residual calculation
-Calculate weighted residuals and add back "Sex" to the residuals
+Calculate weighted residuals and add back "Dx:Sex" to the residuals
 ```{r varsToAddBack}
 # Add variable of interest back to the residuals
-varsToAddIn = grep("Sex", colnames(ADJUSTED.FIT$design), value = T)
+varsToAddIn = grep("DxOther:Reported_GenderMale", "DxSCZ:Reported_GenderMale", colnames(ADJUSTED.FIT$design), value = T)
 RESIDUAL.GENE_EXPRESSION = RESIDUAL.GENE_EXPRESSION +
   ADJUSTED.FIT$coefficients[,varsToAddIn] %*% t(ADJUSTED.FIT$design[,varsToAddIn])
 ```
@@ -232,7 +238,7 @@ p
 
 ```{r decompose.normalise.data2.1, fig.height=8, fig.width=12, results='asis'}
 # Eucledian tree based analysis
-COVARIATES.tmp = data.matrix(COVARIATES[,c('Sex'), drop = FALSE])
+COVARIATES.tmp = data.matrix(COVARIATES[,c('Dx', 'Reported_Gender'), drop = FALSE])
 
 tree = hclust(as.dist(t(RESIDUAL.GENE_EXPRESSION)))
 cols = WGCNA::labels2colors(COVARIATES.tmp);
@@ -242,7 +248,7 @@ WGCNA::plotDendroAndColors(tree,
                            dendroLabels = FALSE, 
                            abHeight = 0.80, 
                            main = "Sample dendrogram",
-                           groupLabels = colnames(COVARIATES.tmp[,c('Sex'), drop = FALSE]))
+                           groupLabels = colnames(COVARIATES.tmp[,c('Dx','Reported_Gender'), drop = FALSE]))
 ```
 
 ```{r temp1, include=F}
@@ -253,18 +259,37 @@ gc()
 ### Differential expression analysis (SCZ - Control - Other)
 Genes that are differentially expressed at an FDR <= 0.05 are:
 ```{r set-formula}
-formula <- glue::glue("~ 0 + ", glue::glue_collapse(adjust.covars, sep = " + "))    
+formula <- glue::glue("~ 0 + Dx_Sex + ", glue::glue_collapse(adjust.covars, sep = " + "))
 ```
 
 `r formula`
 
+Dx_Sex is 6 levels, SCZ_Female, SCZ_Male, Other_Female, Other_Male, Control_Female, Control_Male
+
 ```{r diffExp, fig.height=10, fig.width=15}
-L = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION, 
+# Test Dx-Sex
+COVARIATES <- COVARIATES %>%
+  tibble::rownames_to_column(var = "samples") %>% 
+  tidyr::unite("Dx_Sex",
+               dplyr::all_of(c("Dx", "Reported_Gender")),
+               remove = TRUE) %>% 
+  dplyr::mutate(`Dx_Sex` = as.factor(`Dx_Sex`)) %>% 
+  tibble::column_to_rownames(var = "samples")
+
+L1 = variancePartition::getContrast(exprObj = VOOM.GENE_EXPRESSION, 
                                    formula = formula, 
                                    data = COVARIATES, 
-                                   coefficient = c("SexFemale", "SexMale"))
+                                   coefficient = c("Dx_SexControl_Male", "Dx_SexControl_Female"))
+L2 = c(1, -1, 0, 0, -1, 1, 0, 0, 0, 0, 0)
+L3 = c(1, -1, -1, 1, 0, 0, 0, 0, 0, 0, 0)
 
-contrast <- c(glue::glue_collapse(names(L[L != 0]), "-"))
+# Manually set comparison between SCZ+Other vs. Control 
+L = cbind(L1, L2, L3)
+
+contrast <- c(glue::glue_collapse(names(L1[L1 != 0]), "-"), 
+              glue::glue("Dx_SexSCZ_MaleDx_SexControl_Male-Dx_SexSCZ_FemaleDx_SexControl_Female"),
+              glue::glue("Dx_SexOther_MaleDx_SexControl_Male-Dx_SexOther_FemaleDx_SexControl_Female")
+)
 
 # Visualize contrast matrix
 plotContrasts(L) 
@@ -283,7 +308,7 @@ backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
 
 # Get gene lengths
 counts = 'syn21886235'
-ALL_USED_IDs = counts
+ALL_USED_IDs = c(counts, ALL_USED_IDs)
 counts = downloadFile(counts) %>% data.frame()
 gene_lengths = counts[,c("Geneid", "Length")] %>% 
   dplyr::rename(gene_id = Geneid)
@@ -305,7 +330,7 @@ Ensemble2HGNC <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol",
 FIT.CONTR <- eBayes(FIT.CONTR)
 
 # Get differential expression
-DE = lapply(glue::glue("L1"), function(i, FIT){
+DE = lapply(glue::glue("L{1:3}"), function(i, FIT){
   topTable(FIT, coef=i, number = Inf) %>%
     rownameToFirstColumn('gene_id') %>% 
     left_join(backgroundGenes)
@@ -314,7 +339,7 @@ names(DE) <- contrast
 
 DE = DE %>% 
   rbindlist(idcol = 'Comparison') %>%
-  dplyr::mutate(Comparison = gsub('Sex','',Comparison),
+  dplyr::mutate(Comparison = gsub('Dx_Sex','',Comparison),
                 Direction = logFC/abs(logFC),
                 Direction = factor(Direction, c(-1,1), c('-1' = 'DOWN', '1' = 'UP')),
                 Direction = as.character(Direction)) %>%
@@ -368,6 +393,9 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 multiplot(plotlist = pl, cols = 3)
 ```
 
+### Source Code
+`r thisFile`
+
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}
 # Set annotations
@@ -390,33 +418,33 @@ all.annotations = list(
 )
 
 # Code
-CODE <- Folder(name = "Differential Expression - Sex", parentId = parentId)
+CODE <- Folder(name = "Differential Expression - Dx - Sex", parentId = parentId)
 CODE <- synStore(CODE)
 
 # Store residual gene expression for network analysis
 RESIDUAL.GENE_EXPRESSION %>%
   rownameToFirstColumn('ensembl_gene_id') %>%
-  write.table(file = 'CMC_DLPFC_Sex_netResidualExpression.tsv', sep = '\t', row.names=F, quote=F)
-nEXP_OBJ = File('CMC_DLPFC_Sex_netResidualExpression.tsv', 
-                name = 'Sex Normalised, covariates removed residual expression (for network analysis)', 
+  write.table(file = 'CMC_DLPFC_Dx_Sex_netResidualExpression.tsv', sep = '\t', row.names=F, quote=F)
+nEXP_OBJ = File('CMC_DLPFC_Dx_Sex_netResidualExpression.tsv', 
+                name = 'Dx_Sex Normalised, covariates removed residual expression (for network analysis)', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                     executed = thisFile, activityDescription = activityDescription)
 synSetAnnotations(nEXP_OBJ, annotations = all.annotations)
 
 # Store differential expression results
-write.table(DE, file = 'CMC_DLPFC_Sex_DiffExpression.tsv', sep = '\t', row.names=F, quote=F)
-DEXP_OBJ = File('CMC_DLPFC_Sex_DiffExpression.tsv', 
-                name = 'Differential Expression Results (Sex)', 
+write.table(DE, file = 'CMC_DLPFC_Dx_Sex_DiffExpression.tsv', sep = '\t', row.names=F, quote=F)
+DEXP_OBJ = File('CMC_DLPFC_Dx_Sex_DiffExpression.tsv', 
+                name = 'Differential Expression Results (Dx_Sex)', 
                 parentId = CODE$properties$id)
 DEXP_OBJ = synStore(DEXP_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                     executed = thisFile, activityDescription = activityDescription)
 synSetAnnotations(DEXP_OBJ, annotations = all.annotations)
 
-# Store adjusted fit linear mixed model object as RDS - Sex
-saveRDS(ADJUSTED.FIT, file = 'CMC_DLPFC_Sex_dream-output.rds')
-ADJ_OBJ = File('CMC_DLPFC_Sex_dream-output.rds',
-               name = 'Dream Output object - Sex', 
+# Store adjusted fit linear mixed model object as RDS - Dx_Sex
+saveRDS(ADJUSTED.FIT, file = 'CMC_DLPFC_Dx_Sex_dream-output.rds')
+ADJ_OBJ = File('CMC_DLPFC_Dx_Sex_dream-output.rds',
+               name = 'Dream Output object - Dx_Sex', 
                parentId = CODE$properties$id)
 ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
                    executed = thisFile, activityDescription = activityDescription)
