@@ -113,8 +113,8 @@ adjust.covars <- c("ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "Inter
 random_effect <- c("IsolationBatch")
 ```
 
-### Normalisation - Dx_Sex
-1. Dx_Sex is chosen as the primary variable of interest (i.e., covariate adjustments is conditioned on diagnosis)
+### Normalisation - Dx*Sex
+1. Dx*Sex is chosen as the primary variable of interest
 
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
