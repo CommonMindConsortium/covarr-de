@@ -13,17 +13,19 @@ output:
 
 # individual-cohorts/meta_analysis/
 
-# rmarkdown::render("meta-analysis_sex.Rmd")
+# rmarkdown::render("individual-cohorts/meta_analysis/meta-analysis_sex.Rmd")
+
+
 --->
 
-```{r knit2synapse, eval=TRUE}
+```{r knit2synapse, eval=FALSE}
 library(synapser)
 library(knit2synapse)
 synLogin()
-knit2synapse::createAndKnitToFolderEntity(file = "meta-analysis_sex.Rmd",
-                                          parentId ="syn22281021",
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_sex.Rmd",
+                                          parentId ="syn22315403",
                                           folderName = 'Meta-analysis on sex',
-                                          overwrite=FALSE)
+                                          overwrite=TRUE)
 ```
 
 ```{r setup, include=FALSE}
@@ -137,9 +139,6 @@ plot_grid(resConcord_dlpfc$fig_logFC,
 ```
 
 
-
-
-
 ```{r plot.concordance.table.dlpfc.Sex, fig.width=6}
 kable( resConcord_dlpfc$tab_pi ) %>%
   kable_styling(full_width = FALSE)
@@ -156,6 +155,11 @@ figList = lapply(showGenes2[1:10], function(geneSymbol){
  
 plot_grid(plotlist=figList, ncol=1)
 ```
+
+```{r plot.logFC_by_chr.dlpfc}
+plot_circos_logFC( res_dlpfc ) + ggtitle("DLPFC sex differential expression")
+```
+
 
 
 ### MPP
@@ -235,6 +239,10 @@ plot_grid(plotlist=figList, ncol=1)
 ```
 
 
+```{r plot.logFC_by_chr.acc}
+plot_circos_logFC( res_acc) + ggtitle("ACC sex differential expression")
+```
+
 ### MPP
 ```{r DE.results.acc.mpp, fig.width=10, fig.height=50}
 figList = plot_sex_compare(mpp_acc)
@@ -298,7 +306,7 @@ kable( resConcord$tab_corr )  %>%
 
 ```{r store, eval=TRUE}
 # Code
-CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22281021") # Make sure these match the folder name and parent Id in the first chunk.
+CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22315403") # Make sure these match the folder name and parent Id in the first chunk.
 CODE <- synStore(CODE)
 
 # Store meta-analysis
@@ -322,4 +330,4 @@ nEXP_OBJ = synStore(nEXP_OBJ, used = Ids,
 
 
 ### Source
-#[markdown](`r thisFile`)
+[markdown](`r thisFile`)
