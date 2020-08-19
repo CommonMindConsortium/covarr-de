@@ -6,8 +6,8 @@ output: html_document
 ---
 
 ```{r knit2synapse, eval=FALSE}
-render::rmarkdown("individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Diagnosis.Rmd")
-
+ml git pandoc
+rmarkdown::render("individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Diagnosis.Rmd")
 
 library(synapser)
 library(knit2synapse)
@@ -67,7 +67,7 @@ parentId = 'syn22050019';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
 
-thisFileName <- 'HBCC_DLPFC_DE.Rmd'
+thisFileName <- 'HBCC_DLPFC_DE_Diagnosis.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
