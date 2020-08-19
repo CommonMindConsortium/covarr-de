@@ -11,7 +11,7 @@ library(knit2synapse)
 
 synLogin()
 
-knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/HBCC_DLPFC_DE.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Sex.Rmd",
                                  parentId ="syn22050019",
                                  folderName = "Differential Expression - Sex")
 ```
