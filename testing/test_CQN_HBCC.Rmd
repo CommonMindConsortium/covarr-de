@@ -1,0 +1,176 @@
+---
+title: "Differential Expression - testing CQN"
+author: "Kelsey Montgomery, Gabriel Hoffman, Thanneer Perumal"
+date: "`r date()`"
+output: html_document
+---
+
+```{r knit2synapse, eval=FALSE}
+ml git pandoc
+rmarkdown::render("test_CQN_HBCC.Rmd")
+
+```
+
+```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+## Load required libraries
+suppressPackageStartupMessages({
+library(CovariateAnalysis) # get the package from devtools::install_github('th1vairam/CovariateAnalysis@dev')
+library(data.table)
+library(tidyr)
+library(plyr)
+library(dplyr)
+library(stringr)
+library(R.utils)
+library(ggplot2)
+library(limma)
+library(psych)
+library(lme4)
+library(biomaRt)
+library(variancePartition)
+library(edgeR)
+library(cowplot)
+library(synapser)
+library(knitr)
+library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
+})
+options(xtable.type="html")
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = FALSE)
+```
+
+```{r coef}
+# Specify which variable to test
+coef = "DxSCZ"
+# coef = "Reported_GenderMale"
+
+# from HBCC_DLPFC_FEATURECOUNTS_GRCh38_CQN.Rmd
+ # save(COVARIATES, NEW.COUNTS, CQN.GENE_EXPRESSION, GENE.GC.CONT, gene_lengths, file="save.RDATA")
+load("save.RDATA")
+```
+
+# Standard normalization - TMM
+```{r test.main, fig.height=3, fig.width=9}
+# Standard normalization
+dge = DGEList( counts = NEW.COUNTS )
+dge = calcNormFactors(dge)
+geneExpr = cpm(dge, log=TRUE)
+
+# standard design
+form = ~ Dx + scale(RIN) + ageOfDeath + Reported_Gender + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate)
+design = model.matrix(form, COVARIATES)
+
+# standard voom and lmFit
+vobj = voom(dge, design)
+fit = lmFit(vobj, design)
+fit = eBayes(fit)
+
+tab = topTable(fit, coef=coef, number=Inf)
+
+# plot exression vs logFC (threshold at 1 for sex)
+fig1 = ggplot(tab, aes(AveExpr, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS") + ylab("logFC") + theme(aspect.ratio=1)
+
+
+# plot vs GC content and gene length
+df = merge(tab, GENE.GC.CONT, by="row.names")
+df = merge(df, gene_lengths, by.x = "Row.names", by.y="row.names")
+
+fig1a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS") + ylab("logFC")+ theme(aspect.ratio=1)
+
+fig1b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS") + ylab("logFC") + theme(aspect.ratio=1)
+
+plot_grid(fig1, fig1a, fig1b, ncol=3)
+```
+
+# Current CQN (problematic)
+```{r current.CQN, fig.height=3, fig.width=9}
+geneExpr = DGEList(NEW.COUNTS)
+geneExpr = edgeR::calcNormFactors(geneExpr)
+
+form = ~ Dx + scale(RIN) + ageOfDeath + Reported_Gender + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate)
+design = model.matrix(form, COVARIATES)
+
+vobj_cqn = voom(geneExpr, design)
+
+vobj_cqn$E = CQN.GENE_EXPRESSION$E
+
+fit_cqn = lmFit(vobj_cqn, design)
+fit_cqn = eBayes(fit_cqn)
+
+tab_cqn = topTable(fit_cqn, coef=coef, number=Inf)
+
+fig2 = ggplot(tab_cqn, aes(AveExpr, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("CQN two step") + ylab("logFC") + theme(aspect.ratio=1)
+
+df = merge(tab_cqn, GENE.GC.CONT, by="row.names")
+df = merge(df, gene_lengths, by.x = "Row.names", by.y="row.names")
+
+fig2a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE)  + ggtitle("CQN two step") + ylab("logFC") + theme(aspect.ratio=1)
+
+fig2b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("CQN two step") + ylab("logFC") + theme(aspect.ratio=1)
+
+plot_grid(fig2, fig2a, fig2, ncol=3)
+```
+
+
+
+# Correct offset CQN
+CQN computes an offset that can be used the get the corrected log2 CPM corrected for bias caused by gene length and GC content.  While adding the offset to the counts is fine for computing the corrected magnitude, this affects the mean-variance trend used by voom and cant be used directly by voom.  edgeR can take this offset into account when estimating the mean variance trend, but standard voom cannot.   Ryan Thompson (at Sinai) wrote an extension of voom that correctly handles this offset: rctutils::voomWithOffset installable from https://github.com/DarwinAwardWinner/rctutils/. The lines A,B,C implement this offset using voom.
+
+```{r cqn.offset, echo=TRUE}
+
+dge_cqn = DGEList( counts = NEW.COUNTS )
+
+# Extract default offset
+offset_default = edgeR::expandAsMatrix(edgeR::getOffset(dge_cqn), dim(dge_cqn))
+
+# Build custom offset from default offset and the CQN offset
+dge_cqn$offset = offset_default - CQN.GENE_EXPRESSION$offset
+
+# Run rctutils::voomWithOffset
+vobj_cqn_offset = rctutils::voomWithOffset(dge_cqn, design)
+```
+
+```{r continue, , fig.height=3, fig.width=9}
+
+form = ~ Dx + scale(RIN) + ageOfDeath + Reported_Gender + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate)
+design = model.matrix(form, COVARIATES)
+
+vobj_cqn_offset = voom(dge_cqn, design)
+fit_cqn_offset = lmFit(vobj_cqn_offset, design)
+fit_cqn_offset = eBayes(fit_cqn_offset)
+
+tab_cqn_offset = topTable(fit_cqn_offset, coef=coef, number=Inf)
+
+fig3 = ggplot(tab_cqn_offset, aes(AveExpr, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC") + theme(aspect.ratio=1)
+
+
+df = merge(tab_cqn_offset, GENE.GC.CONT, by="row.names")
+df = merge(df, gene_lengths, by.x = "Row.names", by.y="row.names")
+
+fig2a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC")  + theme(aspect.ratio=1)
+
+fig2b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC") + theme(aspect.ratio=1)
+
+plot_grid(fig2, fig2a, fig2b, ncol=3)
+```
+
+# Compare methods
+```{r compare.methods}
+
+df = merge(tab, tab_cqn, by="row.names")
+
+ggplot(df, aes(t.x, t.y)) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("Compare t-statistics") + xlab("NEW.COUNTS") + ylab("CQN (problematic)") + theme(aspect.ratio=1)
+with(df, cor.test(t.x, t.y))
+
+
+df = merge(tab, tab_cqn_offset, by="row.names")
+
+ggplot(df, aes(t.x, t.y)) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + xlab("NEW.COUNTS") + ylab("CQN  offset") + theme(aspect.ratio=1)
+with(df, cor.test(t.x, t.y))
+
+```
