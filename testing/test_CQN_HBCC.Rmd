@@ -46,8 +46,8 @@ knitr::opts_chunk$set(
 
 ```{r coef}
 # Specify which variable to test
-coef = "DxSCZ"
-# coef = "Reported_GenderMale"
+# coef = "DxSCZ"
+coef = "Reported_GenderMale"
 
 # from HBCC_DLPFC_FEATURECOUNTS_GRCh38_CQN.Rmd
  # save(COVARIATES, NEW.COUNTS, CQN.GENE_EXPRESSION, GENE.GC.CONT, gene_lengths, file="save.RDATA")
@@ -113,7 +113,7 @@ fig2a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + g
 
 fig2b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("CQN two step") + ylab("logFC") + theme(aspect.ratio=1)
 
-plot_grid(fig2, fig2a, fig2, ncol=3)
+plot_grid(fig2, fig2a, fig2b, ncol=3)
 ```
 
 
