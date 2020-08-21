@@ -289,7 +289,7 @@ vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=
 ### mvIC
 Need to get proper covariates here
 
-```{r mvIC}
+```{r mvIC, eval=FALSE}
 colnames(info) = gsub(' ', '_', colnames(info))
 colnames(info) = gsub(':', '', colnames(info))
 colnames(info) = gsub('\\(', '', colnames(info))
