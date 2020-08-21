@@ -108,7 +108,7 @@ geneInfo$EnsId = trim_ensembl_ids( geneInfo$Geneid )
 geneInfo = geneInfo %>% getGeneSymbol( 'Geneid' )
 
 geneCounts = df_featureCounts_gene[,7:ncol(df_featureCounts_gene)]
-geneCounts = as.data.frame(geneCounts)
+geneCounts = as.matrix(geneCounts)
 rownames(geneCounts) = geneInfo$Geneid 
 
 # identify samples with improper names
@@ -208,7 +208,7 @@ kable(table(info$Individual.ID)) %>% kable_styling(bootstrap_options = "striped"
 ```
 
 ```{r preprocess}
-isexpr = rowSums(cpm(geneCounts)>1) >= 0.1*ncol(geneCounts)
+isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.1*ncol(geneCounts)
 table(isexpr)
 
 dge = DGEList( geneCounts[isexpr,] )
@@ -223,7 +223,7 @@ ggplot(df, aes(CellType, norm.factors, fill=CellType)) + geom_boxplot() + theme_
 
 ```{r expression.density}
 
-geneExpr = cpm(dge, log=TRUE)
+geneExpr = edgeR::cpm(dge, log=TRUE)
 
 df = reshape2::melt(geneExpr)
 df = merge(df, info[,'CellType',drop=FALSE], by.x = "Var2", by.y="row.names")
@@ -239,7 +239,7 @@ ggplot(df, aes(value, color=Var2)) + geom_density() + theme_bw(15) + theme(aspec
 ### PCA
 ```{r PCA}
 
-geneExpr = cpm(dge, log=TRUE)
+geneExpr = edgeR::cpm(dge, log=TRUE)
 
 dcmp = prcomp( t(geneExpr), scale=TRUE)
 
@@ -434,7 +434,7 @@ tabList = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -485,7 +485,7 @@ tabList = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -522,7 +522,7 @@ df_voomTrend = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -551,7 +551,7 @@ names(tabList) = colnames(L)
 
 saveRDS(tabList, file='./Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS')
 
-system("ml python; synapse add --parentid syn22243354 Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS")
+# system("ml python; synapse add --parentid syn22243354 Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS")
 ```
 
 
@@ -607,9 +607,14 @@ boxplot_gene(ensIDs, tab) + ggtitle("FANS markers")
 # Compare to GTEx
 ```{r GTEX.voom}
 
-file_SampleAttributesDS = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"
-file_SubjectPhenotypesDS= "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
-file_counts = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
+# file_SampleAttributesDS = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"
+file_SampleAttributesDS = synGet('syn22321103')$path
+
+# file_SubjectPhenotypesDS= "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
+file_SubjectPhenotypesDS = synGet('syn22321104')$path
+
+# file_counts = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
+file_counts = synGet('syn22321107')$path
 
 gtex_sample = read.delim(file_SampleAttributesDS, header = TRUE, stringsAsFactors = FALSE)
 # gtex_sample = gtex_sample[gtex_sample$SMTS == 'Brain',]
@@ -656,7 +661,9 @@ gtex_count = as.matrix(gtex_count)
 ```{r gtex.colors}
 # https://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_track=hgFixed&hgta_group=allTables&hgta_table=hgFixed.gtexTissue
 
-gtexColors = read.csv('/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Tissue_colors.csv', header=TRUE)
+# file= '/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Tissue_colors.csv'
+file = synGet('syn22321106')$path
+gtexColors = read.csv( file, header=TRUE)
 ```
 
 
@@ -1224,7 +1231,7 @@ nEXP_OBJ = synStore(nEXP_OBJ, used = Ids,
 
 
 # full counts
-file = '/hpc/users/hoffmg01/work/cmc_analysis/src/Roussos_MSSM_MolProf_FANS_4_geneCounts.csv.gz'
+file = 'Roussos_MSSM_MolProf_FANS_4_geneCounts.csv.gz'
 gz1 <- gzfile(file, "w")
 write.table(data.table(EnsID = rownames(geneCounts), geneCounts), gz1, quote=FALSE, sep=",", row.names=FALSE)
 close(gz1)
@@ -1237,7 +1244,7 @@ nEXP_OBJ = synStore(nEXP_OBJ, used = Ids,
 
 
 # full counts
-file = '/hpc/users/hoffmg01/work/cmc_analysis/src/Roussos_MSSM_MolProf_FANS_4_info.csv.gz'
+file = 'Roussos_MSSM_MolProf_FANS_4_info.csv.gz'
 gz1 <- gzfile(file, "w")
 write.table(info, gz1, quote=FALSE, sep=",", row.names=FALSE)
 close(gz1)
@@ -1247,6 +1254,17 @@ nEXP_OBJ = File(file,
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
+
+
+# Differential expression
+file = Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS
+
+nEXP_OBJ = File(file, 
+                name = 'FANS4 Differential Expression results', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+
 
 ```
 
