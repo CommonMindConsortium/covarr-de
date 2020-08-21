@@ -984,7 +984,7 @@ countsCombined = merge(geneCounts, gtex_count[,id], by="row.names")
 rownames(countsCombined) = countsCombined$Row.names
 countsCombined$Row.names = NULL
 
-isexpr = rowSums(cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
+isexpr = rowSums(edgeR::cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
 
 dge = DGEList(countsCombined[isexpr,])
 dge = calcNormFactors(dge)
