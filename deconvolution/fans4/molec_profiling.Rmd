@@ -1,0 +1,1253 @@
+---
+title: "RNA-seq from 4 cell populations"
+subtitle: ''
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+documentclass: article
+output: 
+  html_document:
+  toc: true
+  smart: false
+---
+
+
+<!---
+
+cd /hpc/users/hoffmg01/work/cmc_analysis/src
+# rm -rf molec_profiling_cache/
+ml git pandoc
+git pull
+R
+
+system("git pull")
+rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
+
+
+# http
+# https://hoffmg01.u.hpc.mssm.edu/molec_profiling.html
+
+--->
+
+--->
+
+```{r knit2synapse, eval=FALSE}
+library(synapser)
+library(knit2synapse)
+synLogin()
+knit2synapse::createAndKnitToFolderEntity(file = "deconvolution/fans4/molec_profiling.Rmd",
+                                          parentId ="syn22231629",
+                                          folderName = 'FANS4 processing and testing',
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
+```
+
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide', cache=FALSE}
+suppressPackageStartupMessages({
+library(variancePartition)
+library(limma)
+library(edgeR)
+library(mvIC)
+library(reshape2)
+library(qvalue)
+library(data.table)
+library(BiocParallel)
+library(knitr)
+library(org.Hs.eg.db)
+library(kableExtra)
+library(ggplot2)
+library(cowplot)
+library(scran)
+library(SummarizedExperiment)
+library(gridExtra)
+library(openxlsx)
+library(synapser)
+synLogin()
+library(EnsDb.Hsapiens.v86)
+detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
+library(EnsDb.Hsapiens.v86)
+ensdb = EnsDb.Hsapiens.v86
+})
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE,
+  cache.lazy = FALSE,  dev = c("png", "pdf"), 
+  fig.width=7, fig.height=7)
+
+options(markdown.HTML.stylesheet = 'css/custom.css')
+```
+
+
+
+```{r synapse.parameters, include=FALSE, cache=TRUE, eval=TRUE}
+thisFileName <- 'molec_profiling.Rmd'
+# thisFile = thisFileName
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('deconvolution/fans4/',thisFileName))
+```
+
+
+
+### Reading RNA-seq data
+```{r read.data, message=TRUE}
+Ids = c('syn22321012', 'syn22321013', 'syn22321014', 'syn22321016')
+# file = "/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/rnaseq/step1-merged/featureCount/featureCount.gene.tsv.gz"
+file = synGet('syn22321012')$path
+df_featureCounts_gene = fread( file )
+
+geneInfo = df_featureCounts_gene[,1:6]
+geneInfo$EnsId = gsub("^(.*)(\\.\\S+)$", "\\1", geneInfo$Geneid)
+
+geneCounts = df_featureCounts_gene[,7:ncol(df_featureCounts_gene)]
+geneCounts = as.data.frame(geneCounts)
+rownames(geneCounts) = geneInfo$Geneid 
+
+# identify samples with improper names
+idx = grep("Undetermined", colnames(geneCounts))
+message("Dropping samples with improper names:\n",  paste(colnames(geneCounts)[idx], collapse="\n"))
+geneCounts = geneCounts[,-idx]
+
+idx = which(colSums(geneCounts) < 1e5)
+message("Dropping samples with zero read counts:\n",  paste(colnames(geneCounts)[idx], collapse="\n"))
+geneCounts = geneCounts[,-idx]
+
+# remove genes with duplicated EnsId
+exclude = duplicated(geneInfo$EnsId)
+geneInfo = geneInfo[!exclude,]
+geneCounts = geneCounts[!exclude,]
+rownames(geneCounts) = gsub("^(.*)(\\.\\S+)$", "\\1", rownames(geneCounts))
+
+# convert to HUGO names
+df_hugo = select(org.Hs.eg.db, geneInfo$EnsId, "SYMBOL", "ENSEMBL")
+geneInfo = merge(geneInfo, df_hugo, by.x='EnsId', by.y="ENSEMBL")
+
+```
+
+
+```{r metadata}
+# file = "/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/meta-files/MolecularProfiling_MSSM_120samples_05.24.17-4.xlsx"
+file = synGet('syn22321013')$path
+# focused on this experiment
+metadata1 = read.xlsx( file )
+
+# from Synapse
+# file = "/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/meta-files/CMC_METADATA.csv"
+file = synGet('syn22321014')$path
+metadataCMC = fread( file )
+```
+
+### RNA-seq QC metrics
+```{r QC, fig.width=18, fig.height=74}
+# file = '/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/rnaseq/step1-merged/QCmetrics/qc_metrics.RDS'
+file = synGet('syn22321016')$path
+qc_metrics.in = t(readRDS( file ))
+colnames(qc_metrics.in) = qc_metrics.in[1,]
+qc_metrics.in = as.data.frame(qc_metrics.in[-c(1:2),], stringsAsFactors=FALSE)
+qc_metrics = apply(qc_metrics.in, 2, as.numeric)
+rownames(qc_metrics) = gsub('-', '.', rownames(qc_metrics.in))
+
+# extract information from sample names
+info = data.frame( Name = colnames(geneCounts), stringsAsFactors=FALSE)
+rownames(info) = info$Name
+info$DissectionID = sapply(strsplit( info$Name, '\\.'), function(x) x[1])
+info$CellType = sapply(strsplit( info$Name, '\\.'), function(x) x[2])
+info$Assay = sapply(strsplit( info$Name, '\\.'), function(x) x[3])
+
+# set color codes for each cell type
+colorCodes = c(
+  GABA = '#66A61E',
+  GLU = '#E6AB02',
+  Olig = '#E7298A',
+  MgAs = '#7570B3')
+
+# set factor levels to be the same as the order of the colors
+# this makes plotting easier
+info$CellType = factor(info$CellType,names(colorCodes))
+
+# add information about each sample
+info = merge(info, metadata1, by.x="DissectionID", by.y='Dissection.ID')
+info = merge(info, qc_metrics, by.x="Name", by.y='row.names')
+rownames(info) = info$Name
+
+# info = merge(info, metadataCMC, by.x='Individual.ID', by.y="Individual ID")
+#  info[1:4, 1:20]
+
+# set order to be the same as geneCounts
+info = info[match(colnames(geneCounts), info$Name),]
+
+# exclude columns with no variance
+index = apply(qc_metrics, 2, function(x) var(x, na.rm=TRUE)) > 0
+include = which(index==TRUE)
+include = include[! names(include) %in% "PF_BASES"]
+
+df = reshape2::melt(info[,c('DissectionID', 'CellType', colnames(qc_metrics)[include])], id.vars=c('DissectionID', 'CellType'))
+
+ggplot(df, aes( x=CellType, y=value, fill=CellType)) + geom_boxplot() + facet_wrap(~variable, scales="free_y", ncol=5) + theme_bw(16) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_fill_manual("Cell Type", values=colorCodes) 
+```
+
+
+
+
+### Study Summary
+```{r}
+kable(table(info$Dx, info$CellType)) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r}
+kable(table(info$Individual.ID)) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r preprocess}
+isexpr = rowSums(cpm(geneCounts)>1) >= 0.1*ncol(geneCounts)
+table(isexpr)
+
+dge = DGEList( geneCounts[isexpr,] )
+dge = calcNormFactors(dge)
+```
+
+```{r TMM}
+df = merge(dge$samples, info, by="row.names")
+
+ggplot(df, aes(CellType, norm.factors, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + ylab("TMM factor")
+```
+
+```{r expression.density}
+
+geneExpr = cpm(dge, log=TRUE)
+
+df = reshape2::melt(geneExpr)
+df = merge(df, info[,'CellType',drop=FALSE], by.x = "Var2", by.y="row.names")
+
+ggplot(df, aes(value, color=CellType)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(bquote(log[2]~CPM))
+
+ggplot(df, aes(value, color=Var2)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + facet_wrap(~CellType, ncol=4) + xlab(bquote(log[2]~CPM))
+```
+
+
+
+
+### PCA
+```{r PCA}
+
+geneExpr = cpm(dge, log=TRUE)
+
+dcmp = prcomp( t(geneExpr), scale=TRUE)
+
+df_pca = data.frame(dcmp$x)
+
+df_pca = merge(df_pca, info, by.x="row.names", by.y="Name")
+
+varFrac = dcmp$sdev^2 / sum(dcmp$sdev^2)
+
+xlab = paste0('PC1 (', format(varFrac[1]*100, digits=3), '%)')
+ylab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+ggplot(df_pca, aes(PC1, PC2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+
+xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
+ggplot(df_pca, aes(PC2, PC3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+```      
+
+### Sex check
+```{r sex.check}
+
+XIST = 'ENSG00000229807'
+UTY = 'ENSG00000183878'
+
+df = data.frame(  Name  = colnames(geneExpr), 
+                  XIST  = geneExpr[XIST,],
+                  UTY   = geneExpr[UTY,])
+df = merge( df, info[,c('Name', 'Gender', 'Individual.ID')], by="Name" )
+df$Gender = factor(df$Gender, c("Male", 'Female'))
+
+ggplot(df, aes(XIST, UTY, color=Gender)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c("blue", "red")) + ggtitle("Sex check")
+```
+
+Samples with wrong sex
+```{r sex.off}
+kable(df[df$Gender == 'Female' & df$UTY > 5,], digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)  
+```
+
+
+
+### Esimate precision weights
+```{r voom}
+form = ~ (1|CellType) + (1|Individual.ID) + (1|Gender)
+vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+```
+
+### mvIC
+Need to get proper covariates here
+
+```{r mvIC}
+colnames(info) = gsub(' ', '_', colnames(info))
+colnames(info) = gsub(':', '', colnames(info))
+colnames(info) = gsub('\\(', '', colnames(info))
+colnames(info) = gsub(')', '', colnames(info))
+colnames(info) = gsub('/', '', colnames(info))
+colnames(info) = gsub('-', '_', colnames(info))
+colnames(info) = gsub(',', '', colnames(info))
+
+include = apply(info, 2, function(x) all(!is.na(x)) && var(x, na.rm=TRUE) >0 )
+
+variables = colnames(info)[colnames(info) %in% names(include[include])]
+
+mvSearch = mvForwardStepwise( vobj, ~ CellType, info, variables)
+```
+
+
+### variancePartition
+```{r vp}
+form = ~ (1|CellType) + (1|Dx) + (1|CellType:Dx) + (1|Individual.ID) + (1|Gender)
+vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(6, progressbar=TRUE))
+
+plotVarPart( sortCols(vp) )
+```
+
+## Differential expression analysis
+### Cell type
+```{r DE_process}
+form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender)
+
+# Prepare all pairwise contrasts
+index = combn(nlevels(info$CellType),2)
+
+L = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+
+  L = getContrast( vobj, form, info, paste0('CellType', c(CT1, CT2)))
+
+  L = as.matrix(L)
+  colnames(L) = paste0(CT1, '.', CT2)
+
+  L
+})
+L = do.call(cbind, L)
+
+L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
+                    MgAs.Other = c(-1/3, -1/3, -1/3, 1),
+                    Olig.Other = c(-1/3, -1/3, 1, -1/3) ))
+
+fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(6, progressbar=TRUE))
+```
+
+```{r plotContrasts}
+plotContrasts(round(L,2)) + theme(axis.text.x=element_text(angle=45, hjust=1))   
+```
+
+```{r DE.analysis}
+
+index = combn(nlevels(info$CellType),2)
+
+df_deCount = lapply( 1:ncol(index), function(j){
+
+    CT1 = levels(info$CellType)[index[1,j]]
+    CT2 = levels(info$CellType)[index[2,j]]
+
+    key = paste0(CT1, '.', CT2)
+
+    tabl = topTable(fitBasic, coef=key, number=Inf)
+
+    data.frame(CT1, CT2, key, count = sum(tabl$adj.P.Val < 0.05), pi1 = 1 - qvalue(tabl$P.Value)$pi0)
+})
+df_deCount = do.call(rbind, df_deCount)
+
+ggplot(df_deCount, aes(CT1, CT2, fill=count)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(low="white", high="red", limits=c(0, 30000)) + geom_text(aes(label=format(count, big.mark=','))) + xlab('') + ylab('') + ggtitle("Count differentiall expression genes")
+
+ggplot(df_deCount, aes(CT1, CT2, fill=pi1)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(pi1, digits=3))) + xlab('') + ylab('') + ggtitle(bquote(pi[1]))
+```
+
+```{r DE2}
+
+index = combn(nlevels(info$CellType),2)
+
+df = lapply( 1:ncol(index), function(j){
+
+    CT1 = levels(info$CellType)[index[1,j]]
+    CT2 = levels(info$CellType)[index[2,j]]
+
+    key = paste0(CT1, '.', CT2)
+
+    tabl = topTable(fitBasic, coef=key, number=Inf)
+
+    data.frame(CT1, CT2, key, tabl)
+})
+df = do.call(rbind, df)
+
+ggplot(df, aes(logFC, ..count..)) + geom_density(alpha = .2) + facet_wrap(~key) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) 
+```
+
+## Plots of top differentially expressed genes
+```{r DE.marker_genes, fig.width=15, fig.height=30}
+
+index = combn(nlevels(info$CellType),2)
+
+ensIDs = sapply( 1:ncol(index), function(j){
+
+    CT1 = levels(info$CellType)[index[1,j]]
+    CT2 = levels(info$CellType)[index[2,j]]
+
+    key = paste0(CT1, '.', CT2)
+
+    tabl = topTable(fitBasic, coef=key, number=Inf)
+
+    tabl = tabl[order(tabl$t),]
+
+    c(head(rownames(tabl), 10), tail(rownames(tabl), 10))
+})
+
+ensIDs = unique(c(ensIDs, 'ENSG00000110693', 'ENSG00000167281'))
+
+df = reshape2::melt(geneExpr[ensIDs,])
+df = merge(df, info[,1:3], by.x="Var2", by.y="row.names")
+
+df_hugo = select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
+df = merge(df, df_hugo, by.x="Var1", by.y="ENSEMBL")
+df = df[!is.na(df$SYMBOL),]
+
+ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "none") + scale_fill_manual("Cell Type", values=colorCodes) + facet_wrap(~SYMBOL, ncol=5) + ylab(bquote(log[2]~CPM))
+```
+
+## Analysis using just pairs of samples
+```{r pairwise.analysis}
+
+index = combn(nlevels(info$CellType),2)
+
+# for all pairs of cell types
+tabList = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+  key = paste0(CT1, '.', CT2)
+
+  idx = which(info$CellType %in% c(CT1, CT2))
+
+  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  table(isexpr)
+  infoSub = droplevels(info[idx,])
+
+  dge = DGEList( geneCounts[isexpr,idx] )
+  dge = calcNormFactors(dge)
+
+  form = ~ CellType + Gender
+  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+
+  form = ~ CellType + Gender
+  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(6, progressbar=TRUE))
+  fit = eBayes(fit)
+
+  coef = paste0('CellType',levels(infoSub$CellType)[2])
+
+  topTable(fit, coef=coef, number=Inf)
+})
+
+names(tabList) = apply(matrix(levels(info$CellType)[index], nrow=2), 2, function(x) paste0(x, collapse='.'))
+
+df_de_summary = lapply( names(tabList), function(key){
+  tab = data.table(tabList[[key]])
+
+  data.frame( Comparison  = key, 
+              nGenes      = nrow(tab), 
+              nDE         = sum(tab$adj.P.Val < 0.05),
+              nDE_gt_1    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 1,]), 
+              nDE_gt_2    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 2,]), 
+              nDE_gt_3    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 3,]), 
+              nDE_gt_4    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 4,]), 
+              pi1         = 1-qvalue(tab$P.Value)$pi0)
+  })
+df_de_summary = do.call(rbind, df_de_summary)
+
+kable(df_de_summary) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r pairwise.density}
+
+index = combn(nlevels(info$CellType),2)
+
+# for all pairs of cell types
+tabList = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+  key = paste0(CT1, '.', CT2)
+
+  idx = which(info$CellType %in% c(CT1, CT2))
+
+  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  table(isexpr)
+  infoSub = droplevels(info[idx,])
+
+  dge = DGEList( geneCounts[isexpr,idx] )
+  dge = calcNormFactors(dge)
+
+  form = ~ CellType + Gender
+  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+
+  form = ~ CellType + Gender
+  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(6, progressbar=TRUE))
+  fit = eBayes(fit)
+
+  coef = paste0('CellType',levels(infoSub$CellType)[2])
+
+  data.frame(key, topTable(fit, coef=coef, number=Inf))
+})
+df = do.call(rbind, tabList)
+
+ggplot(df, aes(logFC)) + geom_density(alpha = .2) + facet_wrap(~key) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) 
+```
+
+
+```{r compare.voom}
+
+index = combn(nlevels(info$CellType),2)
+
+# for all pairs of cell types
+df_voomTrend = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+  key = paste0(CT1, '.', CT2)
+
+  idx = which(info$CellType %in% c(CT1, CT2))
+
+  isexpr = rowSums(cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  table(isexpr)
+  infoSub = droplevels(info[idx,])
+
+  dge = DGEList( geneCounts[isexpr,idx] )
+  dge = calcNormFactors(dge)
+
+  form = ~ CellType + Gender
+  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+
+  data.frame( key, x = vobj$voom.line[['x']], y = vobj$voom.line[['y']])
+})
+df_voomTrend = do.call(rbind, df_voomTrend)
+
+ggplot(df_voomTrend, aes(x, y, color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ylab("sqrt( standard deviation)") + xlab("log2( count size + 0.5 )") + xlim(0, 22) + ylim(0.4, 1.4)
+```
+
+## Identify marker genes
+```{r tabList.markerGenes}
+
+tabList = lapply(colnames(L), function(coef){
+  tab = topTable(fitBasic, coef=coef, number=Inf)
+  # tab[which((tab$adj.P.Val < 0.05) & (abs(tab$logFC) > 5)),]
+  tab
+})
+names(tabList) = colnames(L)
+
+saveRDS(tabList, file='./Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS')
+
+system("ml python; synapse add --parentid syn22243354 Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS")
+```
+
+
+## Plots of top differentially expressed genes
+```{r markerGenes, fig.width=15, fig.height=30}
+
+lapply( names(tabList), function(key){tab = tabList[[key]]; nrow(tab[tab$logFC > 6,]) })
+
+boxplot_gene = function(ensIDs, tab, ngenes=5){
+  df = reshape2::melt(geneExpr[ensIDs,,drop=FALSE])
+  df = merge(df, info[,1:3], by.x="Var2", by.y="row.names")
+
+  df_hugo = select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
+  df = merge(df, df_hugo, by.x="Var1", by.y="ENSEMBL")
+  df = df[!is.na(df$SYMBOL),]
+
+  df = df[df$SYMBOL %in% df_hugo$SYMBOL[!is.na(df_hugo$SYMBOL)][1:ngenes], ]
+
+  ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "none") + scale_fill_manual("Cell Type", values=colorCodes) + facet_wrap(~SYMBOL, nrow=1) + ylab(bquote(log[2]~CPM))
+}
+
+figList = lapply( names(tabList), function(key){
+
+  tab = tabList[[key]]
+
+  # only select up regulated genes
+  tab = tab[tab$logFC > 6,]
+
+  ensIDs = rownames(tab)
+
+  boxplot_gene( ensIDs, tab, 5) + ggtitle(key)
+  } )
+plot_grid(plotlist = figList, ncol=1)
+
+```
+
+```{r FANS.markers}
+ensIDs =  c('ENSG00000110693','ENSG00000167281', 'ENSG00000100146')
+boxplot_gene(ensIDs, tab) + ggtitle("FANS markers")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+# Compare to GTEx
+```{r GTEX.voom}
+
+file_SampleAttributesDS = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"
+file_SubjectPhenotypesDS= "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
+file_counts = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
+
+gtex_sample = read.delim(file_SampleAttributesDS, header = TRUE, stringsAsFactors = FALSE)
+# gtex_sample = gtex_sample[gtex_sample$SMTS == 'Brain',]
+
+rnaseq_sample_id = fread(file_counts, header = TRUE, skip = 2, nrows = 1)
+gtex_sample = gtex_sample[gtex_sample$SAMPID %in% colnames(rnaseq_sample_id),]
+
+# read count
+gtex_count <- fread(file_counts, header = TRUE, skip = 2, select = c('Name', unique(gtex_sample$SAMPID)))
+gtex_count = as.data.frame(gtex_count, stringsAsFactors=FALSE)
+
+gtex_count$Name = gsub("^(.*)(\\.\\S+)$", "\\1", gtex_count$Name )
+gtex_count = gtex_count[!duplicated(gtex_count$Name), ]
+rownames(gtex_count) = gtex_count$Name
+gtex_count$Name = NULL
+gtex_count = as.matrix(gtex_count)
+
+# isexpr = rowSums(cpm(gtex_count>1)) >= 0.3*ncol(gtex_count)
+# dge = DGEList( gtex_count[isexpr,] )
+# dge = calcNormFactors(dge)
+# gtex_log2cpm = cpm(dge, log=TRUE)
+
+# df_voomTrend_GTEx = lapply( unique(gtex_sample$SMTSD), function(Tissue){
+
+#   idx = which( gtex_sample$SMTSD == Tissue)
+
+#   isexpr = rowSums(cpm(gtex_count[,idx])>1) >= 0.3*ncol(gtex_count[,idx])
+#   table(isexpr)
+
+#   dge = DGEList( gtex_count[isexpr,idx] )
+#   dge = calcNormFactors(dge)
+
+#   vobj = voomWithDreamWeights(dge, ~1, gtex_sample[idx,], plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+
+#   data.frame( key = Tissue, x = vobj$voom.line[['x']], y = vobj$voom.line[['y']])
+# })
+# df_voomTrend_GTEx = do.call(rbind, df_voomTrend_GTEx)
+```
+
+```{r GTEX.voom.plot}
+# ggplot(df_voomTrend_GTEx, aes(x, y, color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="bottom") + ylab("sqrt( standard deviation)") + xlab("log2( count size + 0.5 )") + ggtitle("GTEx brain regions") + xlim(2, 22) + ylim(0.45, 1.36)
+```
+
+```{r gtex.colors}
+# https://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_track=hgFixed&hgta_group=allTables&hgta_table=hgFixed.gtexTissue
+
+gtexColors = read.csv('/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Tissue_colors.csv', header=TRUE)
+```
+
+
+```{r CV.all.in.one, eval=TRUE}
+library(scran)
+# FANS4
+isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.3*ncol(geneCounts)
+
+se <- SummarizedExperiment( assays=list(counts = as.matrix(geneCounts[isexpr,])), colData = info)
+res = modelGeneCV2( se, block=info$CellType )
+fit = metadata(res)
+
+df_fans4 = lapply( names(res$per.block), function(key){
+  with( res$per.block[[key]], data.frame(key, mean, total, trend, ratio, FDR))
+  })
+df_fans4 = data.table(do.call(rbind, df_fans4))
+
+
+df_fans4 = df_fans4[order(df_fans4$mean),]
+ggplot(df_fans4, aes(log2(mean), log2(trend), color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_color_manual(values=colorCodes)+ xlim(0, 20) + ylim(-5, 5)
+
+
+# GTEX
+idx = which(gtex_sample$SMTSD %in% names(which(table(gtex_sample$SMTSD) > 30)))
+
+isexpr = rowSums(edgeR::cpm(gtex_count[,idx])>1) >= 0.3*ncol(gtex_count[,idx])
+
+se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,idx]), colData = gtex_sample[idx,])
+res = modelGeneCV2( se, block=gtex_sample$SMTSD[idx] )
+
+df_gtex = lapply( names(res$per.block), function(key){
+  with( res$per.block[[key]], data.frame(key, mean, total, trend, ratio, FDR))
+  })
+df_gtex = data.table(do.call(rbind, df_gtex))
+df_gtex$key = factor(df_gtex$key)
+
+i = match(levels(df_gtex$key), gtexColors$description)
+colsGTEx = as.hexmode(gtexColors$color)[i[!is.na(i)]]
+
+
+df_gtex = df_gtex[order(df_gtex$mean),]
+df_gtex = df_gtex[df_gtex$mean > 0,]
+
+ggplot(df_gtex, aes(log2(mean), log2(trend), color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend))+ scale_color_manual(values=colsGTEx) + xlim(0, 20) + ylim(-5, 5)
+
+
+df_gtex$dataset = 'GTEx'
+df_fans4$dataset = "FANS4"
+df_combined = rbind(df_gtex, df_fans4)
+
+
+ggplot(df_combined, aes(log2(mean), log2(trend), color=key, size=dataset)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_size_manual(values=c(2, .1)) + scale_color_manual(values=c(rep("black", length(colsGTEx)), colorCodes)) + xlim(-8, 20) + ylim(-5, 3) 
+```
+
+
+```{r coef.variation, eval=TRUE}
+
+CTarray = as.list(levels(info$CellType))
+# CTarray[[5]] = c("GABA", "GLU")
+# CTarray[[6]] = levels(info$CellType)
+
+# different because only genes expressed in given cell type are used
+res_cv_FANS = lapply(CTarray, function(CT){
+   
+  id = info$Name[which(info$CellType %in% CT)]
+
+  isexpr = rowSums(edgeR::cpm(geneCounts[,id])>1) >= 0.1*ncol(geneCounts[,id])
+
+  se <- SummarizedExperiment( assays=list(counts = as.matrix(geneCounts[isexpr,id])), colData = info[id,])
+  res = modelGeneCV2( se ) # returns CV^2
+  fit = metadata(res)
+
+  geneTab = select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+  
+  list(df = data.frame( key = paste0(CT, collapse="."), res ),
+       f = fit$trend,
+       nExpressed = sum(isexpr),
+       nExpressed.CDS = sum(geneTab$GENEBIOTYPE == 'protein_coding'))
+})
+
+x = 2^seq(-3, 15, length.out=500)
+df_trend_FANS = lapply(res_cv_FANS, function(res){ 
+  data.frame( Dataset="FANS4", key = res$df$key[1], mean = x, trend=res$f(x))
+  })
+df_trend_FANS = do.call(rbind, df_trend_FANS)
+
+df_cv_FANS = lapply(res_cv_FANS, function(res){ 
+  res$df
+  })
+df_cv_FANS = do.call(rbind, df_cv_FANS)
+
+
+colorCodes['GABA.GLU'] = "orange"
+colorCodes['GABA.GLU.Olig.MgAs'] = "dodgerblue"
+
+# Take sqrt(CV^2)
+ggplot(df_trend_FANS, aes(log2(mean), log2(sqrt(trend)), color=key, size=Dataset)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position=c(.7, .9)) + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_size_manual(values=c(2, .1)) + scale_color_manual(values=colorCodes) + scale_x_continuous(expand=c(0.01, 0))
+
+
+ggplot(df_cv_FANS[df_cv_FANS$key %in% names(colorCodes)[1:4],], aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="right")  + scale_color_manual(values=colorCodes) + xlab(bquote(log[2]~CV))
+
+
+
+ggplot(df_cv_FANS, aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="right")  + scale_color_manual(values=colorCodes) + xlab(bquote(log[2]~CV))
+
+
+#  GTEX
+res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tissue){
+
+  id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == Tissue)]
+
+  isexpr = rowSums(edgeR::cpm(gtex_count[,id])>1) >= 0.1*ncol(gtex_count[,id])
+
+  se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,id]), colData = gtex_sample[id,])
+  res = modelGeneCV2( se )
+  fit = metadata(res)
+
+  geneTab = select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")  
+
+  list(df = data.frame( key = Tissue, res ),
+       f = fit$trend,
+       nExpressed = sum(isexpr),
+       nExpressed.CDS = sum(geneTab$GENEBIOTYPE == 'protein_coding'))
+})
+
+df_trend_GTEx = lapply(res_cv_GTEx, function(res){ 
+  data.frame( Dataset="GTEx", key = res$df$key[1], mean = x, trend=res$f(x))
+  })
+df_trend_GTEx = do.call(rbind, df_trend_GTEx)
+df_trend_GTEx$key = factor(df_trend_GTEx$key)
+
+df_cv_GTEx = lapply(res_cv_GTEx, function(res){ 
+  res$df
+  })
+df_cv_GTEx = do.call(rbind, df_cv_GTEx)
+df_cv_GTEx$key = factor(df_cv_GTEx$key)
+
+
+i = match(levels(df_trend_GTEx$key), gtexColors$description)
+colsGTEx = as.hexmode(gtexColors$color)[i[!is.na(i)]]
+
+ggplot(df_trend_GTEx, aes(log2(mean), log2(sqrt(trend)), color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_color_manual(values=colsGTEx) + scale_x_continuous(expand=c(.01,0))
+
+
+ggplot(df_cv_GTEx, aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~CV~trend)) + scale_color_manual(values=colsGTEx)
+
+
+
+# combine
+df_combined = rbind(df_trend_GTEx, df_trend_FANS)
+
+ggplot(df_combined, aes(log2(mean), log2(trend), color=key, size=Dataset)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_size_manual(values=c(2, .2)) + scale_color_manual(values=c(rep("grey60", length(colsGTEx)), colorCodes)) + scale_x_continuous(expand=c(.01,0))
+
+
+df_cv_GTEx$Dataset = "GTEx"
+df_cv_GTEx$Type = "Real"
+df_cv_FANS$Dataset = "FANS4"
+df_cv_FANS$Type = "Real"
+df_cv_FANS$Type[df_cv_FANS$key %in% names(colorCodes)[5:6]] = "Synthetic"
+
+df = data.table(rbind(df_cv_GTEx, df_cv_FANS))
+
+ggplot(df, aes(log2(total), color=key, size=Dataset, linetype=Type)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~CV~trend)) + scale_color_manual(values=c(rep("grey", length(colsGTEx)), colorCodes)) + scale_size_manual(values=c(2, .2)) + scale_linetype_discrete(c("solid", "dashed"))
+
+# number of expressed genes
+ df[,sum(total > 0), by='key']
+
+
+df2 = lapply(sort(unique(df$key)), function(KEY){
+  data.frame(key = KEY, Dataset = df$Dataset[df$key == KEY][1],
+    Type = df$Type[df$key == KEY][1],
+    CV2=df[key==KEY,][order(mean,decreasing=TRUE)[1:15000],]$total)
+  })
+df2 = data.table(do.call(rbind, df2))
+df2$key = factor(df2$key, (sort(unique(df2$key))))
+levels(df2$key)
+
+i = match(levels(df2$key), gtexColors$description)
+colsGTEx = paste0("#", as.hexmode(gtexColors$color)[i[!is.na(i)]])
+names(colsGTEx) = gtexColors$description[i[!is.na(i)]]
+
+cols = c(colsGTEx, colorCodes)[levels(df2$key)]
+cols[names(colsGTEx)] = "grey"
+
+ggplot(df2, aes(log2(sqrt(CV2)), color=key, size=Dataset, linetype=Type)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~CV~trend)) + scale_color_manual(values=cols) + scale_size_manual(values=c(2, .1)) + scale_linetype_discrete(c("solid", "dashed"))
+
+
+df3 = df2[,median(sqrt(CV2)), by='key']
+df3$key = factor(df3$key, rev(levels(df3$key)))
+
+ggplot( df3[!is.na(df3$V1)], aes(key, V1, fill=key)) + geom_bar(stat='identity') + theme_bw(10) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none")  + scale_fill_manual(values=c(colsGTEx, colorCodes)[levels(df3$key)]) + coord_flip() + ylab(bquote(Median~CV)) + scale_y_continuous(expand=c(0,0)) + xlab('') + ylim(0, max(df3$V1, na.rm=TRUE)*1.05)
+
+
+# Compare to IPS and LCL
+
+# genes expressed
+
+df_count_fans4 = lapply(res_cv_FANS, function(res){  
+  data.frame( Dataset="FANS4", key = res$df$key[1], 
+    "Expressed genes"=res$nExpressed, "Expressed coding genes"=res$nExpressed.CDS)
+ })
+df_count_fans4 = do.call(rbind, df_count_fans4) 
+
+df_count_gtex = lapply(res_cv_GTEx, function(res){  
+  data.frame( Dataset="GTEx", key = res$df$key[1], 
+    "Expressed genes"=res$nExpressed, "Expressed coding genes"=res$nExpressed.CDS)
+ })
+df_count_gtex = do.call(rbind, df_count_gtex) 
+
+df_count = rbind(df_count_gtex, df_count_fans4)
+df_count$key = factor(df_count$key, rev(levels(df2$key)))
+
+
+i = match(levels(df_count$key), gtexColors$description)
+colsGTEx = paste0("#", as.hexmode(gtexColors$color)[i[!is.na(i)]])
+names(colsGTEx) = gtexColors$description[i[!is.na(i)]]
+
+df_melt = reshape2::melt(df_count, id.vars=c("Dataset", "key"))
+
+ggplot( df_melt, aes(key, value, fill=key)) + geom_bar(stat='identity') + theme_bw(10) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none")  + scale_fill_manual(values=c(colsGTEx, colorCodes)[levels(df3$key)]) + coord_flip() + ylab("# genes expressed") + scale_y_continuous(expand=c(0,0)) + xlab('') + facet_wrap(~variable)
+
+
+```
+
+```{r plot.coef.variation, fig.width=12, fig.height=12, eval=FALSE}
+# use colors here
+# gtexColors and colorCodes
+
+df = rbind(df_cv_GTEx, df_cv_FANS)
+df$key = factor(df$key, c(rev(sort(unique(df_cv_FANS$key))), rev(sort(unique(df_cv_GTEx$key)))))
+
+i = match(levels(df$key), gtexColors$description)
+cols = as.hexmode(gtexColors$color)[i[!is.na(i)]]
+cols = paste0('#', cols)
+names(cols) = gtexColors$description[i[!is.na(i)]]
+
+cols = c(cols, colorCodes)[levels(df$key)]
+
+cols[!names(cols) %in% unique(df_cv_FANS$key)] = "black"
+
+# ggplot( df, aes(log2(BCV), color=key)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="bottom") + facet_wrap(~Dataset, ncol=1) + scale_color_manual("Type", values=cols) 
+
+ggplot(df[,nrow(.SD), by="key"], aes(key, V1, fill=key)) + geom_bar(stat="identity") + theme_bw(10) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_fill_manual("Cell Type", values=cols) + coord_flip() + xlab('') + ylab("# genes exprressed")
+
+ggplot( df[CV.ratio>=1,], aes(CV.ratio, ..density.., color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_color_manual("Cell Type", values=cols) + xscale("log2", .format = TRUE) + facet_wrap(~Dataset, ncol=1)
+
+ggplot( df[CV.ratio>=1,], aes(log2(CV.ratio), color=key)) + stat_ecdf() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_color_manual("Cell Type", values=cols) + facet_wrap(~Dataset, ncol=2) + ylab("eCDF") + scale_x_continuous(expand=c(0,0), limits=c(0, 10)) 
+
+
+df2 = df[,data.frame(Dataset=Dataset[1], Count = sum(CV.ratio > 2) / length(CV.ratio)),by="key"]
+
+v = df2[Dataset=="GTEx", median(Count)]
+
+ggplot(df2, aes(key, Count, fill=key))  + geom_bar(stat="identity") + theme_bw(10) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_fill_manual("Cell Type", values=cols) + coord_flip() + xlab('') + ylab('# genes passing cutoff') + geom_hline(yintercept=v, linetype="dashed", color="grey70")
+
+
+df2 = df[,data.frame(Dataset=Dataset[1], Count = sum(FDR < .05)/length(FDR)),by="key"]
+v = df2[Dataset=="GTEx", median(Count)]
+
+
+
+ggplot(df[,sum(FDR < .05),by='key'], aes(key, V1, fill=key))  + geom_bar(stat="identity") + theme_bw(8) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_fill_manual("Cell Type", values=cols) + coord_flip() + xlab('') + ylab('# genes passing cutoff') + geom_hline(yintercept=v, linetype="dashed", color="grey70")
+
+
+ 
+
+
+
+
+
+```
+
+
+
+```{r cv.old}
+
+# cv = function(x){
+#   sd(x) / mean(x)
+# }
+
+
+# #   cv_est = apply(geneExpr[,id], 1, cv)
+
+# #   data.frame( key = CT, Gene = names(cv_est), CV = cv_est, stringsAsFactors=FALSE)
+# # })
+# # df_cv_FANS = do.call(rbind, df_cv_FANS)
+
+# # CV for GTEX
+# df_cv_GTEx = lapply( unique(gtex_sample$SMTSD), function(Tissue){
+
+#   id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == Tissue)]
+
+#   cv_est = apply(gtex_log2cpm[,id], 1, cv)
+
+#   data.frame( key = Tissue, Gene = names(cv_est), CV = cv_est, stringsAsFactors=FALSE)
+# })
+# df_cv_GTEx = do.call(rbind, df_cv_GTEx)
+
+# df = rbind(df_cv_FANS, df_cv_GTEx)
+
+
+# ggplot( df_cv_FANS, aes(log10(CV), color=key)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlim(-2, 5) + ylim(0,1.4)
+
+# ggplot( df_cv_GTEx, aes(log10(CV), color=key)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + xlim(-2, 5) + ylim(0,1.4)
+
+
+# ggplot( df, aes(log10(CV), color=key)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + xlim(-2, 5) + ylim(0,1.4)
+
+```
+
+### PCA including GTEx
+Computed on residuals
+
+```{r PCA.gtex}
+
+id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == 'Brain - Frontal Cortex (BA9)')]
+countsCombined = merge(geneCounts, gtex_count[,id], by="row.names")
+rownames(countsCombined) = countsCombined$Row.names
+countsCombined$Row.names = NULL
+
+isexpr = rowSums(cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
+
+dge = DGEList(countsCombined[isexpr,])
+dge = calcNormFactors(dge)
+
+geneExprCombined = cpm(dge, log=TRUE)
+
+infoExpand = rbind(data.frame(info[,c(1,3)], dataset="FANS4", stringsAsFactors=FALSE), 
+  data.frame(Name=colnames(gtex_count[,id]), CellType = "GTEx BA9", dataset="GTEx", stringsAsFactors=FALSE))
+rownames(infoExpand) = infoExpand$Name
+
+# the first PC separates FANS from bulk, so subtract that and use residuals
+fit = dream(geneExprCombined, ~ dataset, infoExpand)
+resid = residuals(fit, geneExprCombined)
+
+dcmp = prcomp( t(resid), scale=TRUE)
+
+df_pca = data.frame(dcmp$x)
+
+df_pca = merge(df_pca, infoExpand, by.x="row.names", by.y="Name")
+
+varFrac = dcmp$sdev^2 / sum(dcmp$sdev^2)
+
+xlab = paste0('PC1 (', format(varFrac[1]*100, digits=3), '%)')
+ylab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+ggplot(df_pca, aes(PC1, PC2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab(xlab) + ylab(ylab)
+
+# xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+# ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
+# ggplot(df_pca, aes(PC2, PC3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab(xlab) + ylab(ylab)
+
+```
+
+### MDS
+computed on log cpm
+
+```{r GTEX.MDS}
+
+d = as.dist(1 - cor(geneExprCombined)^2)
+# d = as.dist(1 - cor(apply(geneExprCombined, 2, RNOmni::rankNorm), method="sp")^2)
+
+df_mds = data.frame(cmdscale( d, k=3))
+
+df_mds = merge(df_mds, infoExpand, by.x="row.names", by.y="Name")
+
+ggplot(df_mds, aes(X1, X2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab('Coordinate 1') + ylab('Coordinate 2')
+
+ggplot(df_mds, aes(X2, X3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab('Coordinate 2') + ylab('Coordinate 3')
+```
+
+## Differential expression with Increasing sample size
+```{r subset.analysis}
+
+n_array =  c(3, 5, 10, 20, 28)
+sampleRamp = lapply(n_array, function(N){
+
+  df = sapply(levels(info$CellType), function(CT){
+    info$Name[which(info$CellType == CT)[1:N]]
+    })
+  data.frame(df, stringsAsFactors=FALSE)
+  })
+
+
+index = combn(nlevels(info$CellType),2)
+
+tabRampList = lapply( sampleRamp, function(sampleSet){
+
+  infoSub = droplevels(info[info$Name %in% unlist(sampleSet),])
+  geneCountSub = geneCounts[,infoSub$Name]
+
+  # for all pairs of cell types
+  tabList = lapply( 1:ncol(index), function(j){
+
+    CT1 = levels(infoSub$CellType)[index[1,j]]
+    CT2 = levels(infoSub$CellType)[index[2,j]]
+    key = paste0(CT1, '.', CT2)
+
+    idx = which(infoSub$CellType %in% c(CT1, CT2))
+
+    message(key, " ", nrow(sampleSet) )
+    infoSub2 = droplevels(infoSub[idx,])
+
+    isexpr = rowSums(cpm(geneCountSub[,idx])>1) >= 0.3*ncol(geneCountSub[,idx])
+    table(isexpr)
+
+    dge = DGEList( geneCountSub[isexpr,idx] )
+    dge = calcNormFactors(dge)
+
+    form = ~ CellType
+    vobj = voomWithDreamWeights(dge, form, infoSub2, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
+
+    form = ~ CellType
+    fit = dream( vobj, form, infoSub2, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
+    fit = eBayes(fit)
+
+    coef = paste0('CellType',levels(infoSub2$CellType)[2])
+
+    topTable(fit, coef=coef, number=Inf)
+  })
+  names(tabList) = apply(matrix(levels(infoSub$CellType)[index], nrow=2), 2, function(x) paste0(x, collapse='.'))
+  tabList  
+})
+```
+
+
+Just counting coding genes, but analysis was for everything
+
+```{r subset.analysis.plots, fig.width=9}
+
+df_de_summary = lapply( 1:length(tabRampList), function(j){
+
+  tabList = tabRampList[[j]]
+
+  df_de_summary = lapply( names(tabList), function(key){
+    tab = tabList[[key]]
+
+    geneTab = select(ensdb, keys=rownames(tab), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+
+    tab = merge(tab, geneTab, by.x="row.names", by.y="GENEID")
+
+    tab = data.table(tab)
+    tab = tab[GENEBIOTYPE=='protein_coding',]
+
+    df_de_summary = data.frame( Comparison  = key, 
+                N           = n_array[j],
+                nGenes      = nrow(tab), 
+                nDE         = sum(tab$adj.P.Val < 0.05),
+                nDE_gt_1    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 1,]), 
+                nDE_gt_2    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 2,]), 
+                nDE_gt_3    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 3,]), 
+                nDE_gt_4    =  nrow(tab[adj.P.Val < 0.05 & abs(logFC) > 4,]), 
+                pi1         = 1-qvalue(tab$P.Value)$pi0)
+    })
+   do.call(rbind, df_de_summary)
+})
+df_de_summary = do.call(rbind, df_de_summary)
+
+ggplot(df_de_summary, aes(N, nDE_gt_1, color=Comparison)) + geom_point() + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "right") + ylab("# DE and |logFC| > 1") + xlab("Sample size") + ylim(0,NA)
+```
+
+
+# Disease
+```{r DE.disease}
+# Disease
+fitDisease = dream( vobj, ~ 0 + CellType*Dx + (1|Individual.ID) + (1|Gender), info, BPPARAM=SnowParam(6, progressbar=TRUE))
+```
+
+```{r Disease.analysis}
+df_disease = lapply(levels(info$CellType), function(CT){
+
+  key = paste0('CellType', CT, ':DxSCZ')
+
+  if( CT == levels(info$CellType)[1]){
+    key = 'DxSCZ'
+  } 
+
+  tabl = topTable( fitDisease, coef = key, number=Inf)
+
+  data.frame(CellType = CT, key, count = sum(tabl$adj.P.Val < 0.05), pi1 = 1 - qvalue(tabl$P.Value)$pi0)
+  })
+df_disease = do.call(rbind, df_disease)
+
+kable(df_disease, digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+
+Volcano plot colored by cell type
+
+DE from null model
+Power vs sample size
+Paired versus non-paired
+Plot examples of marker genes
+distribution of effect size
+GTEX brain span.
+Compare cell types
+Homogeneity of variance for each cell type
+
+For next week: deconvolution of GTEx, PEC, CMC, BrainSpan, BrainVar
+
+
+
+bMIND can incorporate the prior of cell type variance/covariance. That is, the K x K covariance matrix for K cell types for each gene. I am wondering if Gabriel can also share this info, if sharing the sample-level data is not possible.
+
+### Save mean expression per cell type
+https://www.synapse.org/#!Synapse:syn22231629
+```{r save.reference.panel}
+
+# compute mean for each cell type, using precision weights
+fitCT = dream( vobj, ~ 0 + CellType, info, BPPARAM=SnowParam(6, progressbar=TRUE))
+fitCT = eBayes(fitCT)
+
+df_RefPanel = lapply( colnames(fitCT), function(coef){
+
+  # Extract mean for this cell type
+  tabl = topTable(fitCT, coef=coef, number=Inf, sort.by='none')
+  tabl$se = tabl$logFC / tabl$t # compute standard error given beta and t
+
+  df = data.frame(tabl[,c('logFC', 'se')])
+  rownames(df) = rownames(tabl)
+  colnames(df) = paste0(gsub('CellType', '', coef), c('', '.se'))
+  df
+
+  })
+df_RefPanel = do.call(cbind, df_RefPanel)
+df_RefPanel = data.frame(EnsID = rownames(df_RefPanel), df_RefPanel)
+
+exclude = grep("\\.se$", colnames(df_RefPanel))
+```
+
+
+```{r store, eval=TRUE}
+# Code
+CODE <- Folder(name = "FANS4 processing and testing", parentId = "syn22231629") # Make sure these match the folder name and parent Id in the first chunk.
+CODE <- synStore(CODE)
+
+
+# write mean expression
+file = 'Roussos_MSSM_MolProf_FANS_4_log2CPM_reference_panel.csv.gz'
+gz1 <- gzfile(file, "w")
+write.table(df_RefPanel[,-exclude], gz1, quote=FALSE, sep=",", row.names=FALSE)
+close(gz1)
+
+nEXP_OBJ = File(file, 
+                name = 'FANS4 reference panel: log2CPM', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+
+
+
+# write standard error
+file = 'Roussos_MSSM_MolProf_FANS_4_log2CPM_se_reference_panel.csv.gz'
+gz1 <- gzfile(file, "w")
+write.table(df_RefPanel[,c(1,exclude)], gz1, quote=FALSE, sep=",", row.names=FALSE)
+close(gz1)
+
+nEXP_OBJ = File(file, 
+                name = 'FANS4 reference panel: log2CPM standard error', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+
+
+
+
+
+# full counts
+file = '/hpc/users/hoffmg01/work/cmc_analysis/src/Roussos_MSSM_MolProf_FANS_4_geneCounts.csv.gz'
+gz1 <- gzfile(file, "w")
+write.table(data.table(EnsID = rownames(geneCounts), geneCounts), gz1, quote=FALSE, sep=",", row.names=FALSE)
+close(gz1)
+
+nEXP_OBJ = File(file, 
+                name = 'FANS4 reference panel: full counts', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+
+
+# full counts
+file = '/hpc/users/hoffmg01/work/cmc_analysis/src/Roussos_MSSM_MolProf_FANS_4_info.csv.gz'
+gz1 <- gzfile(file, "w")
+write.table(info, gz1, quote=FALSE, sep=",", row.names=FALSE)
+close(gz1)
+
+nEXP_OBJ = File(file, 
+                name = 'FANS4 reference panel: metadata', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+
+```
+
+
+### Source
+[markdown](`r thisFile`)
+
+
