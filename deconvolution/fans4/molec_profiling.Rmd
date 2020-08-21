@@ -989,7 +989,7 @@ isexpr = rowSums(edgeR::cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
 dge = DGEList(countsCombined[isexpr,])
 dge = calcNormFactors(dge)
 
-geneExprCombined = cpm(dge, log=TRUE)
+geneExprCombined = edgeR::cpm(dge, log=TRUE)
 
 infoExpand = rbind(data.frame(info[,c(1,3)], dataset="FANS4", stringsAsFactors=FALSE), 
   data.frame(Name=colnames(gtex_count[,id]), CellType = "GTEx BA9", dataset="GTEx", stringsAsFactors=FALSE))
@@ -1066,7 +1066,7 @@ tabRampList = lapply( sampleRamp, function(sampleSet){
     message(key, " ", nrow(sampleSet) )
     infoSub2 = droplevels(infoSub[idx,])
 
-    isexpr = rowSums(cpm(geneCountSub[,idx])>1) >= 0.3*ncol(geneCountSub[,idx])
+    isexpr = rowSums(edgeR::cpm(geneCountSub[,idx])>1) >= 0.3*ncol(geneCountSub[,idx])
     table(isexpr)
 
     dge = DGEList( geneCountSub[isexpr,idx] )
