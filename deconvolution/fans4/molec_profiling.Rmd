@@ -69,6 +69,8 @@ library(EnsDb.Hsapiens.v86)
 ensdb = EnsDb.Hsapiens.v86
 })
 
+source("../../common_functions/common_functions.R")
+
 knitr::opts_chunk$set(
   echo=FALSE,
   warning=FALSE,
@@ -102,7 +104,8 @@ file = synGet('syn22321012')$path
 df_featureCounts_gene = fread( file )
 
 geneInfo = df_featureCounts_gene[,1:6]
-geneInfo$EnsId = gsub("^(.*)(\\.\\S+)$", "\\1", geneInfo$Geneid)
+geneInfo$EnsId = trim_ensembl_ids( geneInfo$Geneid )
+geneInfo = geneInfo %>% getGeneSymbol( 'Geneid' )
 
 geneCounts = df_featureCounts_gene[,7:ncol(df_featureCounts_gene)]
 geneCounts = as.data.frame(geneCounts)
@@ -121,11 +124,12 @@ geneCounts = geneCounts[,-idx]
 exclude = duplicated(geneInfo$EnsId)
 geneInfo = geneInfo[!exclude,]
 geneCounts = geneCounts[!exclude,]
-rownames(geneCounts) = gsub("^(.*)(\\.\\S+)$", "\\1", rownames(geneCounts))
+rownames(geneCounts) = trim_ensembl_ids( rownames(geneCounts) )
 
 # convert to HUGO names
-df_hugo = select(org.Hs.eg.db, geneInfo$EnsId, "SYMBOL", "ENSEMBL")
-geneInfo = merge(geneInfo, df_hugo, by.x='EnsId', by.y="ENSEMBL")
+# df_hugo = select(org.Hs.eg.db, geneInfo$EnsId, "SYMBOL", "ENSEMBL")
+# geneInfo = merge(geneInfo, df_hugo, by.x='EnsId', by.y="ENSEMBL")
+
 
 ```
 
