@@ -1257,7 +1257,7 @@ nEXP_OBJ = synStore(nEXP_OBJ, used = Ids,
 
 
 # Differential expression
-file = Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS
+file = "Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS"
 
 nEXP_OBJ = File(file, 
                 name = 'FANS4 Differential Expression results', 
