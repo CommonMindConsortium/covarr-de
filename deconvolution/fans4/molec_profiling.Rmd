@@ -1207,7 +1207,7 @@ write.table(df_RefPanel[,-exclude], gz1, quote=FALSE, sep=",", row.names=FALSE)
 close(gz1)
 
 nEXP_OBJ = File(file, 
-                name = 'FANS4 reference panel: log2CPM', 
+                name = 'FANS4 reference panel - log2CPM', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
@@ -1221,7 +1221,7 @@ write.table(df_RefPanel[,c(1,exclude)], gz1, quote=FALSE, sep=",", row.names=FAL
 close(gz1)
 
 nEXP_OBJ = File(file, 
-                name = 'FANS4 reference panel: log2CPM standard error', 
+                name = 'FANS4 reference panel - log2CPM standard error', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
@@ -1237,7 +1237,7 @@ write.table(data.table(EnsID = rownames(geneCounts), geneCounts), gz1, quote=FAL
 close(gz1)
 
 nEXP_OBJ = File(file, 
-                name = 'FANS4 reference panel: full counts', 
+                name = 'FANS4 reference panel - full counts', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
@@ -1250,7 +1250,7 @@ write.table(info, gz1, quote=FALSE, sep=",", row.names=FALSE)
 close(gz1)
 
 nEXP_OBJ = File(file, 
-                name = 'FANS4 reference panel: metadata', 
+                name = 'FANS4 reference panel - metadata', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
