@@ -97,6 +97,12 @@ ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
 COVARIATES = downloadFile(COVAR_ID) %>% 
   tibble::column_to_rownames(var = "SampleID")
 
+# Remove ages under 17
+COVARIATES <- COVARIATES[COVARIATES$ageOfDeath >= 17,]
+NEW.COUNTS <- NEW.COUNTS[names(NEW.COUNTS) %in% rownames(COVARIATES)]
+CQN.GENE_EXPRESSION <- CQN.GENE_EXPRESSION[names(CQN.GENE_EXPRESSION) %in% rownames(COVARIATES)]
+
+
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
 COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
@@ -107,6 +113,7 @@ ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate",
 COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
   x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
 })
+
 
 # Set covariates to adjust for from model selection
 adjust.covars <- c("Dx", "ageOfDeath", "RIN", "IntronicRate", "IntragenicRate", "IntergenicRate")
