@@ -1,0 +1,276 @@
+---
+title: "Deconvolution to FANS4"
+author: "Gabriel Hoffman"
+date: "`r date()`"
+output: html_document
+---
+
+```{r knit2synapse, eval=FALSE}
+ml git pandoc
+rmarkdown::render("deconvolution/apply_dtangle_FANS4.Rmd")
+
+library(synapser)
+library(knit2synapse)
+
+synLogin()
+
+knit2synapse::createAndKnitToFolderEntity(file = "deconvolution/apply_dtangle_FANS4.Rmd",
+                                 parentId ="syn22321035",
+                                 folderName = "Deconvolution results",
+                                 knitmd=FALSE)
+```
+
+```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+library(data.table)
+library(dtangle)
+library(edgeR)
+library(variancePartition)
+library(BiocParallel)
+
+library(synapser)
+library(future)
+library(knitr)
+library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
+
+source("../common_functions/common_functions.R")
+
+synLogin()
+
+# See dream documentation to customize parallel processing       http://bioconductor.org/packages/release/bioc/vignettes/variancePartition/inst/doc/dream.html#parallel-processing
+param = SnowParam((availableCores()-2)/2, "SOCK", progressbar=TRUE)
+
+register(param)
+
+options(xtable.type="html")
+
+knitr::opts_chunk$set(
+  echo=FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+```{r synapse.parameters, include=FALSE, cache=TRUE}
+parentId = 'syn22321035';
+activityName = 'Deconvolution';
+activityDescription = 'Deconvolution';
+
+thisFileName <- 'apply_dtangle_FANS4.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('deconvolution/',thisFileName))
+```
+
+```{r read.data}
+
+# Read reference panel
+######################
+geneExpr_FANS4_lcpm = read.csv(synGet('syn22321183')$path, header=TRUE)
+rownames(geneExpr_FANS4_lcpm) = geneExpr_FANS4_lcpm[,1]
+geneExpr_FANS4_lcpm = geneExpr_FANS4_lcpm[,-1]
+metadata_FANS4 = read.csv(synGet("syn22321189")$path, header=TRUE, row.names=1)
+
+
+# read Raw counts
+#################
+file_counts_synid = c('syn21888969', 'syn21862455', 'syn21887889', 'syn21825508')
+
+# read one file at a time
+geneCounts_list = lapply(file_counts_synid, function(id){
+	read.table(synGet(id)$path, header=TRUE, check.names=FALSE)
+	})
+
+# lapply(geneCounts_list, function(x) x[1:3, 1:3])
+
+# merge files based on gene name
+geneCounts = Reduce(function(x,y) merge(x = x, y = y, by = "ensembl_gene_id"), geneCounts_list)
+rownames(geneCounts) = trim_ensembl_ids(geneCounts[,1])
+geneCounts = geneCounts[,-1]
+
+# TMM normalization
+geneExpr = DGEList( as.matrix(geneCounts))
+geneExpr = calcNormFactors(geneExpr)
+geneExpr_logCPM = cpm(geneExpr, log=TRUE)
+
+# only keep genes measured in FANS4
+keep = rownames(geneExpr_logCPM) %in% rownames(geneExpr_FANS4_lcpm)
+geneExpr_logCPM = geneExpr_logCPM[keep,]
+
+```
+
+```{r process.counts}
+
+idx = match(rownames(geneExpr_logCPM), rownames(geneExpr_FANS4_lcpm))
+
+# a = cbind( rownames(geneExpr_logCPM), rownames(geneExpr_FANS4_lcpm[idx,]) )
+# table(a[,1] == a[,2])
+# which(a[,1] != a[,2])
+
+
+cellFracEstimates = dtangle( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS4_lcpm[idx,]))
+
+cellFracEstimates2 = dtangle2( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS4_lcpm[idx,]))
+
+cor(cellFracEstimates$estimates, cellFracEstimates2$estimates, method="spearman")
+```
+
+
+
+
+### Data preprocessing
+```{r preprocess.data}
+# Get genotype ids from synapse
+GENOTYPE_ID = 'syn16816490'
+ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
+GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
+  dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
+  dplyr::inner_join(ANCESTRY) %>% 
+  dplyr::filter(is.na(`SNP_report:Exclude?`))
+
+# Merge metadata
+METADATA = metadata %>%
+  dplyr::left_join(GENOTYPE) %>% 
+  dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
+                PMI = `PMI_(in_hours)`,
+                RIN = `rnaSeq_isolation:RIN`, 
+                ReportExclude = `rnaSeq_report:Exclude?`,
+                GenotypeExclude = `SNP_report:Exclude?`,
+                SampleID = Sample_RNA_ID,
+                LibraryBatch = `rnaSeq_report:Library_Batch`,
+                FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
+                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
+                MappedReads = `rnaSeq_report:Mapped_Reads`,
+                IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
+                IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
+                ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
+                TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
+  dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, 
+                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
+                LibraryBatch, FlowcellBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
+                IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
+  dplyr::filter(Cohort %in% "NIMH-HBCC") %>% 
+  dplyr::filter(SampleID %in% colnames(COUNT), !is.na(SampleID)) %>% 
+  dplyr::mutate(Dx = forcats::fct_recode(Dx, Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
+  
+ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
+writeLines(paste('Following',length(ind),'samples are marked exclude'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$Ethnicity) | is.na(METADATA$Institution) | is.na(METADATA$Dx)]
+writeLines(paste('Following', length(ind), 'counts are missing any metadata'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$PMI)]
+writeLines(paste('Following', length(ind), 'counts are missing PMI'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$Reported_Gender)]
+writeLines(paste('Following', length(ind), 'counts are missing gender'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$ageOfDeath)]
+writeLines(paste('Following', length(ind), 'counts are missing age of death'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+
+ind = METADATA$SampleID [is.na(METADATA$EV.1)]
+writeLines(paste('Following', length(ind), 'counts are missing ancestry information'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+```
+
+```{r preprocess.data1, results='asis'}
+# Match covariates to expression data
+indToRetain = intersect(METADATA$SampleID, colnames(COUNT))
+
+rownames(COUNT) <- COUNT$Geneid
+COUNT = COUNT[,indToRetain]
+
+rownames(METADATA) = METADATA$SampleID
+METADATA = METADATA[indToRetain,]
+
+METADATA %>% 
+  group_by(Dx) %>% 
+  dplyr::summarise(count = n()) %>% 
+  kable()
+
+FactorCovariates <- c('Individual_ID', "Reported_Gender", "LibraryBatch", "Dx", "FlowcellBatch", "RibozeroBatch")
+ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
+                    "GenesDetected", "ExpProfEfficiency", "rRNARate", "TotalReads", "AlignmentRate",
+                    "EV.1", "EV.2", "EV.3", "EV.4", "EV.5")
+
+# Find inter relation between factor covariates
+COVARIATES = METADATA[,c(FactorCovariates,ContCovariates),drop=F]
+COVARIATES[,FactorCovariates] <- data.frame(lapply(COVARIATES[,FactorCovariates],function(x){
+  x <- sapply(x,function(y){str_replace_all(as.character(y),'[^[:alnum:]]','_')})}))
+rownames(COVARIATES) <- METADATA$SampleID
+
+# Convert factor covariates to factors
+COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
+COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
+  x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r store, eval=FALSE}
+# Code
+CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22315403") # Make sure these match the folder name and parent Id in the first chunk.
+CODE <- synStore(CODE)
+
+# Store meta-analysis
+file = "cellFracEstimates.RDS"
+saveRDS(cellFracEstimates, file=file)
+nEXP_OBJ = File(file, 
+                name = 'Result of dtangle', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+res_acc %>%
+  tibble::rownames_to_column(var = "gene_id") %>% 
+  write.table(file = 'CMC_acc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
+nEXP_OBJ = File('CMC_acc_Sex_meta_analysis.tsv', 
+                name = 'Sex Normalised, meta-analysis (ACC)', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+```
+
+
+### Source
+[markdown](`r thisFile`)
+
+
+
+
+
+
+
+
+
+
+
+
