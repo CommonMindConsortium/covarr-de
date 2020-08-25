@@ -82,8 +82,7 @@ downloadFile <- function(id){
 CQN_ID = "syn22086076"
 ALL_USED_IDs = c(CQN_ID)
 CQN.GENE_EXPRESSION = downloadFile(CQN_ID) %>% 
-  tibble::column_to_rownames(var = "ensembl_gene_id") %>% 
-  data.matrix()
+  tibble::column_to_rownames(var = "ensembl_gene_id")
   
 # Download filtered counts
 COUNTS_ID = "syn22086075"
@@ -96,6 +95,12 @@ COVAR_ID = "syn22086074"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
 COVARIATES = downloadFile(COVAR_ID) %>% 
   tibble::column_to_rownames(var = "SampleID")
+
+# Remove ages under 17
+COVARIATES <- COVARIATES[COVARIATES$ageOfDeath >= 17,]
+NEW.COUNTS <- NEW.COUNTS[names(NEW.COUNTS) %in% rownames(COVARIATES)]
+CQN.GENE_EXPRESSION <- CQN.GENE_EXPRESSION[names(CQN.GENE_EXPRESSION) %in% rownames(COVARIATES)] %>% 
+  data.matrix()
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "Dx", "IsolationBatch")
