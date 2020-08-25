@@ -64,11 +64,11 @@ parentId = 'syn22012953';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
 
-thisFileName <- 'MSSM-Penn-Pitt_ACC_DE.Rmd'
+thisFileName <- 'MSSM-Penn-Pitt_ACC_DE_Diagnosis.Rmd'
 
 # Github link
-thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='modify-cqn-implementation')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
 ### Data download
@@ -324,7 +324,7 @@ backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
 
 # Get gene lengths
 counts = 'syn21867938'
-ALL_USED_IDs = counts
+ALL_USED_IDs = c(ALL_USED_IDs, counts)
 counts = downloadFile(counts) %>% data.frame()
 gene_lengths = counts[,c("Geneid", "Length")] %>% 
   dplyr::rename(gene_id = Geneid)
@@ -406,6 +406,8 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 
 multiplot(plotlist = pl, cols = 3)
 ```
+### Source Code
+[markdown file](`r thisFile`)
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}

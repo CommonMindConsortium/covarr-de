@@ -70,7 +70,7 @@ thisFileName <- 'MSSM-Penn-Pitt_DLPFC_DE_DxSex.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='modify-cqn-implementation')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
 ### Data download
@@ -415,7 +415,7 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 multiplot(plotlist = pl, cols = 3)
 ```
 ### Source Code
-`r thisFile`
+[markdown file](`r thisFile`)
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}

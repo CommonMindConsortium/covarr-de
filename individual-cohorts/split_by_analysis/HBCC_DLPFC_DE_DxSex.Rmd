@@ -405,7 +405,7 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 multiplot(plotlist = pl, cols = 3)
 ```
 ### Source Code
-`r thisFile`
+[markdown file](`r thisFile`)
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}
