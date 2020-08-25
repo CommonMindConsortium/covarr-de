@@ -36,6 +36,7 @@ library(synapser)
 library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
 library(WGCNA)
+library(rctutils) # get the packages from BiocManager::install("DarwinAwardWinner/rctutils")
 
 synLogin()
 
@@ -124,20 +125,38 @@ random_effect <- c("Institution")
 ```
 
 ### Normalisation - Sex
-1. Sex is chosen as the primary variable of interest (i.e., covariate adjustments is conditioned on diagnosis)
+1. Sex is chosen as the primary variable of interest
 
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
                  glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
-                 ' as fixed effects and',
-                 glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
+                 ' as fixed effects.'))
+
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+  dplyr::summarise_all(class) %>% 
+  tidyr::gather(variable, class)
+
+# Scale continuous variables
+covars = sapply(1:length(col_type$class), function(i){
+  switch(col_type$class[i], 
+    "factor" = paste0(col_type$variable[i]),
+    "numeric" = paste0('scale(', col_type$variable[i], ')')
+  )
+  })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+formula <- formula(glue::glue("~", glue::glue_collapse(covars, sep = " + ")))
+design <- model.matrix(formula, COVARIATES)
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
-geneExpr = edgeR::calcNormFactors(geneExpr)
+
+# Extract default offset
+offset_default = edgeR::expandAsMatrix(edgeR::getOffset(geneExpr), dim(geneExpr))
+# Build custom offset from default offset and the CQN offset
+geneExpr$offset = offset_default - CQN.GENE_EXPRESSION
+# Run rctutils::voomWithOffset
+vobj_cqn_offset = rctutils::voomWithOffset(geneExpr, design)
 
 VOOM.GENE_EXPRESSION = variancePartition::voomWithDreamWeights(counts = geneExpr, 
                                                                formula = formula,
@@ -169,8 +188,7 @@ setMethod("plot", signature(x="EList", y="missing"),
 plot(VOOM.GENE_EXPRESSION)
 
 # Fit linear model using new weights and new design
-VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
-ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+ADJUSTED.FIT = variancePartition::dream(exprObj = vobj_cqn_offset,
                                         formula = formula,
                                         data = COVARIATES,
                                         computeResiduals = TRUE)

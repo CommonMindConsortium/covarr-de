@@ -482,7 +482,7 @@ ADJ_OBJ = synStore(ADJ_OBJ, used = ALL_USED_IDs, activityName = activityName,
                    executed = thisFile, activityDescription = activityDescription)
 synSetAnnotations(ADJ_OBJ, annotations = all.annotations)
 
-# Store contrasts
+# Store formula
 saveRDS(formula, file = 'CMC_DLPFC_Dx_formula.rds')
 ADJ_OBJ = File('CMC_DLPFC_Dx_formula.rds',
                name = 'formula', 
