@@ -97,7 +97,7 @@ geneCounts = geneCounts[,-1]
 # TMM normalization
 geneExpr = DGEList( as.matrix(geneCounts))
 geneExpr = calcNormFactors(geneExpr)
-geneExpr_logCPM = cpm(geneExpr, log=TRUE)
+geneExpr_logCPM = edgeR::cpm(geneExpr, log=TRUE)
 
 # only keep genes measured in FANS4
 keep = rownames(geneExpr_logCPM) %in% rownames(geneExpr_FANS4_lcpm)
