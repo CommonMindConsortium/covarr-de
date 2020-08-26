@@ -126,6 +126,7 @@ cellFracEstimates = dtangle( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS
 ### Data preprocessing
 ```{r preprocess.data}
 synId_covariates = c('syn21862454', 'syn21887888', 'syn21825507') # 'syn21888968'
+ALL_USED_IDs = c(ALL_USED_IDs, synId_covariates)
 
 COV_list = lapply(synId_covariates, function(id){
 	df = read.table( synGet(id)$path, header=TRUE, stringsAsFactors=FALSE)
@@ -244,7 +245,7 @@ write.table(cellFracEstimates$estimates, quote=FALSE, sep='\t', file=file)
 nEXP_OBJ = File(file, 
                 name = 'Estimates from dtangle', 
                 parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+nEXP_OBJ = synStore(nEXP_OBJ, used = ALL_USED_IDs, 
                     executed = thisFile)
 ```
 
