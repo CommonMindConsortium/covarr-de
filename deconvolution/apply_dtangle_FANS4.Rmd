@@ -17,21 +17,26 @@ synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "deconvolution/apply_dtangle_FANS4.Rmd",
                                  parentId ="syn22321035",
                                  folderName = "Deconvolution results",
-                                 knitmd=FALSE)
+                                 knitmd=TRUE)
 ```
 
 ```{r libs, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+suppressPackageStartupMessages({
 library(data.table)
 library(dtangle)
 library(edgeR)
 library(variancePartition)
 library(BiocParallel)
-
+library(RNOmni)
+library(tidyr)
+library(plyr)
+library(dplyr)
+library(stringr)
 library(synapser)
 library(future)
 library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
-
+})
 source("../common_functions/common_functions.R")
 
 synLogin()
@@ -65,7 +70,6 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('deconvolut
 ```
 
 ```{r read.data}
-
 # Read reference panel
 ######################
 geneExpr_FANS4_lcpm = read.csv(synGet('syn22321183')$path, header=TRUE)
@@ -73,10 +77,10 @@ rownames(geneExpr_FANS4_lcpm) = geneExpr_FANS4_lcpm[,1]
 geneExpr_FANS4_lcpm = geneExpr_FANS4_lcpm[,-1]
 metadata_FANS4 = read.csv(synGet("syn22321189")$path, header=TRUE, row.names=1)
 
-
 # read Raw counts
 #################
 file_counts_synid = c('syn21888969', 'syn21862455', 'syn21887889', 'syn21825508')
+ALL_USED_IDs = c('syn22321183', file_counts_synid)
 
 # read one file at a time
 geneCounts_list = lapply(file_counts_synid, function(id){
@@ -109,12 +113,11 @@ idx = match(rownames(geneExpr_logCPM), rownames(geneExpr_FANS4_lcpm))
 # table(a[,1] == a[,2])
 # which(a[,1] != a[,2])
 
-
 cellFracEstimates = dtangle( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS4_lcpm[idx,]))
 
-cellFracEstimates2 = dtangle2( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS4_lcpm[idx,]))
+# cellFracEstimates2 = dtangle2( Y = t(geneExpr_logCPM), reference = t(geneExpr_FANS4_lcpm[idx,]))
 
-cor(cellFracEstimates$estimates, cellFracEstimates2$estimates, method="spearman")
+# cor(cellFracEstimates$estimates, cellFracEstimates2$estimates, method="spearman")
 ```
 
 
@@ -122,138 +125,124 @@ cor(cellFracEstimates$estimates, cellFracEstimates2$estimates, method="spearman"
 
 ### Data preprocessing
 ```{r preprocess.data}
-# Get genotype ids from synapse
-GENOTYPE_ID = 'syn16816490'
-ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
-GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
-  dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
-  dplyr::inner_join(ANCESTRY) %>% 
-  dplyr::filter(is.na(`SNP_report:Exclude?`))
+synId_covariates = c('syn21862454', 'syn21887888', 'syn21825507') # 'syn21888968'
 
-# Merge metadata
-METADATA = metadata %>%
-  dplyr::left_join(GENOTYPE) %>% 
-  dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
-                PMI = `PMI_(in_hours)`,
-                RIN = `rnaSeq_isolation:RIN`, 
-                ReportExclude = `rnaSeq_report:Exclude?`,
-                GenotypeExclude = `SNP_report:Exclude?`,
-                SampleID = Sample_RNA_ID,
-                LibraryBatch = `rnaSeq_report:Library_Batch`,
-                FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
-                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
-                MappedReads = `rnaSeq_report:Mapped_Reads`,
-                IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
-                IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
-                ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
-                TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
-  dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, 
-                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
-                LibraryBatch, FlowcellBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
-                IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
-  dplyr::filter(Cohort %in% "NIMH-HBCC") %>% 
-  dplyr::filter(SampleID %in% colnames(COUNT), !is.na(SampleID)) %>% 
-  dplyr::mutate(Dx = forcats::fct_recode(Dx, Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
-  
-ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
-writeLines(paste('Following',length(ind),'samples are marked exclude'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+COV_list = lapply(synId_covariates, function(id){
+	df = read.table( synGet(id)$path, header=TRUE, stringsAsFactors=FALSE)
+	df$SampleID = as.character(df$SampleID)
+	if( any(colnames(df) == "Dx.Tissue") ){
+		df$Dx = gsub("^(\\S+)_(\\S+)$", "\\1", df$Dx.Tissue)
+		df$Tissue = gsub("^(\\S+)_(\\S+)$", "\\2", df$Dx.Tissue)
+	}	
+	if( !any("Institution" == colnames(df)) ){
+		df$Institution = "HBCC"
+	
+	}
+	if( id == 'syn21862454' ){
+		df$Tissue = "DLPFC"
+	}
+	if( id == 'syn21887888' ){
+		df$Tissue = "sgACC"
+	}
+	if( !any('Tissue' == colnames(df))){
+		stop(id)
+	}
+	df
+	})
 
-ind = METADATA$SampleID [is.na(METADATA$Ethnicity) | is.na(METADATA$Institution) | is.na(METADATA$Dx)]
-writeLines(paste('Following', length(ind), 'counts are missing any metadata'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+COVARIATES = gtools::smartbind( list = COV_list)
 
-ind = METADATA$SampleID [is.na(METADATA$PMI)]
-writeLines(paste('Following', length(ind), 'counts are missing PMI'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+df = with(COVARIATES, data.frame(SampleID, Study = paste(Institution, Tissue)))
+df$Study = gsub("Penn|Pitt", "MSSM", df$Study)
 
-ind = METADATA$SampleID [is.na(METADATA$Reported_Gender)]
-writeLines(paste('Following', length(ind), 'counts are missing gender'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+ids = unique(df$Study)
+sampleByStudy = lapply( ids, function(stdy){
+	df[df$Study == stdy, "SampleID"]
+	})
+names(sampleByStudy) = ids
 
-ind = METADATA$SampleID [is.na(METADATA$ageOfDeath)]
-writeLines(paste('Following', length(ind), 'counts are missing age of death'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+# only keep individuals older than 17
+COVARIATES = COVARIATES[COVARIATES$ageOfDeath > 17,]
 
-ind = METADATA$SampleID [is.na(METADATA$EV.1)]
-writeLines(paste('Following', length(ind), 'counts are missing ancestry information'))
-writeLines(paste(ind, collapse = ', '))
-METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
 ```
 
-```{r preprocess.data1, results='asis'}
-# Match covariates to expression data
-indToRetain = intersect(METADATA$SampleID, colnames(COUNT))
 
-rownames(COUNT) <- COUNT$Geneid
-COUNT = COUNT[,indToRetain]
+```{r deconv.compare.covariates}
 
-rownames(METADATA) = METADATA$SampleID
-METADATA = METADATA[indToRetain,]
+deconvEstimates = data.frame(cellFracEstimates$estimates)
+    
+f = log
+# f = rankNorm
 
-METADATA %>% 
-  group_by(Dx) %>% 
-  dplyr::summarise(count = n()) %>% 
-  kable()
+df_deconv_test = lapply( names(sampleByStudy) , function(stdy){
 
-FactorCovariates <- c('Individual_ID', "Reported_Gender", "LibraryBatch", "Dx", "FlowcellBatch", "RibozeroBatch")
-ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate", "IntronicRate", "IntergenicRate",
-                    "GenesDetected", "ExpProfEfficiency", "rRNARate", "TotalReads", "AlignmentRate",
-                    "EV.1", "EV.2", "EV.3", "EV.4", "EV.5")
+	smplids = sampleByStudy[[stdy]]
 
-# Find inter relation between factor covariates
-COVARIATES = METADATA[,c(FactorCovariates,ContCovariates),drop=F]
-COVARIATES[,FactorCovariates] <- data.frame(lapply(COVARIATES[,FactorCovariates],function(x){
-  x <- sapply(x,function(y){str_replace_all(as.character(y),'[^[:alnum:]]','_')})}))
-rownames(COVARIATES) <- METADATA$SampleID
+	deconvEst = deconvEstimates[smplids,]
 
-# Convert factor covariates to factors
-COVARIATES[,FactorCovariates] = lapply(COVARIATES[,FactorCovariates], factor)
-COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
-  x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
-})
+	df = merge(deconvEst, COVARIATES[COVARIATES$SampleID %in% smplids,], by.x="row.names", by.y="SampleID")
 
+	form = cbind(GABA 	= f(GABA), 
+				GLU 	= f(GLU), 
+				Olig 	= f(Olig),
+				MgAs 	= f(MgAs)) ~ ageOfDeath + Reported_Gender + PMI + RIN + RIN2 + Dx 
+	fit = lm(form, df)
 
+	res = lapply( summary(fit), function(x) data.frame(p = -log10(coef(x)[-1,4]) * sign(coef(x)[-1,1]) ))
 
+	df_return = do.call(cbind, res)
+	colnames(df_return) = gsub("Response ", "", names(res))
+	data.frame(Study = stdy, coef = rownames(df_return), df_return)
 
+	})
 
+df_deconv_test = do.call(rbind, df_deconv_test)
 
+df_deconv_test_melt = reshape2::melt(df_deconv_test, id.vars=c("Study", "coef"))
+n_tests = nrow(df_deconv_test_melt)
+df_deconv_test_melt$isSignif = with(df_deconv_test_melt, abs(value) > -log10(0.05 / n_tests))
 
-
+lim = max(abs(df_deconv_test_melt$value))
 
 
+ratio = with(df_deconv_test_melt, length(unique(coef)) / length(unique(Study)))
+
+ggplot(df_deconv_test_melt, aes(Study, coef, fill=value, label=ifelse(isSignif, '*', ''))) + geom_tile() + theme_bw() + theme(aspect.ratio = ratio, panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + scale_fill_gradient2(high = "red", mid = "white", low="blue", limits=c(-lim, lim), name="-log10 p") + facet_wrap( ~ variable) + geom_text()
+```
+
+```{r combine.samples}
+  
+df = merge(deconvEstimates, COVARIATES, by.x="row.names", by.y="SampleID")
+
+form = ~ (1|Individual_ID) + ageOfDeath + (1|Reported_Gender) + PMI + RIN + (1|Dx) + (1|Tissue)
+vp = fitExtractVarPartModel( t(log(df[,colnames(deconvEstimates)])), form, df, BPPARAM=SerialParam())
+
+plotPercentBars( vp )
+```
+
+```{r cca, fig.width=5, fig.height=5}
+form = ~ Individual_ID + ageOfDeath + Reported_Gender + PMI + RIN + Dx + Tissue
+C = canCorPairs(form, df)
+plotCorrMatrix(C)
+```
 
 
 
 
 
 
-
-
-
-```{r store, eval=FALSE}
+```{r store, eval=TRUE}
 # Code
-CODE <- Folder(name = "Meta-analysis on sex", parentId = "syn22315403") # Make sure these match the folder name and parent Id in the first chunk.
+CODE <- Folder(name = "Deconvolution results", parentId = "syn22321035") # Make sure these match the folder name and parent Id in the first chunk.
 CODE <- synStore(CODE)
 
 # Store meta-analysis
-file = "cellFracEstimates.RDS"
-saveRDS(cellFracEstimates, file=file)
+file = "cellFracEstimates_dtangle_FANS4.tsv"
+# saveRDS(data.frame(cellFracEstimates$estimates), file=file)
+write.table(cellFracEstimates$estimates, quote=FALSE, sep='\t', file=file)
+
 nEXP_OBJ = File(file, 
-                name = 'Result of dtangle', 
-                parentId = CODE$properties$id)
-nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
-                    executed = thisFile)
-res_acc %>%
-  tibble::rownames_to_column(var = "gene_id") %>% 
-  write.table(file = 'CMC_acc_Sex_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
-nEXP_OBJ = File('CMC_acc_Sex_meta_analysis.tsv', 
-                name = 'Sex Normalised, meta-analysis (ACC)', 
+                name = 'Estimates from dtangle', 
                 parentId = CODE$properties$id)
 nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
                     executed = thisFile)
