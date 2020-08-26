@@ -64,7 +64,7 @@ thisFileName <- 'MSSM-Penn-Pitt_ACC_DE_DxSex.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='modify-cqn-implementation')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
 ### Data download
@@ -219,7 +219,7 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
-`r formula`
+`r glue::glue_collapse(formula)`
 ### Residual calculation
 Calculate weighted residuals and add back "Dx:Sex" to the residuals
 ```{r varsToAddBack}

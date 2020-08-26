@@ -123,7 +123,7 @@ random_effect <- c("Reported_Gender", "IsolationBatch")
 
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
-                 glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
+                 glue::glue_collapse(c(adjust.covars,random_effect), sep = ", ", last = " and "),
                  ' as fixed effects.'))
 
 scaled_col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
@@ -210,7 +210,7 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
-
+`r glue::glue_collapse(formula)`
 ### Residual calculation
 Calculate weighted residuals and add back "Dx" to the residuals
 ```{r varsToAddBack}

@@ -212,7 +212,7 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
-
+`r glue::glue_collapse(formula)`
 ### Residual calculation
 Calculate weighted residuals and add back "Sex" to the residuals
 ```{r varsToAddBack}
