@@ -152,11 +152,11 @@ fig3 = ggplot(tab_cqn_offset, aes(AveExpr, pmin(1, pmax(-1,logFC)))) + geom_poin
 df = merge(tab_cqn_offset, GENE.GC.CONT, by="row.names")
 df = merge(df, gene_lengths, by.x = "Row.names", by.y="row.names")
 
-fig2a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC")  + theme(aspect.ratio=1)
+fig3a = ggplot(df, aes(percentage_gene_gc_content, pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC")  + theme(aspect.ratio=1)
 
-fig2b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC") + theme(aspect.ratio=1)
+fig3b = ggplot(df, aes(log10(Length), pmin(1, pmax(-1,logFC)))) + geom_point() + theme_bw() + geom_smooth(method="loess", se=FALSE) + ggtitle("NEW.COUNTS + CQN (offset)") + ylab("logFC") + theme(aspect.ratio=1)
 
-plot_grid(fig2, fig2a, fig2b, ncol=3)
+plot_grid(fig3, fig3a, fig3b, ncol=3)
 ```
 
 # Compare methods
@@ -174,3 +174,17 @@ ggplot(df, aes(t.x, t.y)) + geom_point() + theme_bw() + geom_smooth(method="loes
 with(df, cor.test(t.x, t.y))
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
