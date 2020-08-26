@@ -1,13 +1,13 @@
-
+suppressPackageStartupMessages({
 library(qvalue)
-# library(EnsDb.Hsapiens.v86)
 library(AnnotationHub)
 library(ensembldb)
 library(MASS)
 library(ggplot2)
+library(ggbio)
 library(viridis)
 library(data.table)
-
+})
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
 trim_ensembl_ids = function(x){
   gsub("(.*)\\.(.*)", "\\1", x) 
@@ -62,7 +62,7 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   lab = "log2 fold change"
   lim = with(df, max(abs(c(logFC.x, logFC.y))))
   df$density <- get_density(df$logFC.x, df$logFC.y, n = 100)
-  fig1 = ggplot(df, aes(logFC.x, logFC.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom") + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="rlm", se=FALSE, color="darkorange")
+  fig1 = ggplot(df, aes(logFC.x, logFC.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom") + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
 
   if( !is.null(showGenes) ){
     df2 = df[df$Symbol.x %in% showGenes,]
@@ -309,10 +309,13 @@ convert_gene_list_to_ensembl = function( x, geneInfo){
 }
 
 
-plot_sex_compare = function( tab, minp=1e-300 ){
+plot_sex_compare = function( tab, minp=1e-300, ngenes=10, maxSize=10 ){
 
   tab$Chrom = factor(tab$Chrom, c(1:22, "X", "Y"))
+  tab = tab[!is.na(tab$Chrom),] # remove non-standard chromosomes
   tab$adj.P.Val = pmax(minp, tab$adj.P.Val)
+  tab$logFC = pmin(maxSize, tab$logFC)
+  tab$logFC = pmax(-maxSize, tab$logFC)
 
   figList = lapply( levels(tab$Chrom), function(Chrom){
 
@@ -322,29 +325,118 @@ plot_sex_compare = function( tab, minp=1e-300 ){
     tab2 = tab2[order(tab2$adj.P.Val, decreasing=TRUE),]
     limits = with(tab2, range( c(AveExpr+logFC, AveExpr)))
 
-    ggplot(tab2, aes(AveExpr, AveExpr+logFC, label=Symbol)) + geom_point(aes(color=sign(logFC.adj), size=abs(logFC.adj))) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle(paste0("chr",Chrom)) + geom_abline(color="black", linetype="dashed") + geom_abline(intercept=1, slope=, color="red", linetype="dashed") + geom_abline(intercept=-1, slope=, color="blue", linetype="dashed") + geom_text_repel(data=subset(tab2, adj.P.Val<1e-10),  segment.size  = 0.2, seed=1,  point.padding = unit(.1, 'lines'),  box.padding = unit(.3, 'lines') , nudge_x=-1.5, nudge_y=1.5) + xlim(limits) + ylim(limits) + xlab(bquote(Male~log[2]~expression)) + ylab(bquote(Female~log[2]~expression)) + scale_color_gradientn(name = "logFC", colors = colorRampPalette(c("blue", "grey60", "red"))(50), limits=c(-1, 1)) + scale_size_continuous("|logFC|", limits=c(0,8))
+    tab3 = subset(tab2, adj.P.Val<0.05)
+    ngenes = min(c(ngenes, nrow(tab3)))
+    tab3 = tab3[order(tab3$adj.P.Val),]
+    tab3 = tab3[1:ngenes,]
 
-    # tab2$Color[tab2$Symbol == "XIST"] = max(abs(tab2$Color[tab2$Symbol != "XIST"]))
-
-    # ggplot(tab2, aes(AveExpr, AveExpr+logFC, label=Symbol)) + geom_point(aes(color=Color, shape=(Color!=0))) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle(paste0("chr",Chrom)) + geom_abline(color="black", linetype="dashed") + geom_abline(intercept=1, slope=, color="red", linetype="dashed") + geom_abline(intercept=-1, slope=, color="blue", linetype="dashed") + geom_text_repel(data=subset(tab2, adj.P.Val<0.01),  segment.size  = 0.2, seed=1,  point.padding = unit(.1, 'lines'),  box.padding = unit(.3, 'lines') , nudge_x=-1.5, nudge_y=1.5) + xlim(limits) + ylim(limits) + xlab(bquote(Male~log[2]~expression)) + ylab(bquote(Female~log[2]~expression)) + scale_color_gradientn(name = "logFC", colors = colorRampPalette(c("blue", "grey60", "red"))(50), limits=c(-1, 1)) + scale_shape_discrete("Significant")
-
+    ggplot(tab2, aes(AveExpr, AveExpr+logFC, label=Symbol)) + geom_point(aes(color=sign(logFC.adj), size=abs(logFC.adj))) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle(paste0("chr",Chrom)) + geom_abline(color="black", linetype="dashed") + geom_abline(intercept=1, slope=, color="red", linetype="dashed") + geom_abline(intercept=-1, slope=, color="blue", linetype="dashed") + geom_text_repel(data=tab3, segment.size  = 0.2, seed=1,  point.padding = unit(.1, 'lines'),  box.padding = unit(.3, 'lines') , nudge_x=-1.5, nudge_y=1.5) + xlim(limits) + ylim(limits) + xlab(bquote(Male~log[2]~expression)) + ylab(bquote(Female~log[2]~expression)) + scale_color_gradientn(name = "logFC", colors = colorRampPalette(c("blue", "grey60", "red"))(50), limits=c(-1, 1), guide=FALSE) + scale_size_continuous("|logFC|", limits=c(0,maxSize)) 
   })
   names(figList) = levels(tab$Chrom)
 
   figList
 }
 
+plot_circos_logFC = function( tab, maxLogFC=2){
+
+  tab$Chrom = factor(tab$Chrom, c(1:22, "X", "Y"))
+  tab = tab[!is.na(tab$Chrom),] # remove non-standard chromosomes
+
+  tab$logFC.adj = with(tab, (adj.P.Val < 0.05) * logFC)
+  tab = tab[order(tab$adj.P.Val, decreasing=FALSE),]
+
+  # Get TSS locations
+  #-------------------
+  ah <- AnnotationHub()
+  ensdb = ah[["AH69187"]] # ENSEMBL v96
+
+  tab$gene_id = trim_ensembl_ids(rownames(tab))
+
+  prom = promoters(ensdb, 0, 0, filter=GeneIdFilter(tab$gene_id))
+
+  df_prom = data.table(as.data.frame(prom))
+  df_prom = df_prom[,data.frame(TSS=min(start)),by=gene_id]
+
+  tab2 = merge(tab, df_prom, by="gene_id")
+
+  # Get genome info
+  hg38 = seqinfo(ensdb)
+  gr_hg38 = GRanges(hg38)
+  gr_hg38 = gr_hg38[seqnames(gr_hg38) %in% tab$Chrom]
+  gr_hg38 = keepStandardChromosomes(gr_hg38)
+  gr_hg38 = sortSeqlevels(dropSeqlevels(gr_hg38, "MT"))
+
+  # great GRanges for plotting
+  gr = with(tab2, GRanges(Chrom, IRanges(TSS, TSS+1), score =logFC.adj, seqinfo=hg38)) 
+  gr = keepStandardChromosomes(gr)
+  gr = sortSeqlevels(dropSeqlevels(gr, "MT"))
+  gr$score2 = pmax(-maxLogFC, pmin(maxLogFC, gr$score))
+
+  # create circos plot
+  fig = ggbio() + circle(gr_hg38, geom = "text", aes(label = seqnames), vjust = 0, size = 3)
+
+  fig + circle(gr, geom = "point", aes(y = score2, color=factor(sign(score2), -1:1)),size=1, grid = TRUE, radius = 15, trackWidth=23, grid.background="white", grid.line="grey70", space.skip=.002) + ylab(bquote(log[2]~fold~change)) + scale_color_manual(name='logFC', values = c("blue", "grey60", "red")) + theme(legend.position="right", plot.title = element_text(hjust = 0.5))
+}
+
+
+downloadFile <- function(id){
+  fread(synGet(id)$path, data.table = F)
+}
+downloadFile_version <- function(id , version){
+  fread(synGet(id, version = version)$path, data.table = F)
+}
 
 
 
+  # tab$Chrom = factor(tab$Chrom, c(1:22, "X", "Y"))
+  # tab = tab[!is.na(tab$Chrom),] # remove non-standard chromosomes
+
+  # tab$logFC.adj = with(tab, (adj.P.Val < 0.05) * logFC)
+  # tab = tab[order(tab$adj.P.Val, decreasing=FALSE),]
+  # limits = c(-max(abs(tab$logFC)), max(abs(tab$logFC)))
+
+
+  # ggplot(tab, aes(Chrom, logFC, color=factor(sign(logFC.adj), -1:1), size=abs(logFC.adj))) + geom_point() + theme_bw(15) + theme(aspect.ratio=1/2) + scale_size_continuous("|logFC|", limits=c(0,max(limits))) + scale_color_manual(values = c("red", "grey60", "blue"))
+
+
+  # ah <- AnnotationHub()
+  # ensdb = ah[["AH69187"]] # ENSEMBL v96
+
+  # tab$gene_id = trim_ensembl_ids(rownames(tab))
+
+  # prom = promoters(ensdb, 0, 0, filter=GeneIdFilter(tab$gene_id))
+
+  # df_prom = data.table(as.data.frame(prom))
+  # df_prom = df_prom[,data.frame(TSS=min(start)),by=gene_id]
+
+  # tab2 = merge(tab, df_prom, by="gene_id")
 
 
 
+  # ggplot(gr, aes(TSS, logFC, color=factor(sign(score), -1:1), size=abs(score))) + geom_point() + theme_bw(15) + theme(aspect.ratio=1/2) + scale_size_continuous("|logFC|", limits=c(0,max(limits))) + scale_color_manual(values = c("red", "grey60", "blue"))
+
+
+  # fig = ggbio() + circle(hg19sub, geom = "ideo", fill = "gray70") #+ circle(hg19sub, geom = "scale", size = 2) +
+  # fig = fig + circle(hg19sub, geom = "text", aes(label = seqnames), vjust = 0, size = 3)
 
 
 
+  # hg38 = seqinfo(ensdb)
+  # # gr_hg38 = GRanges(seqnames(hg38), IRanges(1, seqlengths(hg38)), seqinfo=hg38)
+  # gr_hg38 = GRanges(hg38)
+  # gr_hg38 = gr_hg38[seqnames(gr_hg38) %in% tab$Chrom]
+  # gr_hg38 = keepStandardChromosomes(gr_hg38)
+  # gr_hg38 = sortSeqlevels(dropSeqlevels(gr_hg38, "MT"))
 
 
+  # gr = with(tab2, GRanges(Chrom, IRanges(TSS, TSS+1), score =logFC.adj, seqinfo=hg38)) 
+  # gr = keepStandardChromosomes(gr)
+  # gr = sortSeqlevels(dropSeqlevels(gr, "MT"))
+  # gr$score2 = pmax(-2, pmin(2, gr$score))
+
+  # fig = ggbio() + circle(gr_hg38, geom = "text", aes(label = seqnames), vjust = 0, size = 3)
+
+  # fig + circle(gr, geom = "point", aes(y = score2, color=factor(sign(score2), -1:1)),size=1, grid = TRUE, radius = 15, trackWidth=23, grid.background="white", grid.line="grey70", space.skip=.002) + scale_size(range = c(1, 2.5)) + scale_size_continuous("|logFC|", limits=c(0,max(limits))) + ylab(bquote(log[2]~fold~change)) + scale_color_manual(values = c("red", "grey60", "blue")) + theme(legend.position="none")
 
 
 
