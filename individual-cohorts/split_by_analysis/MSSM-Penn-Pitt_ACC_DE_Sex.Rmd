@@ -411,7 +411,7 @@ all.annotations = list(
 )
 
 # Code
-CODE <- Folder(name = "Differential Expression - Dx - Sex", parentId = parentId)
+CODE <- Folder(name = "Differential Expression - Sex", parentId = parentId)
 CODE <- synStore(CODE)
 
 # Store residual gene expression for network analysis
