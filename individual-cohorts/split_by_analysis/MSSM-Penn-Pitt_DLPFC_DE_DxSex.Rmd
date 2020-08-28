@@ -121,7 +121,7 @@ ContCovariates <- c("ageOfDeath", "PMI", "RIN", "MappedReads", "IntragenicRate",
                     "EV.1", "EV.2", "EV.3", "EV.4", "EV.5")
 COVARIATES[,ContCovariates] = lapply(COVARIATES[,ContCovariates], function(x){
   x = as.numeric(as.character(gsub('[\\,\\%]','',x)))
-})c
+})
 
 # Set covariates to adjust for from model selection
 interaction <- c("Dx", "Reported_Gender")
@@ -223,7 +223,7 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
-`r formula`
+`r glue::glue_collapse(formula)`
 ### Residual calculation
 Calculate weighted residuals and add back "Dx:Sex" to the residuals
 ```{r varsToAddBack}
@@ -340,7 +340,7 @@ rm(counts)
 
 # Define biomart object
 mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
-                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+                host = "ensembl.org", # Ensembl Release 99 (January 2020)
                 dataset = "hsapiens_gene_ensembl")
 
 # Query biomart

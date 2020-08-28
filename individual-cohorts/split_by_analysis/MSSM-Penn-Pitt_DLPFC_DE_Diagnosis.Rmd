@@ -329,7 +329,7 @@ rm(counts)
 
 # Define biomart object
 mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
-                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+                host = "ensembl.org", # Ensembl Release 99 (January 2020)
                 dataset = "hsapiens_gene_ensembl")
 
 # Query biomart

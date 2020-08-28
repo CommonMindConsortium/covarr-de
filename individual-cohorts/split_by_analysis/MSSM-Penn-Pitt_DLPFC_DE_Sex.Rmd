@@ -220,6 +220,7 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
+`r glue::glue_collapse(formula)`
 
 ### Residual calculation
 Calculate weighted residuals and add back "Sex" to the residuals
@@ -316,7 +317,7 @@ rm(counts)
 
 # Define biomart object
 mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
-                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+                host = "ensembl.org", # Ensembl Release 99 (January 2020)
                 dataset = "hsapiens_gene_ensembl")
 
 # Query biomart
