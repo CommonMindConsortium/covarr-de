@@ -25,7 +25,8 @@ synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_sex.Rmd",
                                           parentId ="syn22315403",
                                           folderName = 'Meta-analysis on sex',
-                                          overwrite=TRUE)
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
 ```
 
 ```{r setup, include=FALSE}
@@ -79,6 +80,22 @@ hbcc_dsACC <- readr::read_tsv(synGet("syn22280959")$path) %>%
 hbcc_dlpfc <- readr::read_tsv(synGet("syn22280588")$path) %>% 
   dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) %>% getGeneSymbol( 'gene_id' )
 Ids <- c("syn22278494", "syn22278597", "syn22280959", "syn22280588")
+```
+
+
+```{r plotma}
+
+f = function(x){
+  pmin(1, pmax(-1, x))
+}
+
+ggplot(mpp_acc, aes(AveExpr, f(logFC))) + geom_point() + theme_bw() + geom_smooth(method="loess")  + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle("mpp_acc")
+
+ggplot(mpp_dlpfc, aes(AveExpr, f(logFC))) + geom_point() + theme_bw() + geom_smooth(method="loess")  + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle("mpp_dlpfc")
+
+ggplot(hbcc_dsACC, aes(AveExpr, f(logFC))) + geom_point() + theme_bw() + geom_smooth(method="loess")  + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle("hbcc_dsACC")
+
+ggplot(hbcc_dlpfc, aes(AveExpr, f(logFC))) + geom_point() + theme_bw() + geom_smooth(method="loess")  + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + ggtitle("hbcc_dlpfc")
 ```
 
 
@@ -177,16 +194,16 @@ plot_grid(plotlist=figList, ncol=2)
 
 
 ### Combine cohorts
-```{r DE.results.dlpfc.combine, fig.width=10, fig.height=50}
+```{r DE.results.dlpfc.combine.MA}
 res = merge(res_dlpfc, mpp_dlpfc[,c("gene_id", "AveExpr")], by.x="row.names", by.y="gene_id")
 
-figList = plot_sex_compare(res)
-plot_grid(plotlist=figList, ncol=2) 
-
+ggplot(res, aes(AveExpr, logFC)) + geom_point() + theme_bw() + geom_smooth(method="loess")  + theme(aspect.ratio=1)
 ```
 
-
-
+```{r DE.results.dlpfc.hbcc.plot_sex_compare, fig.width=10, fig.height=50}
+figList = plot_sex_compare(res)
+plot_grid(plotlist=figList, ncol=2) 
+```
 
 
 

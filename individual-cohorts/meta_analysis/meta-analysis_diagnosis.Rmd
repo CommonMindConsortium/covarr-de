@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r knit2synapse, eval=FALSE, echo=FALSE}
-# rmarkdown::render("meta-analysis_diagnosis.Rmd")
+# rmarkdown::render("individual-cohorts/meta_analysis/meta-analysis_diagnosis.Rmd")
 
 library(synapser)
 library(knit2synapse)
