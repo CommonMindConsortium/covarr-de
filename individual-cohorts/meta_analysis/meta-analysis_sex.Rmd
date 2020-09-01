@@ -18,11 +18,24 @@ output:
 
 --->
 
-```{r knit2synapse, eval=FALSE}
+```{r knit2synapse, eval=FALSE, echo=FALSE}
+
+createAndKnitToFolderEntity <- function(file, parentId, folderName,
+                                        wikiName=NULL, overwrite=FALSE, knitmd=TRUE, ...) {
+  
+  entity <- synapser::Folder(parentId=parentId, name=folderName)
+  entity <- synapser::synStore(entity, ...)
+
+  knitfile2synapse(file=file, owner=entity, wikiName=wikiName, 
+                   overwrite=overwrite, knitmd=knitmd, parentWikiId=NULL)
+}
+
+
 library(synapser)
 library(knit2synapse)
 synLogin()
-knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_sex.Rmd",
+# knit2synapse::
+createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_sex.Rmd",
                                           parentId ="syn22315403",
                                           folderName = 'Meta-analysis on sex',
                                           overwrite=TRUE, 

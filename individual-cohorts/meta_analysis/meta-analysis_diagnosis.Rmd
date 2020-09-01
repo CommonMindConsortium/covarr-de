@@ -14,10 +14,23 @@ output:
 library(synapser)
 library(knit2synapse)
 synLogin()
-knit2synapse::createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_diagnosis.Rmd",
+# knit2synapse::
+
+createAndKnitToFolderEntity <- function(file, parentId, folderName,
+                                        wikiName=NULL, overwrite=FALSE, knitmd=TRUE, ...) {
+  
+  entity <- synapser::Folder(parentId=parentId, name=folderName)
+  entity <- synapser::synStore(entity, ...)
+
+  knitfile2synapse(file=file, owner=entity, wikiName=wikiName, 
+                   overwrite=overwrite, knitmd=knitmd, parentWikiId=NULL)
+}
+
+createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_diagnosis.Rmd",
                                           parentId ="syn22315403",
                                           folderName = 'Meta-analysis on diagnosis',
-                                          overwrite=TRUE)
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
 ```
 
 ```{r setup, include=FALSE}
