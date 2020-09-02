@@ -1,0 +1,522 @@
+---
+title: "Meta-analysis on Sex*Dianosis interaction in MSSM-Penn-Pitt and HBCC ACC/DLPFC"
+author: "KM and GH"
+date: "`r date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r knit2synapse, eval=FALSE, echo=FALSE}
+# rmarkdown::render("individual-cohorts/meta_analysis/meta-analysis_interaction.Rmd")
+
+library(synapser)
+library(knit2synapse)
+synLogin()
+# knit2synapse::
+
+createAndKnitToFolderEntity <- function(file, parentId, folderName,
+                                        wikiName=NULL, overwrite=FALSE, knitmd=TRUE, ...) {
+  
+  entity <- synapser::Folder(parentId=parentId, name=folderName)
+  entity <- synapser::synStore(entity, ...)
+
+  knitfile2synapse(file=file, owner=entity, wikiName=wikiName, 
+                   overwrite=overwrite, knitmd=knitmd, parentWikiId=NULL)
+}
+
+createAndKnitToFolderEntity(file = "individual-cohorts/meta_analysis/meta-analysis_interaction.Rmd",
+                                          parentId ="syn22315403",
+                                          folderName = 'Meta-analysis on Sex*Diagnosis interaction',
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
+```
+
+```{r setup, include=FALSE}
+library(synapser)
+
+synLogin()
+suppressPackageStartupMessages({
+library(ggplot2)
+library(dplyr)
+library(ComplexHeatmap)
+library(readxl)
+library(gtools)
+library(corrplot)
+library(pvclust)
+library(metafor)
+library(cowplot)
+library(kableExtra)
+library(githubr)
+library(org.Hs.eg.db)
+library(ggrepel)
+library(metafor)
+library(knitr)
+library(patchwork)
+})
+
+source("../../common_functions/common_functions.R")
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+```{r synapse.parameters, include=FALSE, cache=FALSE, eval=TRUE}
+thisFileName <- 'meta-analysis_interaction.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/meta_analysis/',thisFileName))
+```
+
+```{r input_data}
+mpp_acc <- readr::read_tsv(synGet("syn22276990")$path) %>% 
+  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) %>% getGeneSymbol( 'gene_id' )
+
+mpp_dlpfc <- readr::read_tsv(synGet("syn22277179")$path) %>% 
+  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) %>% getGeneSymbol( 'gene_id' )
+
+hbcc_dsACC <- readr::read_tsv(synGet("syn22086829")$path) %>% 
+  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val)  %>% getGeneSymbol( 'gene_id' )
+
+hbcc_dlpfc <- readr::read_tsv(synGet("syn22280364")$path) %>% 
+  dplyr::select(Comparison, gene_id, AveExpr, t, logFC, P.Value, adj.P.Val) %>% getGeneSymbol( 'gene_id' )
+
+Ids <- c("syn22276990", "syn22277179", "syn22086829", "syn22280364")
+```
+
+
+# Control vs SCZ
+```{r meta_analysis.SZ}
+make_list <- function(mpp, hbcc, string) {
+  list <- list(MPP = mpp %>%
+                 unique() %>% 
+                 dplyr::filter(Comparison == string) %>% 
+                 as.data.frame,
+               HBCC = hbcc %>% 
+                 unique() %>% 
+                 dplyr::filter(Comparison == string) %>% 
+                 as.data.frame)
+}
+
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_vs_SCZ")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_vs_SCZ")
+
+rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
+rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
+
+res_dlpfc = run_meta_analysis( dlpfcList, "FE") %>% getGeneSymbol
+res_dlpfc$Dataset = "Meta-analysis"
+
+rownames(accList[['MPP']]) = accList[['MPP']]$gene_id
+rownames(accList[['HBCC']]) = accList[['HBCC']]$gene_id
+
+res_acc = run_meta_analysis( accList, "FE") %>% getGeneSymbol
+res_acc$Dataset = "Meta-analysis"
+```
+
+
+## DLPFC
+
+```{r plot.meta_analysisSCZ}
+kable(table(res_dlpfc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05")) %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r plot.concordance.dlpfc, fig.height=20}
+
+# get genes to highlight
+idx = order(res_dlpfc$adj.P.Val)
+showGenes = res_dlpfc$Symbol[idx[1:20]]
+
+resConcord_dlpfc = plot_concordance( dlpfcList, showGenes )
+  
+plot_grid(resConcord_dlpfc$fig_logFC, 
+          resConcord_dlpfc$fig_tstat, 
+          plotVolcano( res_dlpfc, showGenes),   
+          nrow=3)
+```
+
+
+
+
+
+
+```{r plot.concordance.table.dlpfc, fig.width=6}
+kable( resConcord_dlpfc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord_dlpfc$tab_corr$P = format(resConcord_dlpfc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_dlpfc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r test, eval=FALSE}
+# # forrest plot of meta-analysis
+# geneSymbol = 'RCSD1'
+
+# idx = with(res_dlpfc, (Symbol == geneSymbol) & !is.na(Symbol) )
+# kable(res_dlpfc[idx,] )
+```
+
+```{r plot.forrest.dlpfc, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(dlpfcList, list("Meta-analysis" = res_dlpfc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+
+
+## ACC
+
+```{r plot.meta_analysisSCZ.acc}
+kable(table(res_acc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))%>%
+  kable_styling(full_width = FALSE)
+```
+```{r plot.concordance.acc, fig.height=20}
+
+# get genes to highlight
+idx = order(res_acc$adj.P.Val)
+showGenes = res_acc$Symbol[idx[1:20]]
+
+resConcord_acc = plot_concordance( accList, showGenes )
+  
+plot_grid(resConcord_acc$fig_logFC, 
+          resConcord_acc$fig_tstat, 
+          plotVolcano( res_acc, showGenes),   
+          nrow=3)
+```
+
+```{r plot.concordance.table.acc, fig.width=6}
+kable( resConcord_acc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)  
+
+resConcord_acc$tab_corr$P = format(resConcord_acc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_acc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+
+
+```{r plot.forrest.acc, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(accList, list("Meta-analysis" = res_acc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+## Compare across brain regions
+```{r plot.concordance.combine, fig.height=15}
+
+resCombine = merge(res_dlpfc, res_acc, by="row.names") 
+
+res_dlpfc$t = with(res_dlpfc, logFC / se)
+res_acc$t = with(res_acc, logFC / se)
+
+resConcord = plot_concordance( list(DLPFC = res_dlpfc, ACC = res_acc), showGenes )
+   
+plot_grid(resConcord$fig_logFC, 
+          resConcord$fig_tstat,     
+          nrow=2) 
+```
+
+```{r plot.concordance.table.combine, fig.width=6}
+kable( resConcord$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord$tab_corr$P = format(resConcord$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+# Control vs Other
+```{r meta_analysis.Other}
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Control_vs_Other")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Control_vs_Other")
+
+rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
+rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
+
+res_dlpfc = run_meta_analysis( dlpfcList, "FE") %>% getGeneSymbol
+res_dlpfc$Dataset = "Meta-analysis"
+
+rownames(accList[['MPP']]) = accList[['MPP']]$gene_id
+rownames(accList[['HBCC']]) = accList[['HBCC']]$gene_id
+
+res_acc = run_meta_analysis( accList, "FE") %>% getGeneSymbol
+res_acc$Dataset = "Meta-analysis"
+```
+
+## DLPFC
+```{r plot.meta_analysisOther}
+kable(table(res_dlpfc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05")) %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r plot.concordance.dlpfc.Other, fig.height=20}
+
+# get genes to highlight
+idx = order(res_dlpfc$adj.P.Val)
+showGenes = res_dlpfc$Symbol[idx[1:20]]
+
+resConcord_dlpfc = plot_concordance( dlpfcList, showGenes )
+  
+plot_grid(resConcord_dlpfc$fig_logFC, 
+          resConcord_dlpfc$fig_tstat, 
+          plotVolcano( res_dlpfc, showGenes),   
+          nrow=3)
+```
+
+
+
+
+
+
+```{r plot.concordance.table.dlpfc.Other, fig.width=6}
+kable( resConcord_dlpfc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord_dlpfc$tab_corr$P = format(resConcord_dlpfc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_dlpfc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r plot.forrest.dlpfc.Other, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(dlpfcList, list("Meta-analysis" = res_dlpfc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+
+## ACC
+
+```{r plot.meta_analysisSCZ.acc.Other}
+kable(table(res_acc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))%>%
+  kable_styling(full_width = FALSE)
+```
+```{r plot.concordance.acc.Other, fig.height=20}
+
+# get genes to highlight
+idx = order(res_acc$adj.P.Val)
+showGenes = res_acc$Symbol[idx[1:20]]
+
+resConcord_acc = plot_concordance( accList, showGenes )
+  
+plot_grid(resConcord_acc$fig_logFC, 
+          resConcord_acc$fig_tstat, 
+          plotVolcano( res_acc, showGenes),   
+          nrow=3)
+```
+
+```{r plot.concordance.table.acc.Other, fig.width=6}
+kable( resConcord_acc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)  
+
+resConcord_acc$tab_corr$P = format(resConcord_acc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_acc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+
+
+```{r plot.forrest.acc.Other, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(accList, list("Meta-analysis" = res_acc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+## Compare across brain regions
+```{r plot.concordance.combine.Other, fig.height=15}
+
+resCombine = merge(res_dlpfc, res_acc, by="row.names") 
+
+res_dlpfc$t = with(res_dlpfc, logFC / se)
+res_acc$t = with(res_acc, logFC / se)
+
+resConcord = plot_concordance( list(DLPFC = res_dlpfc, ACC = res_acc), showGenes )
+   
+plot_grid(resConcord$fig_logFC, 
+          resConcord$fig_tstat,     
+          nrow=2) 
+```
+
+```{r plot.concordance.table.combine.Other, fig.width=6}
+kable( resConcord$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord$tab_corr$P = format(resConcord$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+
+
+
+
+# Other vs SCZ
+```{r meta_analysis.OtherSz}
+dlpfcList <- make_list(mpp_dlpfc, hbcc_dlpfc, string = "Other_vs_SCZ")
+accList <- make_list(mpp_acc, hbcc_dsACC, string = "Other_vs_SCZ")
+
+rownames(dlpfcList[['MPP']]) = dlpfcList[['MPP']]$gene_id
+rownames(dlpfcList[['HBCC']]) = dlpfcList[['HBCC']]$gene_id
+
+res_dlpfc = run_meta_analysis( dlpfcList, "FE") %>% getGeneSymbol
+res_dlpfc$Dataset = "Meta-analysis"
+
+rownames(accList[['MPP']]) = accList[['MPP']]$gene_id
+rownames(accList[['HBCC']]) = accList[['HBCC']]$gene_id
+
+res_acc = run_meta_analysis( accList, "FE") %>% getGeneSymbol
+res_acc$Dataset = "Meta-analysis"
+```
+
+## DLPFC
+```{r plot.meta_analysis.OtherSz}
+kable(table(res_dlpfc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05")) %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r plot.concordance.dlpfc..OtherSz, fig.height=20}
+
+# get genes to highlight
+idx = order(res_dlpfc$adj.P.Val)
+showGenes = res_dlpfc$Symbol[idx[1:20]]
+
+resConcord_dlpfc = plot_concordance( dlpfcList, showGenes )
+  
+plot_grid(resConcord_dlpfc$fig_logFC, 
+          resConcord_dlpfc$fig_tstat, 
+          plotVolcano( res_dlpfc, showGenes),   
+          nrow=3)
+```
+
+
+```{r plot.concordance.table.dlpfc.OtherSz, fig.width=6}
+kable( resConcord_dlpfc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord_dlpfc$tab_corr$P = format(resConcord_dlpfc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_dlpfc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r plot.forrest.dlpfc..OtherSz, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(dlpfcList, list("Meta-analysis" = res_dlpfc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+
+## ACC
+
+```{r plot.meta_analysisSCZ.acc.OtherSz}
+kable(table(res_acc$adj.P.Val < 0.05), col.names = c("", "Num. genes with p-value < 0.05"))%>%
+  kable_styling(full_width = FALSE)
+```
+```{r plot.concordance.acc.OtherSz, fig.height=20}
+
+# get genes to highlight
+idx = order(res_acc$adj.P.Val)
+showGenes = res_acc$Symbol[idx[1:20]]
+
+resConcord_acc = plot_concordance( accList, showGenes )
+  
+plot_grid(resConcord_acc$fig_logFC, 
+          resConcord_acc$fig_tstat, 
+          plotVolcano( res_acc, showGenes),   
+          nrow=3)
+```
+
+```{r plot.concordance.table.acc.OtherSz, fig.width=6}
+kable( resConcord_acc$tab_pi ) %>%
+  kable_styling(full_width = FALSE)  
+
+resConcord_acc$tab_corr$P = format(resConcord_acc$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord_acc$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+
+
+```{r plot.forrest.acc.OtherSz, fig.width=5, fig.height=20}  
+figList = lapply(showGenes[1:10], function(geneSymbol){
+  plot_forrest( c(accList, list("Meta-analysis" = res_acc)), geneSymbol)
+})
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+## Compare across brain regions
+```{r plot.concordance.combine.OtherSz, fig.height=15}
+
+resCombine = merge(res_dlpfc, res_acc, by="row.names") 
+
+res_dlpfc$t = with(res_dlpfc, logFC / se)
+res_acc$t = with(res_acc, logFC / se)
+
+resConcord = plot_concordance( list(DLPFC = res_dlpfc, ACC = res_acc), showGenes )
+   
+plot_grid(resConcord$fig_logFC, 
+          resConcord$fig_tstat,     
+          nrow=2) 
+```
+
+```{r plot.concordance.table.combine.OtherSz, fig.width=6}
+kable( resConcord$tab_pi ) %>%
+  kable_styling(full_width = FALSE)
+
+resConcord$tab_corr$P = format(resConcord$tab_corr$P, scientific=TRUE, digits=3)
+kable( resConcord$tab_corr )  %>%
+  kable_styling(full_width = FALSE)
+```
+
+
+
+
+
+```{r store, eval=FALSE}
+# Code
+CODE <- Folder(name = "Meta-analysis on Sex*Diagnosis interaction", parentId = "syn22315403") # Make sure these match the folder name and parent Id in the first chunk.
+CODE <- synStore(CODE)
+
+# Store meta-analysis
+res_dlpfc %>%
+  tibble::rownames_to_column(var = "gene_id") %>% 
+  write.table(file = 'CMC_dlpfc_interaction_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
+nEXP_OBJ = File('CMC_dlpfc_interaction_meta_analysis.tsv', 
+                name = 'Interaction meta-analysis (DLPFC)', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+res_acc %>%
+  tibble::rownames_to_column(var = "gene_id") %>% 
+  write.table(file = 'CMC_acc_Interaction_meta_analysis.tsv', sep = '\t', row.names=F, quote=F)
+nEXP_OBJ = File('CMC_acc_Interaction_meta_analysis.tsv', 
+                name = 'Interaction meta-analysis (ACC)', 
+                parentId = CODE$properties$id)
+nEXP_OBJ = synStore(nEXP_OBJ, used = Ids, 
+                    executed = thisFile)
+```
+
+
+### Source
+[markdown](`r thisFile`)
+
+
+
