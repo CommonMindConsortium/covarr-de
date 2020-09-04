@@ -365,7 +365,7 @@ fit_interaction_DxSex = dream(vobj, form, METADATA, L=L, BPPARAM = SnowParam(18)
 # Disease
 tab = topTable(fit_interaction_DxSex, "SczSex", number=Inf) %>% getGeneSymbol
 fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
-
+   
 tab = topTable(fit_interaction_DxSex, "BPSex", number=Inf)  %>% getGeneSymbol
 fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
 
@@ -428,13 +428,6 @@ plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1
 
 fit_interaction_RegionSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
-
-
-
-
-
-
-
 
 
 
