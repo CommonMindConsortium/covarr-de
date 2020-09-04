@@ -13,7 +13,7 @@ output:
 
 <!---
 
-cd /hpc/users/hoffmg01/work/cmc_analysis/src
+cd /hpc/users/hoffmg01/work/covarr-de
 # rm -rf molec_profiling_cache/
 ml git pandoc
 git pull
@@ -103,7 +103,6 @@ counts.HBCC4 = counts.HBCC4[,-c(1:6)]
 
 geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
 ```
-
 
 
 ### Data download
@@ -308,7 +307,7 @@ fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 fig1 = plotVolcano( topTable(fit_marginal, "Scz", number=Inf) ) + ggtitle("SCZ")
 fig2 = plotVolcano( topTable(fit_marginal, "BP", number=Inf) ) + ggtitle("BP")
 
-cowplot( fig1, fig2, ncol=2)
+plot_grid( fig1, fig2, ncol=2)
 
 # Sex
 tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
@@ -316,7 +315,7 @@ tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbo
 fig3 = plotVolcano( tab ) + ggtitle("Sex")
 fig4 = plotVolcano( tab[tab$Chrom %in% 1:22,] ) + ggtitle("Sex")
 
-cowplot( fig3, fig4, ncol=2)
+plot_grid( fig3, fig4, ncol=2)
 ```
 
 
