@@ -363,10 +363,10 @@ fit_interaction_DxSex = dream(vobj, form, METADATA, L=L, BPPARAM = SnowParam(18)
 
 ```{r plots.interaction.DxSex, fig.width=10, fig.height=5}
 # Disease
-tab = topTable(fit_marginal, "SczSex", number=Inf) %>% getGeneSymbol
+tab = topTable(fit_interaction_DxSex, "SczSex", number=Inf) %>% getGeneSymbol
 fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
 
-tab = topTable(fit_marginal, "BPSex", number=Inf)  %>% getGeneSymbol
+tab = topTable(fit_interaction_DxSex, "BPSex", number=Inf)  %>% getGeneSymbol
 fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
 
 plot_grid( fig1, fig2, ncol=2) 
