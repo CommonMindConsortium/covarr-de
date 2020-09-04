@@ -314,9 +314,10 @@ plot_grid( fig1, fig2, ncol=2)
 
 # Sex
 tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
+fig3 = plotVolcano( tab, rownames(tab)[1:20] ) + ggtitle("Sex")
 
-fig3 = plotVolcano( tab ) + ggtitle("Sex")
-fig4 = plotVolcano( tab[tab$Chrom %in% 1:22,] ) + ggtitle("Sex")
+tab2 = tab[tab$Chrom %in% 1:22,]
+fig4 = plotVolcano( tab2, rownames(tab2)[1:20] ) + ggtitle("Sex")
 
 plot_grid( fig3, fig4, ncol=2)
 ```
