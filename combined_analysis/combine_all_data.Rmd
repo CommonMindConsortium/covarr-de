@@ -347,10 +347,10 @@ L_SCZ['DxControl'] = 1
 
 # BP by sex
 L_BP = Lbase
-L_SCZ['Reported_GenderMale'] = 1
-L_SCZ['DxControl:Reported_GenderMale'] = -1
-L_SCZ['DxBP'] = -1
-L_SCZ['DxControl'] = 1 
+L_BP['Reported_GenderMale'] = 1
+L_BP['DxControl:Reported_GenderMale'] = -1
+L_BP['DxBP'] = -1
+L_BP['DxControl'] = 1 
 
 L = cbind(	SczSex = L_SCZ,
 			BPSex = L_BP)
