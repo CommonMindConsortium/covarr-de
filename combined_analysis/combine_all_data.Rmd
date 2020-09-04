@@ -324,11 +324,6 @@ plot_grid( fig3, fig4, ncol=2)
 
 
 
-
-```{r exit, cache=FALSE}
-knitr::knit_exit()
-```
-
 ### Test Diagnosis * Sex
 ```{r differential.expression.interaction.DxSex}
 
@@ -351,6 +346,11 @@ L = cbind(	SczSex = L_SCZ)
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
 fit_interaction_DxSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
+```
+
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
 ```
 
 
