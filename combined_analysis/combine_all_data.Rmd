@@ -302,12 +302,12 @@ plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1
 fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
 
-```{r plots.marginal}
+```{r plots.marginal, fig.width=10, fig.height=15}
 # Disease
 tab = topTable(fit_marginal, "Scz", number=Inf) %>% getGeneSymbol
 fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
 
-tab = topTable(fit_marginal, "BP", number=Inf)
+tab = topTable(fit_marginal, "BP", number=Inf)  %>% getGeneSymbol
 fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
 
 plot_grid( fig1, fig2, ncol=2)
