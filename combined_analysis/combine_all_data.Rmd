@@ -303,6 +303,32 @@ fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
 
 
+```{r differential.expression.interaction.sex}
+
+form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+
+# get contrasts
+Lbase = getContrast( vobj, form, METADATA, "RIN")
+Lbase[] = 0
+
+# SCZ by sex
+L_SCZ = Lbase
+L_SCZ['DxSCZ:Reported_GenderMale'] = 1
+L_SCZ['DxControl:Reported_GenderMale'] = -1
+L_SCZ['DxSCZ'] = -1
+L_SCZ['DxControl'] = 1 
+# (A - B) - (C - D) = A - B - C + D
+
+L = cbind(	SczSex = L_SCZ)
+			
+plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
+
+fit_interaction = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
+```
+
+
+
+
 
 
 
