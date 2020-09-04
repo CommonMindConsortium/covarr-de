@@ -36,6 +36,9 @@ getGeneSymbol = function( df, column="row.names"){
   geneSymbol = mapIds(ensdb, keys=ensIDs, keytype="GENEID", column="GENENAME")
   df$Symbol = geneSymbol
 
+  entrez = mapIds(ensdb, keys=ensIDs, keytype="GENEID", column="ENTREZID")
+  df$Entrez = entrez
+
   chroms = ensembldb::select(ensdb, keys=ensIDs, keytype="GENEID", column="SEQNAME")
 
   df2 = merge( data.frame(GENEID = ensIDs, stringsAsFactors=FALSE), chroms, by='GENEID')
@@ -102,36 +105,36 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   tab_corr = data.frame(R_spearman = res$estimate, P = res$p.value)
 
   # pi spectrum
-  df_order_x = df[order(df$P.Value.x),]
-  df_order_y = df[order(df$P.Value.y),]
+  # df_order_x = df[order(df$P.Value.x),]
+  # df_order_y = df[order(df$P.Value.y),]
 
-  res_p1_ramp = lapply(1:nrow(df), function(i){
+  # res_p1_ramp = lapply(1:nrow(df), function(i){
 
-    pi1.x = tryCatch( 
-      1 - qvalue(df_order_x$P.Value.y[1:i])$pi0,
-      error = function(e){
-        NA
-        })
+  #   pi1.x = tryCatch( 
+  #     1 - qvalue(df_order_x$P.Value.y[1:i])$pi0,
+  #     error = function(e){
+  #       NA
+  #       })
 
-    pi1.y = tryCatch( 
-      1 - qvalue(df_order_y$P.Value.x[1:i])$pi0,
-      error = function(e){
-        NA
-        })
-    res = data.frame( i     = i, 
-                      p.x   = df_order_x$P.Value.x[i], 
-                      pi1.x = pi1.x,
-                      p.y   = df_order_y$P.Value.y[i], 
-                      pi1.y = pi1.y)
-    res
-  })
-  res_p1_ramp = do.call(rbind, res_p1_ramp)
+  #   pi1.y = tryCatch( 
+  #     1 - qvalue(df_order_y$P.Value.x[1:i])$pi0,
+  #     error = function(e){
+  #       NA
+  #       })
+  #   res = data.frame( i     = i, 
+  #                     p.x   = df_order_x$P.Value.x[i], 
+  #                     pi1.x = pi1.x,
+  #                     p.y   = df_order_y$P.Value.y[i], 
+  #                     pi1.y = pi1.y)
+  #   res
+  # })
+  # res_p1_ramp = do.call(rbind, res_p1_ramp)
 
   list(fig_logFC  = fig1,
       fig_tstat   = fig2, 
       tab_pi      = tab_pi,
-      tab_corr    = tab_corr,
-      res_p1_ramp = res_p1_ramp)
+      # res_p1_ramp = res_p1_ramp,
+      tab_corr    = tab_corr)
 }
 
 
