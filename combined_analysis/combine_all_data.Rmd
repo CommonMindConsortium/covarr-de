@@ -185,6 +185,8 @@ METADATA = metadata %>%
 			 	 #%>%
 			 	 # dplyr::mutate(Dx_crude = forcats::fct_recode(Dx, Other = "AFF", Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
 
+METADATA$Dx = factor(METADATA$Dx, c('Control', 'BP', "SCZ"))
+
 ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
 writeLines(paste('Following',length(ind),'samples are marked exclude'))
 writeLines(paste(ind, collapse = ', '))
@@ -333,20 +335,44 @@ form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort 
 Lbase = getContrast( vobj, form, METADATA, "RIN")
 Lbase[] = 0
 
+names(Lbase)
+
 # SCZ by sex
 L_SCZ = Lbase
 L_SCZ['DxSCZ:Reported_GenderMale'] = 1
-L_SCZ['DxControl:Reported_GenderMale'] = -1
+L_SCZ['Reported_GenderMale'] = -1
 L_SCZ['DxSCZ'] = -1
 L_SCZ['DxControl'] = 1 
 # (A - B) - (C - D) = A - B - C + D
 
-L = cbind(	SczSex = L_SCZ)
+# BP by sex
+L_BP = Lbase
+L_SCZ['DxBP:Reported_GenderMale'] = 1
+L_SCZ['Reported_GenderMale'] = -1
+L_SCZ['DxBP'] = -1
+L_SCZ['DxControl'] = 1 
+
+
+L = cbind(	SczSex = L_SCZ,
+			BPSex = L_BP)
 			
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
 fit_interaction_DxSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
+
+
+```{r plots.interaction.DxSex, fig.width=10, fig.height=5}
+# Disease
+tab = topTable(fit_marginal, "SczSex", number=Inf) %>% getGeneSymbol
+fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
+
+tab = topTable(fit_marginal, "BPSex", number=Inf)  %>% getGeneSymbol
+fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
+
+plot_grid( fig1, fig2, ncol=2) 
+```
+
 
 
 ```{r exit, cache=FALSE}
