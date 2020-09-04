@@ -96,14 +96,42 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
       NA
       })
 
+
   tab_pi = data.frame(Discovery = names(resList), pi1 = c(pi_discovery_x, pi_discovery_y))
 
   tab_corr = data.frame(R_spearman = res$estimate, P = res$p.value)
 
+  # pi spectrum
+  df_order_x = df[order(df$P.Value.x),]
+  df_order_y = df[order(df$P.Value.y),]
+
+  res_p1_ramp = lapply(1:nrow(df), function(i){
+
+    pi1.x = tryCatch( 
+      1 - qvalue(df_order_x$P.Value.y[1:i])$pi0,
+      error = function(e){
+        NA
+        })
+
+    pi1.y = tryCatch( 
+      1 - qvalue(df_order_y$P.Value.x[1:i])$pi0,
+      error = function(e){
+        NA
+        })
+    res = data.frame( i     = i, 
+                      p.x   = df_order_x$P.Value.x[i], 
+                      pi1.x = pi1.x,
+                      p.y   = df_order_y$P.Value.y[i], 
+                      pi1.y = pi1.y)
+    res
+  })
+  res_p1_ramp = do.call(rbind, res_p1_ramp)
+
   list(fig_logFC  = fig1,
       fig_tstat   = fig2, 
       tab_pi      = tab_pi,
-      tab_corr    = tab_corr)
+      tab_corr    = tab_corr,
+      res_p1_ramp = res_p1_ramp)
 }
 
 
@@ -439,6 +467,53 @@ downloadFile_version <- function(id , version){
   # fig + circle(gr, geom = "point", aes(y = score2, color=factor(sign(score2), -1:1)),size=1, grid = TRUE, radius = 15, trackWidth=23, grid.background="white", grid.line="grey70", space.skip=.002) + scale_size(range = c(1, 2.5)) + scale_size_continuous("|logFC|", limits=c(0,max(limits))) + ylab(bquote(log[2]~fold~change)) + scale_color_manual(values = c("red", "grey60", "blue")) + theme(legend.position="none")
 
 
+
+
+
+#' Plot mean variance trend
+#' 
+#' Plot mean variance trend
+#' 
+#' @param x object returned by voom(), voomWithQualityWeights(), voomWithDreamWeights() or rationale()
+#' @param y missing
+#' @param ... other arguments
+#' 
+#' @import ggplot2
+#' @export
+plot_voom = function(x,  y, ...){
+
+    # pass R check
+    statusAB = NA
+
+    if( is.null(x$voom.xy) || is.null(x$voom.line)){
+      stop("x does not contain the trend information.\nvoom() must be run with save.plot=TRUE")
+    }
+
+    # points
+    if( is.null(x$statusAB) ){
+      main = "Voom: Mean-variance trend"
+      isRationale = FALSE
+    }else{
+      main = "Rationale: Mean-variance trend"
+      isRationale = TRUE
+    }
+
+  df = data.frame(x = x$voom.xy$x,
+          y = x$voom.xy$y)
+
+  # trend line
+  df.line = data.frame(x = x$voom.line$x,
+            y = x$voom.line$y)
+
+  if( isRationale ){
+    df$statusAB = x$statusAB
+    fig = ggplot(df, aes(x,y, color=statusAB))
+  }else{
+    fig = ggplot(df, aes(x,y))
+  }
+  
+  fig + geom_point(size=0.01) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + geom_line(data=df.line, aes(x,y), color="red", size=1.2) + xlab(bquote(log[2](count + 0.5))) + ylab(expression( sqrt("standard deviation"))) + ggtitle(main) + ylim(0, max(df$y)) + scale_color_manual(name="Status", values=c("#3758ba", "#33e65c")) + guides(color = guide_legend(override.aes = list(size = 1))) 
+  }
 
 
 
