@@ -310,7 +310,7 @@ fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
 tab = topTable(fit_marginal, "BP", number=Inf)  %>% getGeneSymbol
 fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
 
-plot_grid( fig1, fig2, ncol=2)
+plot_grid( fig1, fig2, ncol=2)   
 
 # Sex  
 tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
