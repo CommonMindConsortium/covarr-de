@@ -182,7 +182,9 @@ METADATA = metadata %>%
   		 		 dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
   		 		 dplyr::filter(Region %in% c('DLPFC', 'ACC')) %>%
 			 	 dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC', `NIMH-HBCC`='NIMH-HBCC-4')) %>%
-			 	 dplyr::mutate(Dx_crude = forcats::fct_recode(Dx, Other = "AFF", Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
+			 	 dplyr::filter(Dx %in% c('Control', 'BP', "SCZ"))
+			 	 #%>%
+			 	 # dplyr::mutate(Dx_crude = forcats::fct_recode(Dx, Other = "AFF", Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
 
 ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
 writeLines(paste('Following',length(ind),'samples are marked exclude'))
@@ -223,7 +225,7 @@ geneCountsMerged = geneCountsMerged[,indToRetain]
  
 rownames(METADATA) = METADATA$SampleID
 METADATA = METADATA[indToRetain,]
-     
+          
 METADATA %>% 
   group_by(Dx) %>%  
   dplyr::summarise(count = n()) %>% 
@@ -240,7 +242,7 @@ isexpr.lst = dlply(METADATA, .(Cohort, Reported_Gender), .fun = function(mtd){
 isexpr = do.call(rbind, isexpr.lst)
 isexpr = colSums(isexpr) > 0
 table(isexpr)
-
+   
 # normalize counts
 dge = DGEList( geneCountsMerged[isexpr,] )
 dge = calcNormFactors(dge) # TMM
@@ -262,14 +264,40 @@ xtabs(~ Institution + Cohort, METADATA)
 # MPP DLPFC
 # Dx + scale(RIN2) + (1 | Institution) + scale(ageOfDeath) + scale(RIN) + (1 | Reported_Gender) + scale(IntronicRate) + scale(IntragenicRate)
 
-form = ~ Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
-vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowParam(8))
+vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowParam(18))
 
 plot_voom(vobj)
 ```
 
+```{r differential.expression}
 
+form = ~ Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+
+
+Lbase = getContrast( vobj, form, METADATA, "RIN")
+Lbase[] = 0
+
+L = Lbase
+L['Dx_crudeControl'] = 1 
+L['Dx_crudeSCZ'] = -1
+
+
+
+fit = dream(vobj[1:10,], form, METADATA, BPPARAM = SnowParam(18))
+
+
+
+
+
+
+
+
+
+
+
+```
 
 
 
