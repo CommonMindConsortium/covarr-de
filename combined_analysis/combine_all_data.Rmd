@@ -1,0 +1,293 @@
+---
+title: "Joint analysis of read count data"
+subtitle: ''
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+documentclass: article
+output: 
+  html_document:
+  toc: true
+  smart: false
+---
+
+
+<!---
+
+cd /hpc/users/hoffmg01/work/cmc_analysis/src
+# rm -rf molec_profiling_cache/
+ml git pandoc
+git pull
+R
+
+system("git pull")
+
+
+
+rmarkdown::render("combined_analysis/combine_all_data.Rmd")
+
+
+
+--->
+
+--->
+
+```{r knit2synapse, eval=FALSE}
+library(synapser)
+library(knit2synapse)
+synLogin()
+knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_data.Rmd",
+                                          parentId ="syn22231629",
+                                          folderName = 'Joint analysis of count data',
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
+```
+
+GSEA and dream from raw counts
+
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(synapser)
+
+synLogin()
+
+library(ggplot2)
+library(dplyr)
+library(ComplexHeatmap)
+library(readxl)
+library(gtools)
+library(corrplot)
+library(pvclust)
+library(metafor)
+library(data.table)
+library(cowplot)
+library(kableExtra)
+library(githubr)
+library(ggrepel)
+library(knitr)
+library(patchwork)
+library(plyr)
+library(BiocParallel)
+
+library(limma)
+library(edgeR)
+library(variancePartition)
+
+})
+source("../common_functions/common_functions.R")
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+```{r read.counts}
+# Read raw counts from MPP and HBCC
+counts.MPP = fread(synGet('syn21867938')$path, data.table=FALSE)
+rownames(counts.MPP) = counts.MPP$Geneid
+counts.MPP = counts.MPP[,-c(1:6)]
+
+# HBCC - DLFPC
+counts.HBCC = fread(synGet('syn21886235')$path, data.table=FALSE)
+rownames(counts.HBCC) = counts.HBCC$Geneid
+counts.HBCC = counts.HBCC[,-c(1:6)]
+
+# HBCC - sgACC
+counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
+rownames(counts.HBCC4) = counts.HBCC4$Geneid
+counts.HBCC4 = counts.HBCC4[,-c(1:6)]
+
+geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
+```
+
+
+
+### Data download
+#### Obtain effective count matrix and metadata from synapse.
+```{r download.data, cache=TRUE}
+downloadFile <- function(id){
+  fread(synGet(id)$path, data.table = F)
+}
+downloadFile_version <- function(id , version){
+  fread(synGet(id, version = version)$path, data.table = F)
+}
+
+# Get RNASeq QCmetadata
+METADATA_QC_DLPFC_ID = 'syn16816488' 
+ALL_USED_IDs = METADATA_QC_DLPFC_ID
+metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
+  dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 
+                Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
+                                      'rnaSeq_dissection:Brain_Region', 
+                                      'rnaSeq_isolation:RNA_Isolation_Batch',
+                                      'rnaSeq_report:Ribozero_Batch', 'rnaSeq_report:Library_Batch', 
+                                      'rnaSeq_report:Flowcell_Batch', 'rnaSeq_report:Exclude?',
+                                      'rnaSeq_report:Mapped_Reads',
+                                      'rnaSeq_report:Intragenic_Rate','rnaSeq_report:Intronic_Rate',
+                                      'rnaSeq_report:Intergenic_Rate','rnaSeq_report:Genes_Detected',
+                                      'rnaSeq_report:Expression_Profiling_Efficiency',
+                                      'rnaSeq_report:rRNA_Rate',
+                                      'rnaSeq_report:Total_Reads', 'rnaSeq_report:Percent_Aligned','rnaSeq_report:Transcripts_Detected')) 
+
+# Get ancestry vector calculated using gemtools
+ANCESTRY_ID = 'syn9922992'
+ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
+ANCESTRY.HBCC = downloadFile(ANCESTRY_ID) %>% 
+  plyr::rename(c(ID = 'SNP_report:Genotyping_Sample_ID'))
+
+ANCESTRY_ID = 'syn2511399'
+ALL_USED_IDs[length(ALL_USED_IDs)+1] = ANCESTRY_ID
+ANCESTRY.MPP = downloadFile(ANCESTRY_ID) %>% 
+  plyr::rename(c('DNA_report..Genotyping.Sample_ID' = 'SNP_report:Genotyping_Sample_ID'))
+
+ANCESTRY = rbind(ANCESTRY.HBCC[,colnames(ANCESTRY.MPP)[-2]], ANCESTRY.MPP[,colnames(ANCESTRY.MPP)[-2]])
+
+# Get genotype ids from synapse. 
+GENOTYPE_ID = 'syn16816490'
+ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
+GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
+  dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
+  dplyr::inner_join(ANCESTRY) %>% 
+  dplyr::filter(is.na(`SNP_report:Exclude?`))
+```
+
+### Data preprocessing
+```{r preprocess.data}
+# Merge metadata
+METADATA = metadata %>%
+  dplyr::left_join(GENOTYPE) %>%      
+  dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
+                PMI = `PMI_(in_hours)`,
+                RIN = `rnaSeq_isolation:RIN`, 
+                ReportExclude = `rnaSeq_report:Exclude?`,
+                GenotypeExclude = `SNP_report:Exclude?`,
+                SampleID = Sample_RNA_ID,
+                LibraryBatch = `rnaSeq_report:Library_Batch`,
+                FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
+                IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`, #isolation batch to replace ribozero batch
+                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
+                MappedReads = `rnaSeq_report:Mapped_Reads`,
+                IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
+                IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
+                ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
+                TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
+  dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, Region,
+                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
+                LibraryBatch, FlowcellBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
+                IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
+  		 		 dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
+  		 		 dplyr::filter(Region %in% c('DLPFC', 'ACC')) %>%
+			 	 dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC', `NIMH-HBCC`='NIMH-HBCC-4')) %>%
+			 	 dplyr::mutate(Dx_crude = forcats::fct_recode(Dx, Other = "AFF", Other = "BP", Other = "undetermined", Control = "Control", SCZ = "SCZ"))
+
+ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
+writeLines(paste('Following',length(ind),'samples are marked exclude'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$Ethnicity) | is.na(METADATA$Institution) | is.na(METADATA$Dx)]
+writeLines(paste('Following', length(ind), 'counts are missing any metadata'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$PMI)]
+writeLines(paste('Following', length(ind), 'counts are missing PMI'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$Reported_Gender)]
+writeLines(paste('Following', length(ind), 'counts are missing gender'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind)) 
+
+ind = METADATA$SampleID [is.na(METADATA$ageOfDeath)]
+writeLines(paste('Following', length(ind), 'counts are missing age of death'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+
+ind = METADATA$SampleID [is.na(METADATA$EV.1)]
+writeLines(paste('Following', length(ind), 'counts are missing ancestry information'))
+writeLines(paste(ind, collapse = ', '))
+METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+```
+
+```{r preprocess.data1, results='asis'}
+# Match covariates to expression data
+indToRetain = intersect(METADATA$SampleID, colnames(geneCountsMerged))
+  
+geneCountsMerged = geneCountsMerged[,indToRetain]
+ 
+rownames(METADATA) = METADATA$SampleID
+METADATA = METADATA[indToRetain,]
+     
+METADATA %>% 
+  group_by(Dx) %>%  
+  dplyr::summarise(count = n()) %>% 
+  kable() 
+```
+
+```{r process.counts}
+     
+# keep genes that are express in at least one combination of cohort and gender
+isexpr.lst = dlply(METADATA, .(Cohort, Reported_Gender), .fun = function(mtd){
+	rowSums(cpm(geneCountsMerged[,mtd$SampleID])>1) >= 0.5*ncol(geneCountsMerged[,mtd$SampleID])
+	})
+
+isexpr = do.call(rbind, isexpr.lst)
+isexpr = colSums(isexpr) > 0
+table(isexpr)
+
+# normalize counts
+dge = DGEList( geneCountsMerged[isexpr,] )
+dge = calcNormFactors(dge) # TMM
+
+xtabs(~ Region + Cohort, METADATA)
+xtabs(~ Institution + Cohort, METADATA)
+
+# FORMULAs
+
+# HBCC - DLPFC: 
+# "Dx + scale(RIN) + ageOfDeath + (1 | Reported_Gender) + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate)"
+
+# HBCC dsACC: 
+# Dx + scale(RIN) + (1 | Reported_Gender) + ageOfDeath + (1 | IsolationBatch) + scale(IntragenicRate) + scale(IntronicRate) + scale(IntergenicRate)"
+
+# MPP ACC
+ # Dx + scale(RIN) + scale(ageOfDeath) + (1 | Institution) + (1 | Reported_Gender) + scale(RIN2) + scale(IntronicRate) + scale(rRNARate) + scale(IntragenicRate) + scale(IntergenicRate)
+
+# MPP DLPFC
+# Dx + scale(RIN2) + (1 | Institution) + scale(ageOfDeath) + scale(RIN) + (1 | Reported_Gender) + scale(IntronicRate) + scale(IntragenicRate)
+
+form = ~ Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+
+vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowParam(8))
+
+plot_voom(vobj)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
