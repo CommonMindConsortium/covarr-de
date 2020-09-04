@@ -264,16 +264,17 @@ xtabs(~ Institution + Cohort, METADATA)
 # MPP DLPFC
 # Dx + scale(RIN2) + (1 | Institution) + scale(ageOfDeath) + scale(RIN) + (1 | Reported_Gender) + scale(IntronicRate) + scale(IntragenicRate)
 
-form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowParam(18))
 
 plot_voom(vobj)
 ```
 
+### Test marginals
 ```{r differential.expression.simple}
 
-form = ~ 0 + Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ 0 + Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 # get contrasts
 Lbase = getContrast( vobj, form, METADATA, "RIN")
@@ -302,10 +303,33 @@ plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1
 fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
 
+```{r plots.marginal}
+# Disease
+fig1 = plotVolcano( topTable(fit_marginal, "Scz", number=Inf) ) + ggtitle("SCZ")
+fig2 = plotVolcano( topTable(fit_marginal, "BP", number=Inf) ) + ggtitle("BP")
 
-```{r differential.expression.interaction.sex}
+cowplot( fig1, fig2, ncol=2)
 
-form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+# Sex
+tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
+
+fig3 = plotVolcano( tab ) + ggtitle("Sex")
+fig4 = plotVolcano( tab[tab$Chrom %in% 1:22,] ) + ggtitle("Sex")
+
+cowplot( fig3, fig4, ncol=2)
+```
+
+
+
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
+
+### Test Diagnosis * Sex
+```{r differential.expression.interaction.DxSex}
+
+form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 # get contrasts
 Lbase = getContrast( vobj, form, METADATA, "RIN")
@@ -323,11 +347,59 @@ L = cbind(	SczSex = L_SCZ)
 			
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
-fit_interaction = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
+fit_interaction_DxSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
+```
+
+
+### Test Region * Sex
+```{r differential.expression.interaction.RegionSex, eval=FALSE}
+
+form = ~ 0 + Dx + Region*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Cohort) + (1|Individual_ID)
+
+# get contrasts
+Lbase = getContrast( vobj, form, METADATA, "RIN")
+Lbase[] = 0
+
+# SCZ by sex
+L_SCZ = Lbase
+L_SCZ['DxSCZ:Reported_GenderMale'] = 1
+L_SCZ['DxControl:Reported_GenderMale'] = -1
+L_SCZ['DxSCZ'] = -1
+L_SCZ['DxControl'] = 1 
+# (A - B) - (C - D) = A - B - C + D
+
+L = cbind(	SczSex = L_SCZ)
+			
+plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
+
+fit_interaction_RegionSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
 
 
 
+### Test Region * Disease
+```{r differential.expression.interaction.RegionDx, eval=FALSE}
+
+form = ~ 0 + Region*Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Cohort) + (1|Individual_ID)
+
+# get contrasts
+Lbase = getContrast( vobj, form, METADATA, "RIN")
+Lbase[] = 0
+
+# SCZ by sex
+L_SCZ = Lbase
+L_SCZ['DxSCZ:Reported_GenderMale'] = 1
+L_SCZ['DxControl:Reported_GenderMale'] = -1
+L_SCZ['DxSCZ'] = -1
+L_SCZ['DxControl'] = 1 
+# (A - B) - (C - D) = A - B - C + D
+
+L = cbind(	SczSex = L_SCZ)
+			
+plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
+
+fit_interaction_RegionSex = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
+```
 
 
 
