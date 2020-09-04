@@ -305,19 +305,19 @@ fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```{r plots.marginal}
 # Disease
 tab = topTable(fit_marginal, "Scz", number=Inf) %>% getGeneSymbol
-fig1 = plotVolcano( tab, rownames(tab)[1:20] ) + ggtitle("SCZ")
+fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
 
 tab = topTable(fit_marginal, "BP", number=Inf)
-fig2 = plotVolcano( tab, rownames(tab)[1:20] ) + ggtitle("BP")
+fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
 
 plot_grid( fig1, fig2, ncol=2)
 
 # Sex
 tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
-fig3 = plotVolcano( tab, rownames(tab)[1:20] ) + ggtitle("Sex")
+fig3 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("Sex")
 
 tab2 = tab[tab$Chrom %in% 1:22,]
-fig4 = plotVolcano( tab2, rownames(tab2)[1:20] ) + ggtitle("Sex")
+fig4 = plotVolcano( tab2, tab2$Symbol[1:20]) + ggtitle("Sex")
 
 plot_grid( fig3, fig4, ncol=2)
 ```
