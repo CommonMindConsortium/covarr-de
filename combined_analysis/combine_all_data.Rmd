@@ -271,33 +271,55 @@ vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowP
 plot_voom(vobj)
 ```
 
-```{r differential.expression}
+```{r differential.expression.simple}
 
-form = ~ Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ 0 + Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Region:Cohort) + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
-
+# get contrasts
 Lbase = getContrast( vobj, form, METADATA, "RIN")
 Lbase[] = 0
 
-L = Lbase
-L['Dx_crudeControl'] = 1 
-L['Dx_crudeSCZ'] = -1
+# SCZ
+L_SCZ = Lbase
+L_SCZ['DxControl'] = -1 
+L_SCZ['DxSCZ'] = 1
 
+# BP
+L_BP = Lbase
+L_BP['DxControl'] = -1 
+L_BP['DxBP'] = 1
 
+# BP
+L_sex = Lbase
+L_sex['Reported_GenderMale'] = 1
 
-fit = dream(vobj[1:10,], form, METADATA, BPPARAM = SnowParam(18))
+L = cbind(	Scz = L_SCZ, 
+			BP 	= L_BP, 
+			Sex = L_sex)
+plotContrasts(L) + theme()
 
-
-
-
-
-
-
-
-
-
-
+fit_marginal = dream(vobj[1:10,], form, METADATA, L=L,BPPARAM = SnowParam(18))
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
