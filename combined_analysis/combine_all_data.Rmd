@@ -424,13 +424,13 @@ plot_grid( fig1, fig2, ncol=2)
 
 ```{r gene_set_test.DxSex}
 res_zenith_DxSex.GO = run_zenith( fit_interaction_DxSex, colnames(L), gs.GO.collection )
-res_zenith_DxSex.MSigDB = run_zenith( fit_interaction_DxSex, colnames(L), gs.MSigDB.collection )
+res_zenith_DxSex.MSigDB = run_zenith( fit_interaction_DxSex, colnames(L), gs.MSigDB.collection ).   
 ```
 
 ```{r show.gene_set_test.DxSex}
 show_zenith_results( res_zenith_DxSex.GO, "SczSex")
 show_zenith_results( res_zenith_DxSex.MSigDB, "SczSex")
-  
+      
 show_zenith_results( res_zenith_DxSex.GO, "BPSex")
 show_zenith_results( res_zenith_DxSex.MSigDB, "BPSex")
 ```
