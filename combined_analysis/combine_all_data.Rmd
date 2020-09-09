@@ -329,7 +329,7 @@ plot_grid( fig3, fig4, ncol=2)
 
 library(zenith)
 
-run_zenith = function(fit, coefs, gs.collection, n_genes_mi=10, n_genes_max=5000){
+run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=5000){
 		
 	# Map from Ensembl genes in geneSets_GO to 
 	# from trimmed Ensembl names from RNA-seq data 
