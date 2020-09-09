@@ -384,6 +384,9 @@ show_zenith_results( res_zenith_marginal.MSigDB, "Sex")
 ### Test Diagnosis * Sex interaction
 ```{r differential.expression.interaction.DxSex}
 
+METADATA$Reported_Gender = factor(METADATA$Reported_Gender)
+METADATA$Dx = factor(METADATA$Dx, c("BP", "Control", "SCZ")) 
+
 form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 # get contrasts
@@ -395,20 +398,20 @@ names(Lbase)
 # SCZ by sex
 L_SCZ = Lbase
 L_SCZ['DxSCZ:Reported_GenderMale'] = 1
-L_SCZ['Reported_GenderMale'] = -1
+L_SCZ['DxControl:Reported_GenderMale"'] = -1
 L_SCZ['DxSCZ'] = -1
 L_SCZ['DxControl'] = 1 
 # (A - B) - (C - D) = A - B - C + D
 
-# BP by sex
-L_BP = Lbase
-L_BP['DxBP:Reported_GenderMale'] = 1
-L_BP['Reported_GenderMale'] = -1
-L_BP['DxBP'] = -1
-L_BP['DxControl'] = 1 
+# # BP by sex
+# L_BP = Lbase
+# L_BP['DxBP:Reported_GenderMale'] = 1
+# L_BP['Reported_GenderMale'] = -1
+# L_BP['DxBP'] = -1
+# L_BP['DxControl'] = 1 
 
-L = cbind(	SczSex = L_SCZ,
-			BPSex = L_BP)
+L = cbind(	SczSex = L_SCZ)#,
+			# BPSex = L_BP)
 			
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
@@ -417,7 +420,7 @@ fit_interaction_DxSex = dream(vobj, form, METADATA, L=L, BPPARAM = SnowParam(18)
 
 
 ```{r plots.interaction.DxSex, fig.width=10, fig.height=5}
-# Disease
+# Disease. 
 tab = topTable(fit_interaction_DxSex, "SczSex", number=Inf) %>% getGeneSymbol
 fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
    
@@ -429,14 +432,14 @@ plot_grid( fig1, fig2, ncol=2)
 
 
 ```{r gene_set_test.DxSex}
-res_zenith_DxSex.GO = run_zenith( fit_interaction_DxSex, colnames(L), gs.GO.collection )
+res_zenith_DxSex.GO = run_zenith( fit_interaction_DxSex, colnames(L), gs.GO.collection ). 
 res_zenith_DxSex.MSigDB = run_zenith( fit_interaction_DxSex, colnames(L), gs.MSigDB.collection )
 ```
 
 ```{r show.gene_set_test.DxSex}
 show_zenith_results( res_zenith_DxSex.GO, "SczSex")
 show_zenith_results( res_zenith_DxSex.MSigDB, "SczSex")
-
+  
 show_zenith_results( res_zenith_DxSex.GO, "BPSex")
 show_zenith_results( res_zenith_DxSex.MSigDB, "BPSex")
 ```
