@@ -325,8 +325,49 @@ plot_grid( fig3, fig4, ncol=2)
 ```
 
 
+```{r gene_set_test.marginal}
 
-### Test Diagnosis * Sex
+library(zenith)
+
+run_zenith = function(fit, coefs, gs.collection, n_genes_mi=10, n_genes_max=5000){
+		
+	# Map from Ensembl genes in geneSets_GO to 
+	# from trimmed Ensembl names from RNA-seq data 
+	geneSets.index = ids2indices( gs.collection, trim_ensembl_ids(rownames(fit)))
+	    	
+	# filter by size of gene set
+	geneSets.index = geneSets.index[sapply(geneSets.index, function(x) (length(x) >= n_genes_min) & (length(x) <= n_genes_max)) ]
+
+	# run zenith for each coefficient
+	res = lapply( coefs, function(coef){
+		zenith(fit, coef, geneSets.index, squaredStats=TRUE)
+		} )
+	names(res) = coefs
+
+	res
+}
+ 
+# Load Gene Ontology database 
+gs.GO = get_GeneOntology()
+gs.MSigDB = get_MSigDB()
+
+# convert from GeneSetCollection to list used by camera and zenith
+gs.GO.collection = recodeToList( gs.GO )
+gs.MSigDB.collection = recodeToList( gs.MSigDB )
+
+res_zenith_marginal.GO = run_zenith( fit_marginal, colnames(L), gs.GO.collection )
+res_zenith_marginal.MSigDB = run_zenith( fit_marginal, colnames(L), gs.MSigDB.collection )
+```
+
+
+
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
+
+
+### Test Diagnosis * Sex interaction
 ```{r differential.expression.interaction.DxSex}
 
 form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
@@ -340,15 +381,15 @@ names(Lbase)
 # SCZ by sex
 L_SCZ = Lbase
 L_SCZ['DxSCZ:Reported_GenderMale'] = 1
-L_SCZ['DxControl:Reported_GenderMale'] = -1
+L_SCZ['Reported_GenderMale'] = -1
 L_SCZ['DxSCZ'] = -1
 L_SCZ['DxControl'] = 1 
 # (A - B) - (C - D) = A - B - C + D
 
 # BP by sex
 L_BP = Lbase
-L_BP['Reported_GenderMale'] = 1
-L_BP['DxControl:Reported_GenderMale'] = -1
+L_BP['DxBP:Reported_GenderMale'] = 1
+L_BP['Reported_GenderMale'] = -1
 L_BP['DxBP'] = -1
 L_BP['DxControl'] = 1 
 
@@ -374,12 +415,8 @@ plot_grid( fig1, fig2, ncol=2)
 
 
 
-```{r exit, cache=FALSE}
-knitr::knit_exit()
-```
 
-
-### Test Region * Sex
+### Test Region * Sex interaction
 ```{r differential.expression.interaction.RegionSex, eval=FALSE}
 
 form = ~ 0 + Dx + Region*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Cohort) + (1|Individual_ID)
