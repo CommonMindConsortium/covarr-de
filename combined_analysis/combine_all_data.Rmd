@@ -361,7 +361,7 @@ res_zenith_marginal.MSigDB = run_zenith( fit_marginal, colnames(L), gs.MSigDB.co
 ```{r show.gene_set_test.marginal}
 
 lapply(res_zenith_marginal.GO, function(x){
-	x %>% kable() %>% kable_styling(full_width=FALSE)
+	x[1:20,] %>% kable() %>% kable_styling(full_width=FALSE)
 	})
 ```
 
