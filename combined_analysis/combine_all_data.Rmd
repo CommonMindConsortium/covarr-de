@@ -406,8 +406,6 @@ L = cbind(	SczSex = L_SCZ,
 			
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
-browser()
-
 fit_interaction_DxSex = dream(vobj, form, METADATA, L=L, BPPARAM = SnowParam(18))
 ```
 
