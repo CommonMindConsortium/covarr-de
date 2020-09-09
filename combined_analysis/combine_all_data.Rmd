@@ -361,8 +361,7 @@ res_zenith_marginal.MSigDB = run_zenith( fit_marginal, colnames(L), gs.MSigDB.co
 ```{r show.gene_set_test.marginal}
 res_zenith_marginal.GO[['Scz']][1:20,] %>% kable(caption="Scz") %>% kable_styling(full_width=FALSE)
 res_zenith_marginal.GO[['BP']][1:20,] %>% kable(caption="BP") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.GO[['Scz']][1:Sex,] %>% kable(caption="Sex") %>% kable_styling(full_width=FALSE)
-
+res_zenith_marginal.GO[['Sex']][1:20,] %>% kable(caption="Sex") %>% kable_styling(full_width=FALSE)
 ```
 
 
