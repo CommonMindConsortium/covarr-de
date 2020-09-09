@@ -359,12 +359,24 @@ res_zenith_marginal.MSigDB = run_zenith( fit_marginal, colnames(L), gs.MSigDB.co
 ```
 
 ```{r show.gene_set_test.marginal}
-res_zenith_marginal.GO[['Scz']][1:20,] %>% kable(caption="Scz") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.MSigDB[['Scz']][1:20,] %>% kable(caption="Scz") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.GO[['BP']][1:20,] %>% kable(caption="BP") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.MSigDB[['BP']][1:20,] %>% kable(caption="BP") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.GO[['Sex']][1:20,] %>% kable(caption="Sex") %>% kable_styling(full_width=FALSE)
-res_zenith_marginal.MSigDB[['Sex']][1:20,] %>% kable(caption="Sex") %>% kable_styling(full_width=FALSE)
+
+show_zenith_results = function( resList, key, FDR = 0.05){
+	df = resList[[key]]
+
+	# filter by FDR
+	df = df[df$FDR <= FDR,]
+
+	df %>% kable(caption=key) %>% kable_styling(full_width=FALSE)
+}
+
+show_zenith_results( res_zenith_marginal.GO, "Scz")
+show_zenith_results( res_zenith_marginal.MSigDB, "Scz")
+
+show_zenith_results( res_zenith_marginal.GO, "BP")
+show_zenith_results( res_zenith_marginal.MSigDB, "BP")
+
+show_zenith_results( res_zenith_marginal.GO, "Sex")
+show_zenith_results( res_zenith_marginal.MSigDB, "Sex")
 ```
 
 
