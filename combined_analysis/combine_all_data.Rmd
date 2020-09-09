@@ -395,21 +395,6 @@ Lbase[] = 0
 
 names(Lbase)
 
-# SCZ by sex
-# L_SCZ = Lbase
-# L_SCZ['DxSCZ:Reported_GenderMale'] = 1
-# L_SCZ['DxControl:Reported_GenderMale'] = -1
-# L_SCZ['DxSCZ'] = -1
-# L_SCZ['DxControl'] = 1 
-# (A - B) - (C - D) = A - B - C + D
-
-# # BP by sex
-# L_BP = Lbase
-# L_BP['DxBP:Reported_GenderMale'] = 1
-# L_BP['Reported_GenderMale'] = -1
-# L_BP['DxBP'] = -1
-# L_BP['DxControl'] = 1 
-
 L_SCZ = Lbase
 L_SCZ['DxSCZ:Reported_GenderMale'] = 1
 
