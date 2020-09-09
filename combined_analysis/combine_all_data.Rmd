@@ -384,10 +384,10 @@ show_zenith_results( res_zenith_marginal.MSigDB, "Sex")
 ### Test Diagnosis * Sex interaction
 ```{r differential.expression.interaction.DxSex}
 
-METADATA$Reported_Gender = factor(METADATA$Reported_Gender)
-METADATA$Dx = factor(METADATA$Dx, c("BP", "Control", "SCZ")) 
+# METADATA$Reported_Gender = factor(METADATA$Reported_Gender)
+# METADATA$Dx = factor(METADATA$Dx, c("BP", "Control", "SCZ")) 
 
-form = ~ 0 + Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 # get contrasts
 Lbase = getContrast( vobj, form, METADATA, "RIN")
@@ -396,11 +396,11 @@ Lbase[] = 0
 names(Lbase)
 
 # SCZ by sex
-L_SCZ = Lbase
-L_SCZ['DxSCZ:Reported_GenderMale'] = 1
-L_SCZ['DxControl:Reported_GenderMale"'] = -1
-L_SCZ['DxSCZ'] = -1
-L_SCZ['DxControl'] = 1 
+# L_SCZ = Lbase
+# L_SCZ['DxSCZ:Reported_GenderMale'] = 1
+# L_SCZ['DxControl:Reported_GenderMale'] = -1
+# L_SCZ['DxSCZ'] = -1
+# L_SCZ['DxControl'] = 1 
 # (A - B) - (C - D) = A - B - C + D
 
 # # BP by sex
@@ -410,8 +410,14 @@ L_SCZ['DxControl'] = 1
 # L_BP['DxBP'] = -1
 # L_BP['DxControl'] = 1 
 
-L = cbind(	SczSex = L_SCZ)#,
-			# BPSex = L_BP)
+L_SCZ = Lbase
+L_SCZ['DxSCZ:Reported_GenderMale'] = 1
+
+L_BP = Lbase
+L_BP['DxBP:Reported_GenderMale'] = 1
+
+L = cbind(	SczSex = L_SCZ,
+			BPSex = L_BP)
 			
 plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
 
