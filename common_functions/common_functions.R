@@ -8,6 +8,7 @@ library(ggbio)
 library(viridis)
 library(data.table)
 })
+
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
 trim_ensembl_ids = function(x){
   gsub("(.*)\\.(.*)", "\\1", x) 
@@ -65,18 +66,17 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   lab = "log2 fold change"
   lim = with(df, max(abs(c(logFC.x, logFC.y))))
   df$density <- get_density(df$logFC.x, df$logFC.y, n = 100)
-  fig1 = ggplot(df, aes(logFC.x, logFC.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom") + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
+  fig1 = ggplot(df, aes(logFC.x, logFC.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
 
   if( !is.null(showGenes) ){
     df2 = df[df$Symbol.x %in% showGenes,]
     fig1 = fig1 + geom_text_repel(data=df2, aes(logFC.x, logFC.y, label=Symbol.x), segment.size=.5,  segment.color="black", color="black", force=1, nudge_x=.005, nudge_y=.1)
   }
 
-
   lab = "t-statistic"
   lim = with(df, max(abs(c(t.x, t.y))))
   df$density <- get_density(df$t.x, df$t.y, n = 100)
-  fig2 = ggplot(df, aes(t.x, t.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom") + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
+  fig2 = ggplot(df, aes(t.x, t.y, color=density)) + geom_point(size=.4) + theme_bw(size) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + xlab(paste(names(resList)[1], lab)) + ylab(paste(names(resList)[2], lab)) + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
 
   if( !is.null(showGenes) ){
     df2 = df[df$Symbol.x %in% showGenes,]
@@ -84,7 +84,15 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   }
 
   res = with(df, cor.test(logFC.x, logFC.y, method="spearman"))
+  tab_corr = data.frame(R_spearman = res$estimate, P = res$p.value)
   
+
+  pi1_x = 1 - qvalue(df$P.Value.x)$pi0
+  pi1_y = 1 - qvalue(df$P.Value.y)$pi0
+
+  pi_single = c(pi1_x, pi1_y)
+  names(pi_single) = names(resList)
+
   p = with(df, P.Value.y[adj.P.Val.x < 0.05])
   pi_discovery_x = tryCatch( 
     1 - qvalue(p)$pi0, 
@@ -99,41 +107,12 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
       NA
       })
 
-
   tab_pi = data.frame(Discovery = names(resList), pi1 = c(pi_discovery_x, pi_discovery_y))
-
-  tab_corr = data.frame(R_spearman = res$estimate, P = res$p.value)
-
-  # pi spectrum
-  # df_order_x = df[order(df$P.Value.x),]
-  # df_order_y = df[order(df$P.Value.y),]
-
-  # res_p1_ramp = lapply(1:nrow(df), function(i){
-
-  #   pi1.x = tryCatch( 
-  #     1 - qvalue(df_order_x$P.Value.y[1:i])$pi0,
-  #     error = function(e){
-  #       NA
-  #       })
-
-  #   pi1.y = tryCatch( 
-  #     1 - qvalue(df_order_y$P.Value.x[1:i])$pi0,
-  #     error = function(e){
-  #       NA
-  #       })
-  #   res = data.frame( i     = i, 
-  #                     p.x   = df_order_x$P.Value.x[i], 
-  #                     pi1.x = pi1.x,
-  #                     p.y   = df_order_y$P.Value.y[i], 
-  #                     pi1.y = pi1.y)
-  #   res
-  # })
-  # res_p1_ramp = do.call(rbind, res_p1_ramp)
 
   list(fig_logFC  = fig1,
       fig_tstat   = fig2, 
+      pi_single   = pi_single,
       tab_pi      = tab_pi,
-      # res_p1_ramp = res_p1_ramp,
       tab_corr    = tab_corr)
 }
 
@@ -517,6 +496,30 @@ plot_voom = function(x,  y, ...){
   
   fig + geom_point(size=0.01) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + geom_line(data=df.line, aes(x,y), color="red", size=1.2) + xlab(bquote(log[2](count + 0.5))) + ylab(expression( sqrt("standard deviation"))) + ggtitle(main) + ylim(0, max(df$y)) + scale_color_manual(name="Status", values=c("#3758ba", "#33e65c")) + guides(color = guide_legend(override.aes = list(size = 1))) 
   }
+
+
+
+
+run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=5000){
+    
+  # Map from Ensembl genes in geneSets_GO to 
+  # from trimmed Ensembl names from RNA-seq data 
+  geneSets.index = ids2indices( gs.collection, trim_ensembl_ids(rownames(fit)))
+        
+  # filter by size of gene set
+  geneSets.index = geneSets.index[sapply(geneSets.index, function(x) (length(x) >= n_genes_min) & (length(x) <= n_genes_max)) ]
+
+  # run zenith for each coefficient
+  res = lapply( coefs, function(coef){
+    zenith(fit, coef, geneSets.index, squaredStats=TRUE)
+    } )
+  names(res) = coefs
+
+  res
+}
+ 
+
+
 
 
 
