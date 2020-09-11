@@ -347,20 +347,16 @@ res_zenith = lapply( names(fit_marginal.lst), function(key){
 
   fit = fit_marginal.lst[[key]]
 
-  res = lapply(coefTest, function(coef){
-    res1 = run_zenith( fit, coef, gs.GO.collection )
-    res1$Resource = 'GO'
+  res.GO = run_zenith( fit, coefTest, gs.GO.collection )
+  res.GO$Resource = "GO"
+  res.GO$Cohort = key
 
-    res2 = run_zenith( fit, coef, gs.MSigDB.collection )
-    res2$Resource = "MSigDB"
+  res.MSigDB = run_zenith( fit, coefTest, gs.MSigDB.collection )
+  res.MSigDB$Resource = "MSigDB"
+  res.MSigDB$Cohort = key
 
-    res = rbind(res1, res2)
-    res$Coef = coef
-    res$Cohort = key
+  rbind(res.GO, res.MSigDB)
 
-    res
-  })
-  do.call(rbind, res)
 })
 names(res_zenith) = names(fit_marginal.lst)
 ```
