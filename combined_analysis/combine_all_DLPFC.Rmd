@@ -304,9 +304,9 @@ plot_grid( fig1, fig2, nrow=1)
 ```
 
 
-### Create residuals
-```{r Create residuals}
+```{r Create.residuals}
 
+### Create residuals
 form = ~ Dx*Reported_Gender + RIN + ageOfDeath + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate)
 
 residuals.lst = lapply( vobj.lst, function(vobj){
@@ -330,7 +330,22 @@ names(residuals.lst) = names(vobj.lst)
 ```
 
 
-### Test marginals
+```{r check.correlation}
+ngenes = 2000
+C1 = cor(t(residuals.lst[[1]][1:ngenes,]))
+C2 = cor(t(residuals.lst[[2]][1:ngenes,]))
+
+df = data.table(A   = as.numeric(C1[lower.tri(C1)]),
+                B   = as.numeric(C2[lower.tri(C2)]))
+
+df$density <- get_density(df$A, df$B, n = 100)
+ggplot(df, aes(A, B, color=density)) + geom_point() + geom_point(size=.4) + theme_bw(15) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + scale_color_viridis() + xlim(-1,1) + ylim(-1,1) + xlab(paste0('Correlation (', names(residuals.lst)[1], ')')) + ylab(paste0('Correlation (', names(residuals.lst)[2], ')'))
+```
+
+
+
+
+### Test marginals for Schizophrneia vs controls
 ```{r differential.expression.simple}
 
 form = ~ Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate)
@@ -443,9 +458,14 @@ resConcord.SCZ$tab_corr %>% kable(caption="Correlation between t-statistics") %>
 # volcano plot for meta-analysis
 main = paste('Meta-analysis', coef, sep = ': ' )
 plotVolcano( df_meta_SCZ, df_meta_SCZ$Symbol[1:20] ) + ggtitle( main )
+
+pi1 = 1 - qvalue(df_meta_SCZ$P)$pi0
+data.frame(pi1) %>% kable(caption="pi1 for SCZ meta-analysis") %>% kable_styling(full_width=FALSE)
+
 ```
 
 
+# Test RCSD anbd ADAMTS2
 
 
 
