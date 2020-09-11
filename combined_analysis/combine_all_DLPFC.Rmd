@@ -93,9 +93,9 @@ rownames(counts.HBCC) = counts.HBCC$Geneid
 counts.HBCC = counts.HBCC[,-c(1:6)]
 
 # # HBCC - sgACC
-# counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
-# rownames(counts.HBCC4) = counts.HBCC4$Geneid
-# counts.HBCC4 = counts.HBCC4[,-c(1:6)]
+counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
+rownames(counts.HBCC4) = counts.HBCC4$Geneid
+counts.HBCC4 = counts.HBCC4[,-c(1:6)]
 
 geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
 ```
