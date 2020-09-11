@@ -25,10 +25,9 @@ system("git pull")
 rmarkdown::render("combined_analysis/combine_all_DLPFC.Rmd")
 
 
-
 --->
 
---->
+
 
 ```{r knit2synapse, eval=FALSE}
 library(synapser)
@@ -40,8 +39,6 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
 ```
-
-GSEA and dream from raw counts
 
 
 ```{r setup, include=FALSE}
@@ -95,10 +92,10 @@ counts.HBCC = fread(synGet('syn21886235')$path, data.table=FALSE)
 rownames(counts.HBCC) = counts.HBCC$Geneid
 counts.HBCC = counts.HBCC[,-c(1:6)]
 
-# HBCC - sgACC
-counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
-rownames(counts.HBCC4) = counts.HBCC4$Geneid
-counts.HBCC4 = counts.HBCC4[,-c(1:6)]
+# # HBCC - sgACC
+# counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
+# rownames(counts.HBCC4) = counts.HBCC4$Geneid
+# counts.HBCC4 = counts.HBCC4[,-c(1:6)]
 
 geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
 ```
@@ -226,37 +223,63 @@ geneCountsMerged = geneCountsMerged[,indToRetain]
 rownames(METADATA) = METADATA$SampleID
 METADATA = METADATA[indToRetain,]
           
-METADATA %>% 
-  group_by(Dx) %>%  
-  dplyr::summarise(count = n()) %>% 
-  kable() 
+# METADATA %>% 
+#   group_by(Dx) %>%  
+#   dplyr::summarise(count = n()) %>% 
+#   kable() 
 ```
 
+## Summarize samples
+```{r summary}
+METADATA %>% group_by(Dx, Institution) %>% dplyr::summarise(count = n()) %>% 
+  kable(caption="Diagnosis, Institution") %>% kable_styling(full_width=FALSE) 
 
+METADATA %>% group_by( Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
+  kable(caption="Institution, Sex") %>% kable_styling(full_width=FALSE) 
 
-```{r exit1, cache=FALSE}
-knitr::knit_exit()
+METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
+  kable(caption="Diagnosis, Institution, Sex") %>% kable_styling(full_width=FALSE) 
 ```
-
 
 
 ```{r process.counts}
-     
 # keep genes that are express in at least one combination of cohort and gender
 isexpr.lst = dlply(METADATA, .(Cohort, Reported_Gender), .fun = function(mtd){
 	rowSums(cpm(geneCountsMerged[,mtd$SampleID])>1) >= 0.5*ncol(geneCountsMerged[,mtd$SampleID])
 	})
 
 isexpr = do.call(rbind, isexpr.lst)
-isexpr = colSums(isexpr) > 0
+isexpr = colSums(isexpr) >= 3
 table(isexpr)
    
-# normalize counts
-dge = DGEList( geneCountsMerged[isexpr,] )
-dge = calcNormFactors(dge) # TMM
+# Normalize each cohort separately
+dge.lst = lapply( levels(METADATA$Cohort), function(Cohort){
+  # normalize counts
+  dge = DGEList( geneCountsMerged[isexpr,METADATA$Cohort==Cohort] )
+  calcNormFactors(dge) # TMM
+})
+names(dge.lst) = levels(METADATA$Cohort)
 
-xtabs(~ Region + Cohort, METADATA)
-xtabs(~ Institution + Cohort, METADATA)
+
+# form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+
+form = ~ Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate)
+
+vobj.lst = lapply(dge.lst, function(dge){
+
+  i = match(colnames(dge), rownames(METADATA))
+  info = METADATA[i,]
+
+  if( length(unique(info$Institution)) > 1 ){
+    form_use = as.formula(paste('~',as.character(form)[2], "+ Institution", collapse=" "))
+  }else{
+    form_use = form
+  }
+
+  voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+  })
+names(vobj.lst) = names(dge.lst)
+
 
 # FORMULAs
 
@@ -271,89 +294,43 @@ xtabs(~ Institution + Cohort, METADATA)
 
 # MPP DLPFC
 # Dx + scale(RIN2) + (1 | Institution) + scale(ageOfDeath) + scale(RIN) + (1 | Reported_Gender) + scale(IntronicRate) + scale(IntragenicRate)
-
-form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
-
-vobj = voomWithDreamWeights(dge, form, METADATA, save.plot=TRUE, BPPARAM = SnowParam(18))
-
-plot_voom(vobj)
 ```
+
+### Voom trend plots
+```{r plot.voom, fig.height=5, fig.width=10}
+fig1 = plot_voom(vobj.lst[[1]]) + ggtitle(names(vobj.lst)[1])
+fig2 = plot_voom(vobj.lst[[2]]) + ggtitle(names(vobj.lst)[2])
+plot_grid( fig1, fig2, nrow=1) 
+```
+
+
 
 ### Test marginals
 ```{r differential.expression.simple}
 
-form = ~ 0 + Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+form = ~ Dx + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate)
 
-# get contrasts
-Lbase = getContrast( vobj, form, METADATA, "RIN")
-Lbase[] = 0
+fit_marginal.lst = lapply( vobj.lst, function(vobj){
 
-# SCZ
-L_SCZ = Lbase
-L_SCZ['DxControl'] = -1 
-L_SCZ['DxSCZ'] = 1
+  i = match(colnames(vobj), rownames(METADATA))
+  info = METADATA[i,]
 
-# BP
-L_BP = Lbase
-L_BP['DxControl'] = -1 
-L_BP['DxBP'] = 1
+  if( length(unique(info$Institution)) > 1 ){
+    form_use = as.formula(paste('~',as.character(form)[2], "+ Institution", collapse=" "))
+  }else{
+    form_use = form
+  }
 
-# BP
-L_sex = Lbase
-L_sex['Reported_GenderMale'] = 1
-
-L = cbind(	Scz = L_SCZ, 
-			BP 	= L_BP, 
-			Sex = L_sex)
-
-plotContrasts(L) + theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust=1))
-
-fit_marginal = dream(vobj, form, METADATA, L=L,BPPARAM = SnowParam(18))
-```
-
-```{r plots.marginal, fig.width=10, fig.height=5}
-# Disease
-tab = topTable(fit_marginal, "Scz", number=Inf) %>% getGeneSymbol
-fig1 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("SCZ")
-
-tab = topTable(fit_marginal, "BP", number=Inf)  %>% getGeneSymbol
-fig2 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("BP")
-
-plot_grid( fig1, fig2, ncol=2)    
-
-# Sex  
-tab = topTable(fit_marginal, "Reported_GenderMale", number=Inf) %>% getGeneSymbol
-fig3 = plotVolcano( tab, tab$Symbol[1:20] ) + ggtitle("Sex")
-
-tab2 = tab[tab$Chrom %in% 1:22,]
-fig4 = plotVolcano( tab2, tab2$Symbol[1:20]) + ggtitle("Sex: autosomes")
-
-plot_grid( fig3, fig4, ncol=2)
+  fit = dream(vobj, form, info, BPPARAM = SnowParam(18))  
+  eBayes( fit )
+  })
+names(fit_marginal.lst) = names(vobj.lst)
 ```
 
 
-```{r gene_set_test.marginal}
-
+```{r load.genesets}
 library(zenith)
 
-run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=5000){
-		
-	# Map from Ensembl genes in geneSets_GO to 
-	# from trimmed Ensembl names from RNA-seq data 
-	geneSets.index = ids2indices( gs.collection, trim_ensembl_ids(rownames(fit)))
-	    	
-	# filter by size of gene set
-	geneSets.index = geneSets.index[sapply(geneSets.index, function(x) (length(x) >= n_genes_min) & (length(x) <= n_genes_max)) ]
-
-	# run zenith for each coefficient
-	res = lapply( coefs, function(coef){
-		zenith(fit, coef, geneSets.index, squaredStats=TRUE)
-		} )
-	names(res) = coefs
-
-	res
-}
- 
 # Load Gene Ontology database 
 gs.GO = get_GeneOntology()
 gs.MSigDB = get_MSigDB()
@@ -361,10 +338,106 @@ gs.MSigDB = get_MSigDB()
 # convert from GeneSetCollection to list used by camera and zenith
 gs.GO.collection = recodeToList( gs.GO )
 gs.MSigDB.collection = recodeToList( gs.MSigDB )
-
-res_zenith_marginal.GO = run_zenith( fit_marginal, colnames(L), gs.GO.collection )
-res_zenith_marginal.MSigDB = run_zenith( fit_marginal, colnames(L), gs.MSigDB.collection )
 ```
+
+```{r run.zenith}
+
+coefTest = c('DxSCZ', 'Reported_GenderMale')
+res_zenith = lapply( names(fit_marginal.lst), function(key){
+
+  fit = fit_marginal.lst[[key]]
+
+  res = lapply(coefTest, function(coef){
+    res1 = run_zenith( fit, coef, gs.GO.collection )
+    res1$Resource = 'GO'
+
+    res2 = run_zenith( fit, coef, gs.MSigDB.collection )
+    res2$Resource = "MSigDB"
+
+    res = rbind(res1, res2)
+    res$Coef = coef
+    res$Cohort = key
+
+    res
+  })
+  do.call(rbind, res)
+})
+names(res_zenith) = names(fit_marginal.lst)
+```
+
+```{r get.signatures, fig.width=10, fig.height=5}
+# Get DE signatures
+df_DE_results = lapply(fit_marginal.lst, function(fit){
+  res = lapply(coefTest, function(coef){
+    res = topTable(fit, coef, number=Inf) 
+    res$Coef = coef
+    res
+    })
+  do.call(rbind, res) %>% getGeneSymbol
+  })
+names(df_DE_results) = names(fit_marginal.lst)
+```
+
+```{r test.scz, fig.height=5, fig.width=10}
+# Schizophrenia testing
+# extract from each chort
+coef = 'DxSCZ'
+figList.Scz = lapply( names(df_DE_results), function(key){
+  df = df_DE_results[[key]]
+  df = df[df$Coef == coef,]
+
+  main = paste(key, coef, sep = ': ' )
+  plotVolcano( df, df$Symbol[1:20] ) + ggtitle( main )
+})
+
+# volcano plots
+plot_grid(plotlist=figList.Scz, nrow=1)
+```
+
+```{r meta.analysis.SCZ}
+# Create list preparing for meta-analysis for SCZ
+tab.lst = lapply( df_DE_results, function(df){
+  df[df$Coef == coef,]
+})
+names(tab.lst) = names(df_DE_results)
+
+# Run meta-analysis
+df_meta_SCZ = run_meta_analysis( tab.lst, "FE") %>% getGeneSymbol
+```
+
+```{r concordance.scz, fig.height=6, fig.width=10}
+# Concordance analysis
+resConcord.SCZ = plot_concordance(tab.lst, showGenes = df_meta_SCZ$Symbol[1:20])
+
+main = "Concordance of SCZ"
+plot_grid(  resConcord.SCZ$fig_logFC + ggtitle(main),
+            resConcord.SCZ$fig_tstat + ggtitle(main), nrow=1)
+
+data.frame(pi1 = resConcord.SCZ$pi_single) %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FALSE)
+resConcord.SCZ$tab_pi %>% kable(caption="pi1 for replication") %>% kable_styling(full_width=FALSE)
+resConcord.SCZ$tab_corr %>% kable(caption="Correlation between t-statistics") %>% kable_styling(full_width=FALSE)
+```
+
+```{r plot.meta.analysis.SCZ, fig.height=5, fig.width=10}
+# volcano plot for meta-analysis
+main = paste('Meta-analysis', coef, sep = ': ' )
+plotVolcano( df_meta_SCZ, df_meta_SCZ$Symbol[1:20] ) + ggtitle( main )
+```
+
+
+
+
+
+
+
+
+
+```{r exit2, cache=FALSE}
+knitr::knit_exit()
+```
+
+#   rmarkdown::render("combined_analysis/combine_all_DLPFC.Rmd")
+
 
 ```{r show.gene_set_test.marginal}
 
