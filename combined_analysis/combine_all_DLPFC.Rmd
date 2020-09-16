@@ -930,14 +930,10 @@ figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
   fig2 = plot_gene( residuals.lst, df_meta[[coef]], geneSymbol, "Reported_Gender", fill=c("red", "blue")) + xlab("Sex")
      
   plot_grid(fig1, fig2, nrow=1)
-})
+}).  
     
 plot_grid(plotlist=figList, ncol=1)
 ```
-
-fig =  plot_forrest( c(tab.de.lst[[coef]], list("Meta-analysis" = df_meta[[coef]])), geneSymbol)
-
-plot_grid(fig)
 
 
 ## Meta-analysis of zenith results
