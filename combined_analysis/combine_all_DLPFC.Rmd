@@ -942,8 +942,8 @@ show_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)
 
 ### Only autosomes
 ```{r show.gene_set_test.marginal.Sex.autosome, eval=TRUE}
-show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.05) 
-show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.05)   
+show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.1) 
+show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.1)   
 ```
 
 
