@@ -935,7 +935,6 @@ figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
 plot_grid(plotlist=figList, ncol=1)
 ```
 
-
 ## Meta-analysis of zenith results
 ```{r show.gene_set_test.marginal.Sex, eval=TRUE}
 show_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)         
