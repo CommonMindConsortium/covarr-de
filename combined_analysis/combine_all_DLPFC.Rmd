@@ -279,18 +279,6 @@ ggplot(METADATA, aes(Reported_Gender, ageOfDeath)) + geom_boxplot() + theme_bw()
 ```
 
 
-```{r corr.matrix}
-form = Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-
-
-
-
-
-
-
-```
-
-
 ### Sex by cell fraction
 ```{r summary.sex, fig.width=8, fig.height=10}
 figList = lapply(colnames(df_cellFractions), function(CT){
