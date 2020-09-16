@@ -18,7 +18,7 @@ output:
 <!---
 
 cd /hpc/users/hoffmg01/work/covarr-de
-# rm -rf molec_profiling_cache/
+# rm -rf combined_analysis/combine_all_DLPFC_cache
 ml git pandoc
 git pull
 R
@@ -53,7 +53,7 @@ zenith plots
 replication or correlation as a function of expression magnitude
 
 difference networks
-Number of DE genes
+
 
 <!---
 DONE
@@ -61,6 +61,7 @@ DONE
 Effect of ilr should depend on Instaition
 suffix 1.
 zenith for Sex with autosomes
+check zenith squared test statistics
 
 
 --->
@@ -539,10 +540,10 @@ tab.de.lst = lapply(coefTest, function(coef){
 names(tab.de.lst) = coefTest
      
 # Create list preparing for meta-analysis for SCZ
-df_meta = mclapply(coefTest, function(coef){
+df_meta = lapply(coefTest, function(coef){
   # Run meta-analysis
   run_meta_analysis( tab.de.lst[[coef]], "FE") %>% getGeneSymbol
-}, mc.cores=6)
+})#, mc.cores=6)
 names(df_meta) = coefTest
 ```
 
@@ -942,8 +943,6 @@ show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigD
 ```
 
 
-
-
 # Age Analysis
 ```{r test.Age, fig.height=5, fig.width=10}
 # Schizophrenia testing
@@ -1143,11 +1142,11 @@ tab.de.inter_sex.disease.lst = lapply(coefTest, function(coef){
 names(tab.de.inter_sex.disease.lst) = coefTest
 
 # Create list preparing for meta-analysis for SCZ
-df_meta.inter_sex.disease = mclapply(coefTest, function(coef){
+df_meta.inter_sex.disease = lapply(coefTest, function(coef){
   # Run meta-analysis
   run_meta_analysis( tab.de.inter_sex.disease.lst[[coef]], "FE") %>% getGeneSymbol
-}, mc.cores=6) 
-names(df_meta.inter_sex.disease) = coefTest
+}) 
+names(df_meta.inter_sex.disease) = coefTest  
 ```
 
 ```{r concordance.scz.inter_sex.disease, fig.height=6, fig.width=10}
@@ -1157,7 +1156,7 @@ resConcord.inter_sex.disease = plot_concordance(tab.de.inter_sex.disease.lst[[co
 main = "Concordance of DxSCZ:Reported_GenderMale"
 plot_grid(  resConcord.inter_sex.disease$fig_logFC + ggtitle(main),
             resConcord.inter_sex.disease$fig_tstat + ggtitle(main), nrow=1)
-
+  
 data.frame(Cohort = names(tab.de.inter_sex.disease.lst[[coef]]),
           "# DE"  = resConcord.inter_sex.disease$n.de,
           pi1     = resConcord.inter_sex.disease$pi_single,
@@ -1177,7 +1176,7 @@ resConcord.inter_sex.disease$tab_corr %>% mutate_if(is.numeric, format, digits=3
 # volcano plot for meta-analysis.  
 main = paste('Meta-analysis', coef, sep = ': ' )
 plotVolcano( df_meta.inter_sex.disease[[coef]], df_meta.inter_sex.disease[[coef]]$Symbol[1:20] ) + ggtitle( main )
-
+  
 data.frame(pi1 = 1 - qvalue(df_meta.inter_sex.disease[[coef]]$P)$pi0,
           `# DE` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.05),
           check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for SCZ:Sex meta-analysis") %>% kable_styling(full_width=FALSE)
