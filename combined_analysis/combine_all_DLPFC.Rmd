@@ -278,6 +278,19 @@ METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(cou
 ggplot(METADATA, aes(Reported_Gender, ageOfDeath)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + facet_wrap(~Institution, nrow=1)
 ```
 
+
+```{r corr.matrix}
+form = Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
+
+
+
+
+
+
+
+```
+
+
 ### Sex by cell fraction
 ```{r summary.sex, fig.width=8, fig.height=10}
 figList = lapply(colnames(df_cellFractions), function(CT){
@@ -381,23 +394,32 @@ form.lst = list(
   `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
   `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
 
-# Compute residuals, but add back in Dx*Reported_Gender
-f = function(fit){
-  residuals(fit) + get_prediction( fit, ~ Dx*Reported_Gender)
+eval_residuals = function( form ){
+  # Compute residuals, but add back in Dx*Reported_Gender
+  # for form = ~ Dx*Reported_Gender
+  f = function(fit){
+    residuals(fit) + get_prediction( fit, form)
+  }
+
+  residuals.lst = lapply( vobj.lst, function(vobj){
+
+    i = match(colnames(vobj), rownames(METADATA))
+    info = METADATA[i,]
+
+    form_use = form.lst[[info$Cohort[1]]]
+
+    # Compute residuals which adding back Diagnosis and Sex effects
+    resid.lst = fitVarPartModel(vobj, form_use, info, fxn = f, BPPARAM = SnowParam(18))  
+    do.call(rbind, resid.lst)
+    })
+  names(residuals.lst) = names(vobj.lst)
+
+  residuals.lst
 }
 
-residuals.lst = lapply( vobj.lst, function(vobj){
-
-  i = match(colnames(vobj), rownames(METADATA))
-  info = METADATA[i,]
-
-  form_use = form.lst[[info$Cohort[1]]]
-
-  # Compute residuals which adding back Diagnosis and Sex effects
-  resid.lst = fitVarPartModel(vobj, form_use, info, fxn = f, BPPARAM = SnowParam(18))  
-  do.call(rbind, resid.lst)
-  })
-names(residuals.lst) = names(vobj.lst)
+resid.add = list( Dx_Sex  = eval_residuals( ~ Dx*Reported_Gender ),
+                  Dx      = eval_residuals( ~ Dx ),
+                  Sex     = eval_residuals( ~ Reported_Gender ))
 ```
 
 
