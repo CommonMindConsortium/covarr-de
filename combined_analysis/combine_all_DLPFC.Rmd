@@ -1183,6 +1183,7 @@ plotVolcano( df_meta.inter_sex.disease[[coef]], df_meta.inter_sex.disease[[coef]
   
 data.frame(pi1 = 1 - qvalue(df_meta.inter_sex.disease[[coef]]$P)$pi0,
           `# DE` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.05),
+          `# DE @ 10%` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.1),
           check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for SCZ:Sex meta-analysis") %>% kable_styling(full_width=FALSE)
 ```
 
