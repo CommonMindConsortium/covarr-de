@@ -920,7 +920,6 @@ plot_circos_logFC( df_meta[[coef]] ) + ggtitle("Meta analysis")
 ```
 
 
-
 ## Plot top examples
 ```{r plot.forrest.dlpfc.Sex, fig.width=8, fig.height=20}  
 figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
@@ -930,7 +929,7 @@ figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
   fig2 = plot_gene( residuals.lst, df_meta[[coef]], geneSymbol, "Reported_Gender", fill=c("red", "blue")) + xlab("Sex")
      
   plot_grid(fig1, fig2, nrow=1)
-})  
+})      
     
 plot_grid(plotlist=figList, ncol=1)
 ```
