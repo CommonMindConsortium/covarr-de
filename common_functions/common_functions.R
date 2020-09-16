@@ -17,9 +17,9 @@ trim_ensembl_ids = function(x){
 # Add column Symbol using column gene_id storing ENSEMBL id
 getGeneSymbol = function( df, column="row.names"){
 
-  # load load since data base can fail with rmarkdown run multiple times
-  # detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
-  # library(EnsDb.Hsapiens.v86)
+  if( ! is(df, "data.frame") ){
+    df = as.data.frame(df)
+  }
 
   # Load ENSEMBL v96 database
   # see https://www.bioconductor.org/packages/release/bioc/vignettes/ensembldb/inst/doc/ensembldb.html#10_getting_or_building_ensdb_databasespackages
@@ -94,13 +94,16 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   names(pi_single) = names(resList)
 
   p = with(df, P.Value.y[adj.P.Val.x < 0.05])
+  n.de.x = length(p)
   pi_discovery_x = tryCatch( 
     1 - qvalue(p)$pi0, 
     error = function(e){
-      NA
+      # must have a p-value > 0.95 to work
+      1 - qvalue(c(1,p))$pi0
       })
 
   p = with(df, P.Value.x[adj.P.Val.y < 0.05])
+  n.de.y = length(p)
   pi_discovery_y = tryCatch( 
     1 - qvalue(p)$pi0, 
     error = function(e){
@@ -112,6 +115,7 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   list(fig_logFC  = fig1,
       fig_tstat   = fig2, 
       pi_single   = pi_single,
+      n.de        = c(n.de.x, n.de.y),
       tab_pi      = tab_pi,
       tab_corr    = tab_corr)
 }
@@ -211,18 +215,21 @@ run_meta_analysis = function(tabList, method="FE", minObs = 2){
   resRMA = resRMA[keep]
 
   # extract results
-  # Currently exatract simple results
+  # Currently extract simple results
   # other results may be relevant if meta-analysing more than two studies
   resTable = lapply(resRMA, function(x){
     data.frame( logFC     = x$beta,
                 se        = x$se,
                 P.Value   = x$pval,
-                adj.P.Val = p.adjust(x$pval, "fdr"),
+                # adj.P.Val = p.adjust(x$pval, "fdr"),
                 Q         = x$QE,
                 N         = x$k,
                 I2        = x$I2)
     })
-  do.call("rbind", resTable)
+  resTable = do.call("rbind", resTable)
+  resTable$adj.P.Val = p.adjust(resTable$P.Value, "fdr")
+
+  resTable[order(resTable$P.Value, decreasing=FALSE),]
 }
 
 
@@ -251,7 +258,7 @@ plotVolcano = function(df, showGenes = NULL, size=15, minp=1e-310 ){
 
 
 
-plot_forrest = function(resList, geneSymbol){
+plot_forrest = function(resList, geneSymbol, plot2="p"){
 
   df_forrest = lapply(resList, function(x){
     idx = (x$Symbol == geneSymbol) & ! is.na(x$Symbol)
@@ -278,14 +285,22 @@ plot_forrest = function(resList, geneSymbol){
   }
 
   # forrest plot
-  fig1 = ggplot(df_forrest, aes(Dataset, logFC)) + geom_point(color="navy") + geom_errorbar(aes(ymin = logFC - se, ymax=logFC + se), width=0.1) + theme_bw(15) + theme(aspect.ratio= .2, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylim(rng) + xlab(bquote(log[2]~fold~change)) + ggtitle(geneSymbol) + geom_hline(yintercept=0, color="red", linetype="dashed")
+  fig1 = ggplot(df_forrest, aes(Dataset, logFC)) + geom_point(color="navy") + geom_errorbar(aes(ymin = logFC - se, ymax=logFC + se), width=0.1) + theme_bw() + theme(aspect.ratio= .2, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylim(rng) + ggtitle(geneSymbol) + geom_hline(yintercept=0, color="red", linetype="dashed") + ylab(bquote(log[2]~fold~change)) + xlab('')
 
   # Adjusted p-value
-  ymax = max(-log10(df_forrest$adj.P.Val))*1.05
-  fig2 = ggplot(df_forrest, aes(Dataset, -log10(adj.P.Val))) + geom_bar(stat="identity", fill="navy") + theme_bw(12) + theme( aspect.ratio= .5, plot.margin = unit(c(0,0,0,0), "cm"),
+  if( plot2 == "adjusted" ){
+    df_forrest$adj.P.Val = pmax(1e-300, df_forrest$adj.P.Val)
+    ymax = max(-log10(df_forrest$adj.P.Val))*1.05
+    fig2 = ggplot(df_forrest, aes(Dataset, -log10(adj.P.Val))) + ylab(bquote(-log[10]~adjusted~P))  
+  }else{
+    ymax = max(-log10(df_forrest$P.Value))*1.05
+    fig2 = ggplot(df_forrest, aes(Dataset, -log10(P.Value))) + ylab(bquote(-log[10]~P)) 
+  }
+
+  fig2 = fig2 + geom_bar(stat="identity", fill="navy") + theme_bw() + theme( aspect.ratio= .5, plot.margin = unit(c(0,0,0,0), "cm"),
     axis.title.y=element_blank(),
           axis.text.y=element_blank(),
-          axis.ticks.y=element_blank()) + coord_flip() + ylab(bquote(-log[10]~adjusted~P)) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax))
+          axis.ticks.y=element_blank()) + coord_flip() + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
 
   # plot_grid(fig1, fig2, align='vh')
   # fig1 + fig2
@@ -385,7 +400,7 @@ plot_circos_logFC = function( tab, maxLogFC=2){
   # create circos plot
   fig = ggbio() + circle(gr_hg38, geom = "text", aes(label = seqnames), vjust = 0, size = 3)
 
-  fig + circle(gr, geom = "point", aes(y = score2, color=factor(sign(score2), -1:1)),size=1, grid = TRUE, radius = 15, trackWidth=23, grid.background="white", grid.line="grey70", space.skip=.002) + ylab(bquote(log[2]~fold~change)) + scale_color_manual(name='logFC', values = c("blue", "grey60", "red")) + theme(legend.position="right", plot.title = element_text(hjust = 0.5))
+  fig + circle(gr, geom = "point", aes(y = score2, color=factor(sign(score2), -1:1)),size=1, grid = TRUE, radius = 15, trackWidth=23, grid.background="white", grid.line="grey70", space.skip=.002) + ylab(bquote(log[2]~fold~change)) + scale_color_manual(name='logFC', values = c("red", "grey60", "blue")) + theme(legend.position="right", plot.title = element_text(hjust = 0.5))
 }
 
 
@@ -500,7 +515,7 @@ plot_voom = function(x,  y, ...){
 
 
 
-run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=5000){
+run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=5000 ){
     
   # Map from Ensembl genes in geneSets_GO to 
   # from trimmed Ensembl names from RNA-seq data 
@@ -511,14 +526,62 @@ run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=500
 
   # run zenith for each coefficient
   res = lapply( coefs, function(coef){
+
     df = zenith(fit, coef, geneSets.index, squaredStats=TRUE)
+    df$Set = rownames(df)
+    rownames(df) = c()
     df$Coef = coef
     df
     })
   do.call(rbind, res)
 }
  
+# , only_autosomes=rep(FALSE, length(coefs))
+    # if( only_autosomes[which(coefs == coef)] ){
+    #   tab = coef(fit) %>% getGeneSymbol()
+    #   geneids = rownames(tab)[tab$Chrom %in% 1:22]
+    #   fit = fit[geneids,]
+    # }
 
+zenith_meta_analysis = function(res_zenith, coefTest){
+
+  coefTest = unique(unlist(lapply(res_zenith, function(x) unique(x$Coef))))
+  rsrc = unique(unlist(lapply(res_zenith, function(x) unique(x$Resource))))
+
+  res_meta = mclapply( rsrc, function(Resource){
+    res = mclapply( coefTest, function(coef){
+
+      df = lapply(res_zenith, function(df){
+        df[(df$Resource == Resource) & (df$Coef == coef),]
+      })
+
+      df_merge = merge(df[[1]], df[[2]], by="Set")
+
+      df_meta = data.frame(Set      = df_merge$Set,
+                           NGenes   = df_merge$NGenes.x,
+                           Resource = df_merge$Resource.x,
+                           Coef     = coef)
+      rownames(df_meta) = df_merge$Row.names
+
+      for(i in 1:nrow(df_merge)){
+        effect = c(df_merge$delta.x[i], df_merge$delta.y[i])
+        se = c(df_merge$se.x[i], df_merge$se.y[i])
+
+        ma = suppressWarnings(rma(yi=effect, sei=se, method="FE"))
+
+        df_meta$effect[i] = ma$b[1]
+        df_meta$se[i] = ma$se
+        df_meta$PValue[i] = ma$pval
+      }
+
+      df_meta$FDR = p.adjust(df_meta$PValue, "BH")
+      df_meta[order(df_meta$PValue),]
+    }, mc.cores=4)
+    do.call(rbind, res)
+  })
+
+  do.call(rbind, res_meta)
+}
 
 
 
