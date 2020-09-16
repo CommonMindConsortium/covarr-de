@@ -343,6 +343,13 @@ names(vobj.lst) = names(dge.lst)
 fig1 = plot_voom(vobj.lst[[1]]) + ggtitle(names(vobj.lst)[1])
 fig2 = plot_voom(vobj.lst[[2]]) + ggtitle(names(vobj.lst)[2])
 plot_grid( fig1, fig2, nrow=1) 
+
+df = lapply( names(vobj.lst), function(key){
+  data.frame(Cohort = key,  vobj.lst[[key]]$voom.line)
+  })
+df = do.call(rbind, df)
+
+ggplot(df, aes(x, y, color=Cohort)) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + geom_line(size=1.2) + xlab(bquote(log[2](count + 0.5))) + ylab(expression( sqrt("standard deviation"))) + ggtitle("Compare voom trends") + ylim(0, max(df$y)) + scale_color_manual(name="Status", values=c("#3758ba", "#33e65c")) + guides(color = guide_legend(override.aes = list(size = 1))) 
 ```
 
 
@@ -395,7 +402,7 @@ names(residuals.lst) = names(vobj.lst)
 
 
 
-```{r check.correlation}
+```{r check.correlation, eval=FALSE}
 ngenes = 300
 C1 = cor(t(residuals.lst[[1]][1:ngenes,]))
 C2 = cor(t(residuals.lst[[2]][1:ngenes,]))

@@ -294,6 +294,7 @@ plot_forrest = function(resList, geneSymbol, plot2="p"){
     fig2 = ggplot(df_forrest, aes(Dataset, -log10(adj.P.Val))) + ylab(bquote(-log[10]~adjusted~P))  
   }else{
     ymax = max(-log10(df_forrest$P.Value))*1.05
+    ymax = min(1e-300, ymax)
     fig2 = ggplot(df_forrest, aes(Dataset, -log10(P.Value))) + ylab(bquote(-log[10]~P)) 
   }
 
