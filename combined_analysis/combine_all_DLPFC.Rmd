@@ -935,6 +935,9 @@ figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
 plot_grid(plotlist=figList, ncol=1)
 ```
 
+fig =  plot_forrest( c(tab.de.lst[[coef]], list("Meta-analysis" = df_meta[[coef]])), geneSymbol)
+
+plot_grid(fig)
 
 
 ## Meta-analysis of zenith results
