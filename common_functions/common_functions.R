@@ -5,6 +5,7 @@ library(ensembldb)
 library(MASS)
 library(ggplot2)
 library(ggbio)
+library(Rfast)
 library(viridis)
 library(data.table)
 })
@@ -599,7 +600,7 @@ get_difference_network = function(resid.lst, METADATA, variable){
     # get correlation matrix for each category
     C.lst = lapply( levels(info[[variable]]), function(key){
       j = (info[[variable]] == key)
-      cor( t(resid[,j]) )  
+      cora( t(resid[,j]) )  
     })
     names(C.lst) = levels(info[[variable]])
 
