@@ -748,7 +748,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   plot_grid( fig_merge, fig3, nrow=2, rel_heights=c(1,1.5) )    
 }
 
-plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5) 
+# plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5) 
 
 
 
