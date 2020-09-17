@@ -428,6 +428,8 @@ eval_residuals = function( form ){
 resid.add = list( Dx_Sex  = eval_residuals( ~ Dx*Reported_Gender ),
                   Dx      = eval_residuals( ~ Dx ),
                   Sex     = eval_residuals( ~ Reported_Gender ))
+
+residuals.lst = resid.add[['Dx_Sex']]
 ```
 
 
