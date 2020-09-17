@@ -70,7 +70,7 @@ METADATA = readRDS(synGet('syn22416411')$path)
 METADATA$Reported_Gender = factor(METADATA$Reported_Gender, c("Male", "Female"))
 ```
 
-
+# Sex network
 ## Difference networks
 ```{r diff.networks}
 
@@ -120,9 +120,6 @@ figList = lapply(df_test$Module[1:5], function(mod){
 plot_grid( plotlist = figList, ncol=1)
 ```
 
-
-
-
 ```{r second.cohort, fig.width=6, fig.height=12}
 df_cohort2 = df_test[df_test$Cohort == "NIMH-HBCC",]
 df_cohort2$Module = factor(df_cohort2$Module, unique(df_cohort2$Module))
@@ -133,7 +130,7 @@ df = df_cohort2[df_cohort2$P.Value < 0.1,]
 ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.second.cohort, fig.width=8, fig.height=40}
+```{r modules.in.second.cohort, fig.width=8, fig.height=100}
 
 i = which(df_cohort2$FDR < 0.05)
 
@@ -144,6 +141,91 @@ figList = lapply(df_cohort2$Module[i], function(mod){
   
 plot_grid( plotlist = figList, ncol=1)
 ```
+
+
+
+
+# Disease network
+## Difference networks
+```{r diff.networks.Dx}
+
+# Compute difference networks
+##############################
+
+resVersion = "Dx"
+variable = 'Dx'
+
+diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
+   
+# Discover clusters in first cohort
+#----------------------------------
+C.diff.discovery = diff.net[[1]]
+
+rm(diff.net) # saving this to disk is slow, so just delete it
+
+hcl = hclust( as.dist(C.diff.discovery) )
+
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
+
+dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
+tab = table(dynamicColors)
+length(tab)
+```
+
+```{r testing.Dx}
+
+# Hypothesis testing
+#-------------------
+  
+df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)  
+```
+
+```{r plot.discovery.Dx}
+# plot discovery and testing
+ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_test$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
+```
+
+```{r modules.in.discovery.Dx, fig.width=10, fig.height=20}
+
+figList = lapply(df_test$Module[1:5], function(mod){
+
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")  
+	})
+  
+plot_grid( plotlist = figList, ncol=1)
+```
+
+```{r second.cohort.Dx, fig.width=6, fig.height=12}
+df_cohort2 = df_test[df_test$Cohort == "NIMH-HBCC",]
+df_cohort2$Module = factor(df_cohort2$Module, unique(df_cohort2$Module))
+table(df_cohort2$FDR < 0.05)
+
+df = df_cohort2[df_cohort2$P.Value < 0.1,]
+
+ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
+```
+
+```{r modules.in.second.cohort.Dx, fig.width=8, fig.height=40}
+
+i = which(df_cohort2$FDR < 0.05)
+
+figList = lapply(df_cohort2$Module[i], function(mod){
+
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC")  
+	})
+  
+plot_grid( plotlist = figList, ncol=1)
+```
+
+
+
+
+
+
+
+
+
+
 
 <!---
 
