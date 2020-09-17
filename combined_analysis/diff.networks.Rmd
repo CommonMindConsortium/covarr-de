@@ -81,7 +81,7 @@ resVersion = "Sex"
 variable = 'Reported_Gender'
 
 diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
-
+   
 # Discover clusters in first cohort
 #----------------------------------
 C.diff.discovery = diff.net[[1]]
