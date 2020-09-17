@@ -60,7 +60,8 @@ knitr::opts_chunk$set(
   message=FALSE,
   error = FALSE,
   tidy = FALSE,
-  cache = TRUE)
+  cache = TRUE,
+  cache.lazy = FALSE)
 ```
 
 ```{r load.data}
@@ -152,6 +153,20 @@ ChrX and ChrY genes with autism and Scz
 
 DE within each sex, on chrX and chrY.
 	drop chrY genes for computing FDR?
+
+Can we predict sex given autosomal genes?
+
+PMID: 26892004
+https://science.sciencemag.org/content/369/6509/eaba3066
+https://www.nature.com/articles/s41576-018-0083-1
+
+
+test: how much sex differences are given by age, cell type and institution.	
+
+
+
+
+
 
 library(mvtnorm)
 library(Rfast)

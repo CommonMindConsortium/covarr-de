@@ -599,7 +599,7 @@ get_difference_network = function(resid.lst, METADATA, variable){
     # get correlation matrix for each category
     C.lst = lapply( levels(info[[variable]]), function(key){
       j = (info[[variable]] == key)
-      cor( t(resid[,j]) )  
+      cor( t(resid[1:1000,j]) )  
     })
     names(C.lst) = levels(info[[variable]])
 
@@ -652,7 +652,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
   df_test$Module = factor(df_test$Module, unique(df_test$Module))
 
   browser()
-  
+
   # Compute FDR separately for each cohort
   df_test$FDR = rep(NA, nrow(df_test))
   i = which(df_test$Cohort == 'MSSM-Penn-Pitt')
