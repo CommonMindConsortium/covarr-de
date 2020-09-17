@@ -92,6 +92,9 @@ dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
 dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
 length(tab)
+```
+
+```{r testing}
 
 # Hypothesis testing
 #-------------------
