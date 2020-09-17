@@ -744,7 +744,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   # plot network   
   plot_corr_network( C1 - C2) + ggtitle(main)
 
-  plot_grid( fig1, fig2, fig2, nrow=1 )    
+  plot_grid( fig1, fig2, fig3, nrow=1 )    
 }
 
 
@@ -766,6 +766,8 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
 
   C_sub = C[node_names,node_names]
 
+  message('Nodes: ', length(node_names))
+
   df_net$from = match(df_net$name.from, node_names)
   df_net$to = match(df_net$name.to, node_names)
 
@@ -785,6 +787,26 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
     theme_graph() + 
     theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5))
 }
+
+# df_net = data.table(df_net)
+
+# df_a = df_net[,data.frame(minAbsZ=max(abs(z))), by="name.from"]
+# df_b = df_net[,data.frame(minAbsZ=max(abs(z))), by="name.to"]
+
+# df = merge(df_a, df_b, by.x="name.from", by.y="name.to")
+
+# df2 = df[,data.frame(z=max(c(minAbsZ.x, minAbsZ.y))),by="name.from"]
+
+# min(df2$z)
+
+# plot_corr_network( C1-C2, zcutoff=1.568965)
+
+
+
+
+
+
+
 
 
 
