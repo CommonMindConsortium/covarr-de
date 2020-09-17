@@ -198,7 +198,7 @@ plot_grid( plotlist = figList, ncol=1)
 ```{r second.cohort.Dx, fig.width=6, fig.height=12}
 df_cohort2 = df_test[df_test$Cohort == "NIMH-HBCC",]
 df_cohort2$Module = factor(df_cohort2$Module, unique(df_cohort2$Module))
-table(df_cohort2$FDR < 0.05). 
+table(df_cohort2$FDR < 0.05) 
 
 df = df_cohort2[df_cohort2$P.Value < 0.1,]
 
@@ -247,7 +247,8 @@ https://www.nature.com/articles/s41576-018-0083-1
 
 test: how much sex differences are given by age, cell type and institution.	
 
-
+Apparent differences in cell type composition can be explained by age.
+	After accounting for age, can cell type predict sex?
 
 
 
