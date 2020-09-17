@@ -688,7 +688,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   FDR = df_test[with(df_test, Cohort==key & Module == clusterID),'FDR']
 
-  main = paste(key, col, 'FDR =', format(FDR, digits=3))
+  main = paste(key, clusterID, 'FDR =', format(FDR, digits=3))
 
   # Evaluate correlation matrix for each category
   lvl = levels(info[[variable]])
