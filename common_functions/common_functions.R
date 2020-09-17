@@ -671,7 +671,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
 
 # Plots for each module
-plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key){
+plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11){
 
   clusterID = as.character(clusterID)
 
@@ -721,12 +721,11 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   lim = range(c(df2$cor1, df2$cor2))
 
-  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw() + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1,    hjust=1, segment.size = 0.2, box.padding=.2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[1])) + ylab(paste('Correlation in', lvl[2]))
+  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[1])) + ylab(paste('Correlation in', lvl[2]))
 
-
-  # upper is C1 and lower is C2
-  C = C1
-  C[lower.tri(C)] = C2[lower.tri(C2)]
+  # upper is C2 and lower is C1, since C1 is baseline, is lvl[1]
+  C = C2
+  C[lower.tri(C)] = C1[lower.tri(C1)]
   diag(C) = NA
   df = reshape2::melt(C)
 
@@ -737,21 +736,24 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
         fill = value)) + scale_color_gradientn(name = "Correlation", 
         colours = color, limits = c(-1, 1), na.value = "grey") + 
         scale_fill_gradientn(name = "Correlation", colours = color, 
-            limits = c(-1, 1), na.value = "grey") + theme_bw() + 
+            limits = c(-1, 1), na.value = "grey") + theme_bw(base_size) + 
         theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
-            legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + xlab(lvl[2]) + ylab(lvl[1])
+            legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + ylab(lvl[2]) + xlab(lvl[1])
 
   # plot network   
-  fig3 = plot_corr_network( C1 - C2) + ggtitle(main)
+  main = paste(key, clusterID, paste0('(', lvl[2], ' - ', lvl[1], ')'), 'FDR =', format(FDR, digits=3))
+  fig3 = plot_corr_network( C2 - C1 , base_size=base_size) + ggtitle(main)
 
-  plot_grid( fig1, fig2, fig3, nrow=1 )    
+  fig_merge = plot_grid( fig1, fig2, nrow=1)
+  plot_grid( fig_merge, fig3, nrow=2, rel_heights=c(1,1.5) )    
 }
 
+plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5) 
 
 
 
 
-plot_corr_network = function( C, zcutoff = 1.3, seed=1){
+plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
 
   df_net = data.frame(t(combn(colnames(C), 2)))
   colnames(df_net) = c('name.from','name.to')
@@ -781,14 +783,14 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
   ggraph(net, layout = "igraph", algorithm='graphopt') + 
     geom_edge_link(aes(width = abs(weight), color=weight), alpha = 1) + 
     scale_edge_width(name='|Corr Diff|',range = c(0.2, 2)) +
-    geom_node_point(size=10, color="grey80") +
-    geom_node_text(aes(label = name), repel = FALSE) +
+    geom_node_point(size=base_size, color="grey80") +
+    geom_node_text(aes(label = name), repel = FALSE,size=base_size/3) +
     scale_edge_color_gradient2(name='Corr Diff', low="blue", mid="white", high="red", lim=c(-1,1)) +
-    labs(edge_width = "Correlation") +
-    theme_graph() + 
+    labs(edge_width = "Correlation")  + 
+    theme_graph(base_size=base_size, title_size=base_size) + 
     theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5))
 }
-
+# plot_corr_network(C,base_size=4)
 
 
 
