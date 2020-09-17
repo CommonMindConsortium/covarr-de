@@ -588,9 +588,155 @@ zenith_meta_analysis = function(res_zenith, coefTest){
 
 
 
+get_difference_network = function(resid.lst, METADATA, variable){
+
+  # For each cohort
+  diff.net = lapply( resid.lst, function(resid){
+
+    i = match(colnames(resid), rownames(METADATA))
+    info = METADATA[i,]
+
+    # get correlation matrix for each category
+    C.lst = lapply( levels(info[[variable]]), function(key){
+      j = (info[[variable]] == key)
+      cor( t(resid[,j]) )  
+    })
+    names(C.lst) = levels(info[[variable]])
+
+    # Compute difference in correlation matrices
+    C.lst[[1]] - C.lst[[2]]
+    })
+  names(diff.net) = names(resid.lst)
+
+  diff.net
+}
 
 
 
+
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA){
+
+  df_test = lapply( unique(dynamicColors), function(col){
+
+    # get genes in this cluster
+    geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
+
+    res = lapply( resid.lst, function(resid){
+
+      # extact expression residuals for genes in this cluster
+      Y = t(resid[geneid,])
+
+      # extract metadata
+      i = match(rownames(Y), rownames(METADATA))
+      info = METADATA[i,]
+
+      # eval statistical hypothesis
+      res = boxM_permute( Y, info[[variable]])
+
+      # C1 = cor(Y[info$Reported_Gender =='Male',])
+      # C2 = cor(Y[info$Reported_Gender =='Female',])
+      # sLED(C1, C2)
+
+      data.frame(Module = col, P.Value = res$p.value, n.genes = length(geneid))
+    })
+    res = do.call(rbind, res)
+    res$Cohort = names(resid.lst)
+    rownames(res) = c()
+    res
+  })
+
+  # Format results data.frame
+  df_test = do.call(rbind, df_test)
+  df_test = df_test[!is.na(df_test$P.Value),]
+  df_test = df_test[order(df_test$P.Value),]
+  df_test$Module = factor(df_test$Module, unique(df_test$Module))
+
+  browser()
+
+  # Compute FDR separately for each cohort
+  df_test$FDR = rep(NA, nrow(df_test))
+  i = which(df_test$Cohort == 'MSSM-Penn-Pitt')
+  df_test$FDR[i] = qvalue(df_test$P.Value[i], lambda = seq(0,0.80,0.05))$qvalues
+
+  i = which(df_test$Cohort == 'NIMH-HBCC')
+  df_test$FDR[i] = qvalue(df_test$P.Value[i])$qvalues
+
+  df_test
+}
+
+
+
+# Plots for each module
+plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key){
+
+  # get genes in this clusters
+  geneid = rownames(C.diff.discovery)[which(dynamicColors==clusterID)]
+
+  # extract residuals for these genes
+  Y = t(resid.lst[[key]][geneid,])
+
+  # convert from ENSEMBL to SYMBOL
+  df_tmp = data.frame(ENSEMBL = colnames(Y)) %>% getGeneSymbol('ENSEMBL')
+  i = match(df_tmp$ENSEMBL, colnames(Y))  
+  colnames(Y)[i] = df_tmp$Symbol
+
+  # extract metadata
+  i = match(rownames(Y), rownames(METADATA))
+  info = METADATA[i,]
+
+  # perform hypothesis test
+  res = boxM_permute( Y, info[[variable]])
+
+  FDR = df_test[with(df_test, Cohort==key & Module == clusterID),'FDR']
+
+  main = paste(key, col, 'FDR =', format(FDR, digits=3))
+
+  # Evaluate correlation matrix for each category
+  lvl = levels(info[[variable]])
+  C1 = cor(Y[info[[variable]] == lvl[1],])
+  C2 = cor(Y[info[[variable]] == lvl[2],])
+
+  # reorder for clustering
+  hcl = hclust(as.dist(1 - C1), method="ward.D2")
+  C1 = C1[hcl$order,hcl$order]
+  C2 = C2[hcl$order,hcl$order]
+
+  # create data.frame to compare correlation values
+  ind <- which( upper.tri(C1,diag=FALSE) , arr.ind = TRUE )
+
+  df2 = data.frame( col = dimnames(C1)[[2]][ind[,2]] ,
+              row = dimnames(C2)[[1]][ind[,1]] ,
+              cor1 = C1[ ind ],
+              cor2 = C2[ ind ],
+              pair = '' ) 
+  i = order(with(df2, abs(cor1 - cor2)), decreasing=TRUE)[1:3]
+
+  df2$pair[i] = with(df2[i,], paste(col, '/',row))
+
+  lim = range(c(df2$cor1, df2$cor2))
+
+  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw() + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1,    hjust=1, segment.size = 0.2, box.padding=.2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[1])) + ylab(paste('Correlation in', lvl[2]))
+
+
+  # upper is C1 and lower is C2
+  C = C1
+  C[lower.tri(C)] = C2[lower.tri(C2)]
+  diag(C) = NA
+  df = reshape2::melt(C)
+
+    colsFun = colorRampPalette( c("blue", "white","red"))
+    color = colsFun(1000)
+
+  fig2 = ggplot(df, aes(Var1, Var2)) + geom_tile(aes(color = value, 
+        fill = value)) + scale_color_gradientn(name = "Correlation", 
+        colours = color, limits = c(-1, 1), na.value = "grey") + 
+        scale_fill_gradientn(name = "Correlation", colours = color, 
+            limits = c(-1, 1), na.value = "grey") + theme_bw() + 
+        theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
+            legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + xlab(lvl[2]) + ylab(lvl[1])
+
+    plot_grid( fig1, fig2 )    
+}
 
 
 
