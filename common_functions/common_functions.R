@@ -668,6 +668,8 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 # Plots for each module
 plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key){
 
+  clusterID = as.character(clusterID)
+
   # get genes in this clusters
   geneid = rownames(C.diff.discovery)[which(dynamicColors==clusterID)]
 
