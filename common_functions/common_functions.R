@@ -651,6 +651,8 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
   df_test = df_test[order(df_test$P.Value),]
   df_test$Module = factor(df_test$Module, unique(df_test$Module))
 
+  browser()
+  
   # Compute FDR separately for each cohort
   df_test$FDR = rep(NA, nrow(df_test))
   i = which(df_test$Cohort == 'MSSM-Penn-Pitt')
