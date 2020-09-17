@@ -658,8 +658,8 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
   df_test$FDR[i] = p.adjust(df_test$P.Value[i], "fdr")
 
   i = which(df_test$Cohort == 'NIMH-HBCC')
-  # df_test$FDR[i] = p.adjust(df_test$P.Value[i], "fdr")
-  df_test$FDR[i] = qvalue(df_test$P.Value[i])$qvalues
+  df_test$FDR[i] = p.adjust(df_test$P.Value[i], "fdr")
+  # df_test$FDR[i] = qvalue(df_test$P.Value[i])$qvalues
 
   df_test
 }
