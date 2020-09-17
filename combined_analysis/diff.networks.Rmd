@@ -114,7 +114,7 @@ ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_te
 
 figList = lapply(df_test$Module[1:5], function(mod){
 
-	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")    
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5)   
 	})
   
 plot_grid( plotlist = figList, ncol=1)
@@ -136,7 +136,7 @@ i = which(df_cohort2$FDR < 0.05)
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
-	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC")    
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC")   
 	})
   
 plot_grid( plotlist = figList, ncol=1)
@@ -189,7 +189,7 @@ ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_te
    
 figList = lapply(df_test$Module[1:5], function(mod){
 
-	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")    
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")   
 	})
   
 plot_grid( plotlist = figList, ncol=1)
@@ -211,7 +211,7 @@ i = which(df_cohort2$FDR < 0.05)[1:20]
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
-	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC")    
+	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC")   
 	})
   
 plot_grid( plotlist = figList, ncol=1)
@@ -274,12 +274,12 @@ Sigma = cov(df_cor)
 
 
 
-X = matrnorm(300, 1000)
+X = matrnorm(1000, 30)
 
 C_x = cor(X)
 
 C = C_x[1:5, 1:5]
-colnames(C) = paste0('gene_', 1:5)
+colnames(C) = paste0('gene_', 1:nrow(C))
 rownames(C) = colnames(C)
 
 
