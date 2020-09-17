@@ -94,7 +94,7 @@ dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
 
 dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
-hist(tab)
+hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing}
@@ -111,7 +111,7 @@ df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discover
 ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_test$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.discovery, fig.width=8, fig.height=50}
+```{r modules.in.discovery, fig.width=8, fig.height=25}
 
 figList = lapply(df_test$Module[1:5], function(mod){
 
@@ -172,7 +172,7 @@ dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
 
 dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
-hist(tab)
+hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing.Dx}
