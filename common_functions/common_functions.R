@@ -733,7 +733,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
     colsFun = colorRampPalette( c("blue", "white","red"))
     color = colsFun(1000)
 
-  fig2 = ggplot(df, aes(Var1, Var2)) + geom_tile(aes(color = value, 
+  fig3 = ggplot(df, aes(Var1, Var2)) + geom_tile(aes(color = value, 
         fill = value)) + scale_color_gradientn(name = "Correlation", 
         colours = color, limits = c(-1, 1), na.value = "grey") + 
         scale_fill_gradientn(name = "Correlation", colours = color, 
