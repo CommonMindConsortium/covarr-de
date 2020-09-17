@@ -50,6 +50,7 @@ library(ggrepel)
 library(cowplot) 
 library(plyr) 
 library(qvalue)  
+library(BiocParallel)  
 }) 
 source("../common_functions/common_functions.R")   
 # source("common_functions/common_functions.R")   
@@ -102,7 +103,7 @@ hist(tab, xlab="Cluster size")
 # Hypothesis testing
 #-------------------
   
-df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)  
+df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, BPPARAM=SerialParam())  
 ```
 
 ## Discovery cohort

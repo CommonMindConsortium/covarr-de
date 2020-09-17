@@ -618,8 +618,31 @@ get_difference_network = function(resid.lst, METADATA, variable){
 
 
 
+sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
 
-test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA){
+  # perform permutations until p-values is precise enough
+  # if not precise enough
+  a = log10(npermute[1])
+  b = log10(npermute[2])
+  permArray = 10^seq(a,b, length.out=b-a +1)
+
+  for( nperm in round(permArray) ){
+      # compare correlation structure with sLED
+      res = decorate:::.sLED(X=Y1, Y=Y2, npermute=nperm, BPPARAM=ifelse(nperm >= 10000,BPPARAM, SerialParam()))
+
+      if( res$pVal * nperm > 10){
+        break
+      }
+  }
+
+  # stats is always positive, so multiply by -1 if negative
+  res$stats = (-1)^(res$sign=='neg') * res$stats
+
+  res
+}
+
+
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, BPPARAM=SerialParam()){
 
   df_test = lapply( unique(dynamicColors), function(col){
 
@@ -638,11 +661,17 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       # eval statistical hypothesis
       res = boxM_permute( Y, info[[variable]])
 
-      # C1 = cor(Y[info$Reported_Gender =='Male',])
-      # C2 = cor(Y[info$Reported_Gender =='Female',])
-      # sLED(C1, C2)
+      # sLED
+      lvl = levels(info[[variable]])
+      Y1 = Y[info[[variable]] == lvl[1],]
+      Y2 = Y[info[[variable]] == lvl[2],]
 
-      data.frame(Module = col, P.Value = res$p.value, n.genes = length(geneid))
+      res_sLED = sLED_adapt(Y1, Y2, npermute=c(1000,1e6), BPPARAM=BPPARAM)
+
+      data.frame( Module        = col, 
+                  P.Value       = res$p.value, 
+                  P.Value.sLED  = res_sLED$pVal,
+                  n.genes       = length(geneid))
     })
     res = do.call(rbind, res)
     res$Cohort = names(resid.lst)
