@@ -656,7 +656,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
   # Compute FDR separately for each cohort
   df_test$FDR = rep(NA, nrow(df_test))
   i = which(df_test$Cohort == 'MSSM-Penn-Pitt')
-  df_test$FDR[i] = qvalue(df_test$P.Value[i], lambda = seq(0,0.80,0.05))$qvalues
+  df_test$FDR[i] = qvalue(c(df_test$P.Value[i],1))$qvalues
 
   i = which(df_test$Cohort == 'NIMH-HBCC')
   df_test$FDR[i] = qvalue(df_test$P.Value[i])$qvalues
