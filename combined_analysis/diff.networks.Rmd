@@ -205,7 +205,7 @@ df = df_cohort2[df_cohort2$P.Value < 0.1,]
 ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.second.cohort.Dx, fig.width=8, fig.height=100}
+```{r modules.in.second.cohort.Dx, fig.width=15, fig.height=100}
   
 i = which(df_cohort2$FDR < 0.05)[1:20]
 
@@ -272,4 +272,126 @@ a = calc_sde(id=1,points=df_cor);
 
 Sigma = cov(df_cor)
 
+
+
+X = matrnorm(300, 1000)
+
+C_x = cor(X)
+
+C = C_x[1:5, 1:5]
+colnames(C) = paste0('gene_', 1:5)
+rownames(C) = colnames(C)
+
+
+library(ggraph)
+library(ggplot2)
+library(tidygraph)
+library(Rfast)
+
+load("~/Downloads/C.test.RDATA")
+
+C = C1 - C2
+
+
+plot_corr_network( C1-C2 )
+
+
+
+
+
+
+rstat_nodes <- data.frame(name = c("H
+
+
+	adley", "David", "Romain", "Julia"))
+rstat_edges <- data.frame(from = c(1, 1, 1, 2, 3, 3, 4, 4, 4),
+                         to = c(2, 3, 4, 1, 1, 2, 1, 2, 3))
+rstat_edges$weight = 1:9
+
+
+
+
+
+rstat_nodes <- data.frame(name = c("Hadley", "David", "Romain", "Julia"))
+rstat_edges <- data.frame(from = c(1, 1, 1, 2, 3, 3, 4, 4, 4),
+                         to = c(2, 3, 4, 1, 1, 2, 1, 2, 3))
+rstat_edges$weight = 1:9
+
+net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
+     
+
+ggraph(net, layout = "auto") + 
+  geom_node_point(size=10, color="blue") +
+  geom_edge_link(aes(width = weight), alpha = 0.8) + 
+  scale_edge_width(range = c(0.2, 2)) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  labs(edge_width = "Correlation") +
+  theme_graph()
+
+
+
+
+
+
+
+net = ggnetwork(C)
+
+set.edge.attribute
+set.edge.value
+
+
+ggplot(net, aes(x = x, y = y, xend = xend, yend = yend)) + theme_blank() + geom_nodes(aes(x,y)) + geom_edges()
+
+
+
+ggplot(
+ggnetwork(emon[[1]], layout = "kamadakawai", arrow.gap = 0.025),
+aes(x, y, xend = xend, yend = yend) )+
+geom_edges(aes(color = Frequency, size=Frequency^2),
+arrow = arrow(length = unit(10, "pt"), type = "closed")
+)+
+geom_nodes(aes(size = Formalization)) + scale_color_gradient(low = "grey50", high = "tomato") + scale_size_area(breaks = 1:3) +
+theme_blank()
+
+
+net = network(C)
+
+
+
+
+
+get.edges(net, "gene_1")
+
+
+
+rstat_nodes <- data.frame(name = c("Hadley", "David", "Romain", "Julia"))
+rstat_edges <- data.frame(from = c(1, 1, 1, 2, 3, 3, 4, 4, 4),
+                         to = c(2, 3, 4, 1, 1, 2, 1, 2, 3))
+rstat_edges$weight = 1:9
+
+net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
+     
+
+ggraph(net, layout = "auto") + 
+  geom_node_point(size=10, color="blue") +
+  geom_edge_link(aes(width = weight), alpha = 0.8) + 
+  scale_edge_width(range = c(0.2, 2)) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  labs(edge_width = "Correlation") +
+  theme_graph()
+
+
+
+
+
+
+
 --->
+
+
+
+
+
+
+
+

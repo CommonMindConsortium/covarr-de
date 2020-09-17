@@ -8,6 +8,10 @@ library(ggbio)
 library(Rfast)
 library(viridis)
 library(data.table)
+library(ggraph)
+library(ggplot2)
+library(tidygraph)
+library(Rfast)
 })
 
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
@@ -737,12 +741,50 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
         theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
             legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + xlab(lvl[2]) + ylab(lvl[1])
 
-    plot_grid( fig1, fig2 )    
+  # plot network   
+  plot_corr_network( C1 - C2) + ggtitle(main)
+
+  plot_grid( fig1, fig2, fig2, nrow=1 )    
 }
 
 
 
 
+
+plot_corr_network = function( C, zcutoff = 1.3, seed=1){
+
+  df_net = data.frame(t(combn(colnames(C), 2)))
+  colnames(df_net) = c('name.from','name.to')
+
+  df_net$weight = apply(df_net, 1, function(x){
+    C[x['name.from'], x['name.to']]
+  })
+  df_net$z = scale(df_net$weight)
+  df_net = df_net[abs(df_net$z) >= zcutoff,]
+
+  node_names = unique(c(df_net$name.from, df_net$name.to))
+
+  C_sub = C[node_names,node_names]
+
+  df_net$from = match(df_net$name.from, node_names)
+  df_net$to = match(df_net$name.to, node_names)
+
+  net = tbl_graph(nodes = data.frame(name=node_names), edges = df_net[,c('from','to','weight')], directed=FALSE)
+       
+  # igraph_layouts <- c('star', 'circle', 'gem', 'dh', 'graphopt', 'grid', 'mds', 
+  #                     'randomly', 'fr', 'kk', 'drl', 'lgl')
+
+  set.seed(seed)
+  ggraph(net, layout = "igraph", algorithm='graphopt') + 
+    geom_edge_link(aes(width = abs(weight), color=weight), alpha = 1) + 
+    scale_edge_width(name='|Corr Diff|',range = c(0.2, 2)) +
+    geom_node_point(size=10, color="grey80") +
+    geom_node_text(aes(label = name), repel = FALSE) +
+    scale_edge_color_gradient2(name='Corr Diff', low="blue", mid="white", high="red", lim=c(-1,1)) +
+    labs(edge_width = "Correlation") +
+    theme_graph() + 
+    theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5))
+}
 
 
 
