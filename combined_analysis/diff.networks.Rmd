@@ -85,7 +85,8 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
 # Discover clusters in first cohort
 #----------------------------------
 C.diff.discovery = diff.net[[1]]
-rm(diff.net)
+
+rm(diff.net) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
