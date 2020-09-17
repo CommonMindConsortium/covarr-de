@@ -100,7 +100,7 @@ length(tab)
 # Hypothesis testing
 #-------------------
 
-df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)
+df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)  
 ```
 
 ```{r plot.discovery}
