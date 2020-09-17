@@ -599,7 +599,7 @@ get_difference_network = function(resid.lst, METADATA, variable){
     # get correlation matrix for each category
     C.lst = lapply( levels(info[[variable]]), function(key){
       j = (info[[variable]] == key)
-      cor( t(resid[1:1000,j]) )  
+      cor( t(resid[1:10000,j]) )  
     })
     names(C.lst) = levels(info[[variable]])
 
