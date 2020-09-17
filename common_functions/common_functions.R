@@ -730,10 +730,10 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   diag(C) = NA
   df = reshape2::melt(C)
 
-    colsFun = colorRampPalette( c("blue", "white","red"))
-    color = colsFun(1000)
+  colsFun = colorRampPalette( c("blue", "white","red"))
+  color = colsFun(1000)
 
-  fig3 = ggplot(df, aes(Var1, Var2)) + geom_tile(aes(color = value, 
+  fig2 = ggplot(df, aes(Var1, Var2)) + geom_tile(aes(color = value, 
         fill = value)) + scale_color_gradientn(name = "Correlation", 
         colours = color, limits = c(-1, 1), na.value = "grey") + 
         scale_fill_gradientn(name = "Correlation", colours = color, 
@@ -742,7 +742,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
             legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + xlab(lvl[2]) + ylab(lvl[1])
 
   # plot network   
-  plot_corr_network( C1 - C2) + ggtitle(main)
+  fig3 = plot_corr_network( C1 - C2) + ggtitle(main)
 
   plot_grid( fig1, fig2, fig3, nrow=1 )    
 }
@@ -766,8 +766,6 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
 
   C_sub = C[node_names,node_names]
 
-  message('Nodes: ', length(node_names))
-
   df_net$from = match(df_net$name.from, node_names)
   df_net$to = match(df_net$name.to, node_names)
 
@@ -776,7 +774,10 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
   # igraph_layouts <- c('star', 'circle', 'gem', 'dh', 'graphopt', 'grid', 'mds', 
   #                     'randomly', 'fr', 'kk', 'drl', 'lgl')
 
+  # set seed for reproducability
   set.seed(seed)
+
+  # plot
   ggraph(net, layout = "igraph", algorithm='graphopt') + 
     geom_edge_link(aes(width = abs(weight), color=weight), alpha = 1) + 
     scale_edge_width(name='|Corr Diff|',range = c(0.2, 2)) +
@@ -787,6 +788,12 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1){
     theme_graph() + 
     theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5))
 }
+
+
+
+
+
+
 
 # df_net = data.table(df_net)
 
