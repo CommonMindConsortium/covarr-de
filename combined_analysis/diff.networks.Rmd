@@ -225,7 +225,7 @@ plot_grid( plotlist = figList, ncol=1)
 ```
 
 ## Module enrichment
-```{r top.enrich.Dx}
+```{r top.enrich.Dx, eval=FALSE}
 
 
 
