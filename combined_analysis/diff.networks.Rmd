@@ -62,7 +62,7 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning=FALSE,
   message=FALSE,
-  error = FALSE,
+  error = FALSE,  
   tidy = FALSE,
   cache = TRUE,
   cache.lazy = FALSE)
