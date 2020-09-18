@@ -162,7 +162,7 @@ diff.net.Sex = get_difference_network(resid.add[[resVersion]], METADATA, variabl
 #----------------------------------
 C.diff.discovery = diff.net.Sex[[1]][keep.ensID,keep.ensID]
 
-rm(diff.net) # saving this to disk is slow, so just delete it
+rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
@@ -237,7 +237,7 @@ diff.net.Dx = get_difference_network(resid.add[[resVersion]], METADATA, variable
 #----------------------------------
 C.diff.discovery = diff.net.Dx[[1]][keep.ensID,keep.ensID]
 
-rm(diff.net) # saving this to disk is slow, so just delete it
+rm(diff.net.Dx) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
