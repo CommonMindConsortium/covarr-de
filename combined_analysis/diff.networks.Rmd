@@ -321,7 +321,7 @@ C.diff.discovery = (C[[lvls[4]]] - C[[lvls[3]]]) - (C[[lvls[2]]] - C[[lvls[1]]])
 
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
-rm(diff.net) # saving this to disk is slow, so just delete it
+rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
