@@ -1037,7 +1037,7 @@ enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module)
 plot_enrich = function( df, module ){
 
   df2 = df[df$Module == module,]
-  df2$Module = factor(df2$Module, df2$Module)
+  df2$Geneset = factor(df2$Geneset, df2$Geneset)
 
   ylim = max(-log10(df$FDR))
   ggplot(df2, aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
