@@ -99,11 +99,8 @@ hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing}
-
-# Hypothesis testing
-#-------------------
-  
-df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, BPPARAM=SerialParam())  
+# Hypothesis testing  
+df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, BPPARAM=SnowParam(18)) 
 ```
 
 ## Discovery cohort
@@ -177,10 +174,7 @@ hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing.Dx}
-
-# Hypothesis testing
-#-------------------
-     
+# Hypothesis testing     
 df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)  
 ```
 

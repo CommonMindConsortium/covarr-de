@@ -627,8 +627,13 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
   permArray = 10^seq(a,b, length.out=b-a +1)
 
   for( nperm in round(permArray) ){
+
+      bp = BPPARAM
+
+      if(nperm <= 10000) bp = SerialParam()
+
       # compare correlation structure with sLED
-      res = decorate:::.sLED(X=Y1, Y=Y2, npermute=nperm, BPPARAM=ifelse(nperm >= 10000,BPPARAM, SerialParam()))
+      res = decorate:::.sLED(X=Y1, Y=Y2, npermute=nperm, BPPARAM=bp)
 
       if( res$pVal * nperm > 10){
         break
@@ -649,10 +654,12 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
     # get genes in this cluster
     geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
 
-    res = lapply( resid.lst, function(resid){
+    res = lapply( names(resid.lst), function(key){
+
+      message(key, ' ', col)
 
       # extact expression residuals for genes in this cluster
-      Y = t(resid[geneid,])
+      Y = t(resid.lst[[key]][geneid,])
 
       # extract metadata
       i = match(rownames(Y), rownames(METADATA))
@@ -661,13 +668,16 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       # eval statistical hypothesis
       res = boxM_permute( Y, info[[variable]])
 
-      # sLED
-      lvl = levels(info[[variable]])
-      Y1 = Y[info[[variable]] == lvl[1],]
-      Y2 = Y[info[[variable]] == lvl[2],]
+      if( key == names(resid.lst)[2] ){
+        # sLED
+        lvl = levels(info[[variable]])
+        Y1 = Y[info[[variable]] == lvl[1],]
+        Y2 = Y[info[[variable]] == lvl[2],]
 
-      res_sLED = sLED_adapt(Y1, Y2, npermute=c(1000,1e6), BPPARAM=BPPARAM)
-
+        res_sLED = sLED_adapt(Y1, Y2, npermute=c(1000,1e5), BPPARAM=BPPARAM)
+      }else{
+        res_sLED = list(pVal=NA)
+      }
       data.frame( Module        = col, 
                   P.Value       = res$p.value, 
                   P.Value.sLED  = res_sLED$pVal,
