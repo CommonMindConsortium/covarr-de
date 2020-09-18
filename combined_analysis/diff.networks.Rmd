@@ -393,7 +393,7 @@ ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module)
 
 ```{r modules.in.second.cohort.Dx_Sex, fig.width=8, fig.height=80}
   
-i = which(df_cohort2$FDR < 0.05) 
+i = which(df_cohort2$FDR < 0.1) 
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
