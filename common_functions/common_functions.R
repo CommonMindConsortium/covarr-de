@@ -676,7 +676,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
         Y1 = Y[info[[variable]] == lvl[1],]
         Y2 = Y[info[[variable]] == lvl[2],]
 
-        res_sLED = sLED_adapt(Y1, Y2, npermute=c(100,100), BPPARAM=BPPARAM)
+        res_sLED = sLED_adapt(Y1, Y2, npermute=c(500,5e6), BPPARAM=BPPARAM)
       }else{
         res_sLED = list(pVal=NA)
       }

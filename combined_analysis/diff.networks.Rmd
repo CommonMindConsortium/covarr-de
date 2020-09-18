@@ -99,20 +99,20 @@ hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing}
-# Hypothesis testing      
+# Hypothesis testing         
 df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA)#, BPPARAM=SnowParam(18)) 
 ```
 
 ## Discovery cohort
 ```{r plot.discovery}
-# plot discovery and testing   
-ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_test$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
+# plot discovery and testing.      
+ggplot(df_test, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df_test$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed") 
 ```
 
 ```{r modules.in.discovery, fig.width=8, fig.height=40}
 
 figList = lapply(df_test$Module[1:5], function(mod){
-
+   
 	plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5)   
 	})
   
