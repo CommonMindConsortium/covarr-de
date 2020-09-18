@@ -92,7 +92,7 @@ keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
 go.gs = get_GeneOntology()
 ```
 
-```{r sex.confounding, fig.width=5, fig.height=4}
+```{r sex.confounding, fig.width=5, fig.height=5}
 form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath 
 par(mfrow=c(2,2))
 res = lapply( unique(METADATA$Institution), function(INST){
