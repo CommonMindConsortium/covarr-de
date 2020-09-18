@@ -11,6 +11,8 @@ library(data.table)
 library(ggraph)
 library(ggplot2)
 library(tidygraph)
+library(irlba)
+library(EnvStats)
 library(Rfast)
 })
 
@@ -616,6 +618,29 @@ get_difference_network = function(resid.lst, METADATA, variable){
   diff.net
 }
 
+# like get_difference_network, but don't compute difference
+get_networks = function(resid.lst, METADATA, variable){
+
+  # For each cohort
+  nets = lapply( resid.lst, function(resid){
+
+    i = match(colnames(resid), rownames(METADATA))
+    info = METADATA[i,]
+
+    # get correlation matrix for each category
+    C.lst = lapply( levels(info[[variable]]), function(key){
+      j = (info[[variable]] == key)
+      cora( t(resid[,j]) )  
+    })
+    names(C.lst) = levels(info[[variable]])
+
+    C.lst
+    })
+  names(nets) = names(resid.lst)
+
+  nets
+}
+
 
 
 sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
@@ -712,8 +737,93 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
 
 
+test_differential_correlation_interaction = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, nperm=1000){
+
+  col.array = unique(dynamicColors)
+
+  df_test = lapply( col.array, function(col){
+
+    # get genes in this cluster
+    geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
+
+    res = lapply( names(resid.lst), function(key){
+
+      message(key, ' ', col, ' ', match(col, col.array), '/', length(col.array))
+
+      # extact expression residuals for genes in this cluster
+      Y = t(resid.lst[[key]][geneid,])
+      # W = t(vobj.lst[[key]][geneid,]$weights)
+
+      # extract metadata
+      i = match(rownames(Y), rownames(METADATA))
+      info = METADATA[i,]
+
+      eval_stat = function(idx){
+        lvls = levels(info[[variable]])
+
+        C.lst = lapply( levels(info[[variable]]), function(lvl){
+          j = (info[[variable]] == lvl)
+          cora( Y[idx,][j,geneid]) 
+        })
+        names(C.lst) = levels(info[[variable]])
+
+        # (C[[lvls[4]]] - C[[lvls[3]]]) - (C[[lvls[2]]] - C[[lvls[1]]])
+        C_alt = (C.lst[[lvls[4]]] - C.lst[[lvls[3]]])
+        C_baseline = (C.lst[[lvls[2]]] - C.lst[[lvls[1]]])
+        rm(C.lst)
+
+        C.diff = C_alt - C_baseline
+        # svd(C.diff, nu=0, nv=0)$d[1]
+        partial_eigen(C.diff, n=1)$values
+      }
+
+      val = eval_stat(1:nrow(info))
+
+      # permutation
+      val_perm = sapply( seq_len(nperm), function(k){
+        idx = sample.int(nrow(info), nrow(info))
+        eval_stat( idx )
+      })
+
+      # estimate null distribution as a gamma
+      fit = egamma( val_perm )
+      up = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2], lower.tail=FALSE)
+      down = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2])
+      P.Value = 2*min(c(up, down))
+
+      data.frame( Module        = col, 
+                  P.Value       = P.Value, 
+                  n.genes       = length(geneid))
+    })
+    res = do.call(rbind, res)
+    res$Cohort = names(resid.lst)
+    rownames(res) = c()
+    res
+  })
+
+  # Format results data.frame
+  df_test = do.call(rbind, df_test)
+  df_test = df_test[!is.na(df_test$P.Value),]
+  df_test = df_test[order(df_test$P.Value),]
+  df_test$Module = factor(df_test$Module, unique(df_test$Module))
+
+  # Compute FDR separately for each cohort
+  df_test$FDR = rep(NA, nrow(df_test))
+  i = which(df_test$Cohort == 'MSSM-Penn-Pitt')
+  df_test$FDR[i] = p.adjust(df_test$P.Value[i], "fdr")
+
+  i = which(df_test$Cohort == 'NIMH-HBCC')
+  df_test$FDR[i] = p.adjust(df_test$P.Value[i], "fdr")
+  # df_test$FDR[i] = qvalue(df_test$P.Value[i])$qvalues
+
+  df_test
+}
+
+
+
+
 # Plots for each module
-plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11){
+plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2){
 
   clusterID = as.character(clusterID)
 
@@ -741,9 +851,28 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   # Evaluate correlation matrix for each category
   lvl = levels(info[[variable]])
-  C1 = cor(Y[info[[variable]] == lvl[1],])
-  C2 = cor(Y[info[[variable]] == lvl[2],])
+  if( length(lvlidx) == 2 ){
+    C1 = cor(Y[info[[variable]] == lvl[lvlidx[1]],])
+    C2 = cor(Y[info[[variable]] == lvl[lvlidx[2]],])
+  }else if( length(lvlidx) == 4 ){
 
+    C.lst = lapply( levels(info[[variable]]), function(l){
+      j = (info[[variable]] == l)
+      cora( Y[j,] ) 
+    })
+    names(C.lst) = levels(info[[variable]])
+
+    # (C[[lvls[4]]] - C[[lvls[3]]]) - (C[[lvls[2]]] - C[[lvls[1]]])
+    C2 = (C.lst[[lvl[4]]] - C.lst[[lvl[3]]])
+    C1 = (C.lst[[lvl[2]]] - C.lst[[lvl[1]]])
+
+    lvl = c(paste0('(',lvl[4], ' - ',lvl[3], ')'),
+             paste0('(',lvl[2], ' - ',lvl[1], ')'))
+    lvlidx = 1:2
+
+  }else{
+    stop(length(lvlidx))
+  }
   # reorder for clustering
   hcl = hclust(as.dist(1 - C1), method="ward.D2")
   C1 = C1[hcl$order,hcl$order]
@@ -763,7 +892,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   lim = range(c(df2$cor1, df2$cor2))
 
-  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[1])) + ylab(paste('Correlation in', lvl[2]))
+  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[lvlidx[1]])) + ylab(paste('Correlation in', lvl[lvlidx[2]]))
 
   # upper is C2 and lower is C1, since C1 is baseline, is lvl[1]
   C = C2
@@ -780,10 +909,10 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
         scale_fill_gradientn(name = "Correlation", colours = color, 
             limits = c(-1, 1), na.value = "grey") + theme_bw(base_size) + 
         theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
-            legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + ylab(lvl[2]) + xlab(lvl[1])
+            legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + ylab(lvl[lvlidx[2]]) + xlab(lvl[lvlidx[1]])
 
   # plot network   
-  main = paste(key, clusterID, paste0('(', lvl[2], ' - ', lvl[1], ')'), 'FDR =', format(FDR, digits=3))
+  main = paste(key, clusterID, paste0('(', lvl[lvlidx[2]], ' - ', lvl[lvlidx[1]], ')'), 'FDR =', format(FDR, digits=3))
   fig3 = plot_corr_network( C2 - C1 , base_size=base_size) + ggtitle(main)
 
   fig_merge = plot_grid( fig1, fig2, nrow=1)
