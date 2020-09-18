@@ -224,6 +224,11 @@ figList = lapply(df_cohort2$Module[i], function(mod){
 plot_grid( plotlist = figList, ncol=1)
 ```
 
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
+
 ## Module enrichment
 ```{r top.enrich.Dx, eval=FALSE}
 
