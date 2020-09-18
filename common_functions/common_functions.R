@@ -647,7 +647,7 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
 }
 
 
-test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, BPPARAM=SerialParam()){
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, useSLED=TRUE, BPPARAM=SerialParam()){
 
   col.array = unique(dynamicColors)
 
@@ -670,7 +670,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       # eval statistical hypothesis
       res = boxM_permute( Y, info[[variable]])
 
-      if( key == names(resid.lst)[2] ){
+      if( useSLED && (key == names(resid.lst)[2]) ){
         # sLED
         lvl = levels(info[[variable]])
         Y1 = Y[info[[variable]] == lvl[1],]
