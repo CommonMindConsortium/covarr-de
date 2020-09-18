@@ -676,7 +676,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
         Y1 = Y[info[[variable]] == lvl[1],]
         Y2 = Y[info[[variable]] == lvl[2],]
 
-        res_sLED = sLED_adapt(Y1, Y2, npermute=c(500,1e6), BPPARAM=BPPARAM)
+        res_sLED = sLED_adapt(Y1, Y2, npermute=c(100,100), BPPARAM=BPPARAM)
       }else{
         res_sLED = list(pVal=NA)
       }
@@ -689,7 +689,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
     res$Cohort = names(resid.lst)
     rownames(res) = c()
     res
-  }, mc.cores=4)
+  }, mc.cores=12)
 
   # Format results data.frame
   df_test = do.call(rbind, df_test)
