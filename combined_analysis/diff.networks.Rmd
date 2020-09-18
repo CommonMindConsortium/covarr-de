@@ -92,7 +92,7 @@ keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
 go.gs = get_GeneOntology()
 ```
 
-```{r sex.confounding, fig.width=5, fig.height=8}
+```{r sex.confounding, fig.width=5, fig.height=4}
 form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath 
 par(mfrow=c(2,2))
 res = lapply( unique(METADATA$Institution), function(INST){
@@ -234,11 +234,11 @@ df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_id
 df_module_enrich.Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```
 
-```{r plot.enrich.Sex}
+```{r plot.enrich.Sex, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
-	plot_enrich(df_module_enrich.Sex, module) + ggtitle(module)
+	plot_enrich(df_module_enrich.Sex, module, 8) + ggtitle(module)
 	})
-plot_grid(plotlist = figList, ncol=2)
+plot_grid(plotlist = figList, ncol=1)
 ```
 
 
@@ -326,11 +326,11 @@ df_module_enrich.Dx = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```
 
 
-```{r plot.enrich.Dx}
+```{r plot.enrich.Dx, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
-	plot_enrich(df_module_enrich.Dx, module) + ggtitle(module)
+	plot_enrich(df_module_enrich.Dx, module, 8) + ggtitle(module)
 	})
-plot_grid(plotlist = figList, ncol=2)
+plot_grid(plotlist = figList, ncol=1)
 ```
 
 # Interaction analysis
@@ -432,11 +432,11 @@ df_module_enrich.Dx_Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```
 
 
-```{r plot.enrich.Dx_Sex}
+```{r plot.enrich.Dx_Sex, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
-	plot_enrich(df_module_enrich.Dx_Sex, module) + ggtitle(module)
+	plot_enrich(df_module_enrich.Dx_Sex, module, 8) + ggtitle(module)
 	})
-plot_grid(plotlist = figList, ncol=2)
+plot_grid(plotlist = figList, ncol=1)
 ```
 
 
