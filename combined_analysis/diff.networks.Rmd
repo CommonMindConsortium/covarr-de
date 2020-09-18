@@ -72,10 +72,8 @@ METADATA = readRDS(synGet('syn22416411')$path)
 METADATA$Reported_Gender = factor(METADATA$Reported_Gender, c("Male", "Female"))
 ```
 
-# NULL network
+# Null network
 
-# Sex network
-## Difference networks
 ```{r diff.networks.null}
 
 # Compute difference networks
@@ -116,7 +114,7 @@ p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 hist(p)
 
 p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
-data.frame(pi1 = 1 - qvalue(p)$pi0, "# DE" = sum(p.adjust(p, 'fdr') < 0.05)) %>% kable
+data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05), check.names=FALSE) %>% kable
 hist(p)
 ```
 
@@ -191,6 +189,10 @@ figList = lapply(df_cohort2$Module[i], function(mod){
 	})
   
 plot_grid( plotlist = figList, ncol=1)
+```
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
 ```
 
 
