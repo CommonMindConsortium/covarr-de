@@ -14,6 +14,7 @@ library(tidygraph)
 library(irlba)
 library(EnvStats)
 library(Rfast)
+library(GSEABase)
 })
 
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
@@ -980,6 +981,72 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
 # min(df2$z)
 
 # plot_corr_network( C1-C2, zcutoff=1.568965)
+
+
+
+
+enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module) ){
+
+  # Map from Ensembl genes in geneSets_GO to 
+  # from trimmed Ensembl names from RNA-seq data 
+  gs.list = limma::ids2indices( recodeToList(gs_set), df_module$ENSEMBL)
+     
+  # filter by size of gene set
+  n_genes_in = 10
+  gs.list = gs.list[sapply(gs.list, length) >= n_genes_in]
+
+  # for each module
+  res = lapply( testModules, function(mod){
+
+    # Indicator for Module
+    isInModule = rep(0, nrow(df_module))
+    isInModule[df_module$Module == mod] = 1 
+
+    # for each gene set
+    df = lapply( gs.list, function(gsidx){
+
+      # Indicator for Gene
+      isInGeneset = rep(0, nrow(df_module))
+      isInGeneset[gsidx] = 1
+
+      tab = table(isInGeneset, isInModule)
+        
+      fit = fisher.test(tab)
+
+      data.frame( Module = mod,
+            n.genes = sum(tab[,2]),
+            # Geneset = gsid,
+            n.overlap = tab[2,2],
+            OR = fit$estimate,
+            p.value = fit$p.value)
+    })
+    df = do.call(rbind, df)
+    df$Geneset = names(gs.list) 
+    df = df[,c("Module", "n.genes", "Geneset", "n.overlap", "OR", "p.value")]
+    df = df[!is.na(df$p.value) & (df$p.value < 0.99999) & (df$OR !=0),]
+    df$FDR = p.adjust(df$p.value, 'fdr')
+    df = df[order(df$p.value),]
+
+    df
+  })
+  do.call(rbind, res)
+}
+
+
+
+plot_enrich = function( df, module ){
+
+  df2 = df[df$Module == module,]
+  df2$Module = factor(df2$Module, df2$Module)
+
+  ylim = max(-log10(df$FDR))
+  ggplot(df2, aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
+}
+
+
+
+
+
 
 
 

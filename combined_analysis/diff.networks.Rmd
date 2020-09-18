@@ -225,35 +225,20 @@ plot_grid( plotlist = figList, ncol=1)
 ```
 
 
-```{r exit, cache=FALSE}
+```{r exit, cache=FALSE, eval=FALSE}
 knitr::knit_exit()
 ```
 
 ## Module enrichment
-```{r top.enrich.Dx, eval=FALSE}
+```{r top.enrich.Sex}
+df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+						Module = dynamicColors.Sex)
 
-
-
-enrich.test = function(df_module, gs){
-
-
-	res = lapply( unique(df_module$Module), function(mod){
-
-			genes = df_module[df$]
-
-
-		})
-
-
-
-
-
-
-
-
-}
-
+df_module_enrich.Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```
+
+plot_enrich(df_module_enrich.Sex[1:10,], module) + ggtitle()
+
 
 
 
@@ -330,6 +315,13 @@ figList = lapply(df_cohort2$Module[i], function(mod){
 plot_grid( plotlist = figList, ncol=1)
 ```
 
+## Module enrichment
+```{r top.enrich.Sex}
+df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+						Module = dynamicColors.Dx)
+
+df_module_enrich.Dx = enrich.test( df_module, go.gs, df_cohort2$Module[i])
+```
 
 # Interaction analysis
 
@@ -420,6 +412,14 @@ figList = lapply(df_cohort2$Module[i], function(mod){
 plot_grid( plotlist = figList, ncol=1)
 ```
 
+
+## Module enrichment
+```{r top.enrich.Sex}
+df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+						Module = dynamicColors.Dx_Sex)
+
+df_module_enrich.Dx_Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
+```
 
 
 ```{r exit, cache=FALSE}
