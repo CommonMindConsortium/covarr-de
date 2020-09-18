@@ -237,7 +237,7 @@ df_module_enrich.Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```{r plot.enrich.Sex, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
 	plot_enrich(df_module_enrich.Sex, module, 8) + ggtitle(module)
-	})
+	}). 
 plot_grid(plotlist = figList, ncol=1)
 ```
 
@@ -329,7 +329,7 @@ df_module_enrich.Dx = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```{r plot.enrich.Dx, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
 	plot_enrich(df_module_enrich.Dx, module, 8) + ggtitle(module)
-	})
+	}) 
 plot_grid(plotlist = figList, ncol=1)
 ```
 
@@ -435,7 +435,7 @@ df_module_enrich.Dx_Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
 ```{r plot.enrich.Dx_Sex, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
 	plot_enrich(df_module_enrich.Dx_Sex, module, 8) + ggtitle(module)
-	})
+	}) 
 plot_grid(plotlist = figList, ncol=1)
 ```
 
