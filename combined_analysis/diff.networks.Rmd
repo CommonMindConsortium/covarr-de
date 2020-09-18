@@ -365,9 +365,9 @@ df = df_cohort2[df_cohort2$P.Value < 0.1,]
 ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.second.cohort..Dx_Sex, fig.width=8, fig.height=100}
+```{r modules.in.second.cohort.Dx_Sex, fig.width=8, fig.height=100}
   
-i = which(df_cohort2$FDR < 0.05)[1:10]
+i = which(df_cohort2$FDR < 0.05)
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
