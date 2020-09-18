@@ -633,7 +633,7 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
       if(nperm <= 10000) bp = SerialParam()
 
       # compare correlation structure with sLED
-      res = decorate:::.sLED(X=Y1, Y=Y2, npermute=nperm, BPPARAM=bp)
+      res = decorate:::.sLED(X=Y1, Y=Y2, npermute=nperm, BPPARAM=bp, rho=1, sumabs.seq=.2)
 
       if( res$pVal * nperm > 10){
         break
