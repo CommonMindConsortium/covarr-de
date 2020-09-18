@@ -371,11 +371,13 @@ i = which(df_cohort2$FDR < 0.05)
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
-	plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=1:2)  
+	fig1 = plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=1:2)  
 
-	plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=3:4) 
+	fig2 = plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=3:4) 
 
-	plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=1:4) 
+	fig3 = plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=1:4) 
+
+	plot_grid(fig1, fig2, fig2, ncol=1)
 	})
   
 plot_grid( plotlist = figList, ncol=1)
