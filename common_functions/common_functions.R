@@ -649,14 +649,16 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
 
 test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, BPPARAM=SerialParam()){
 
-  df_test = lapply( unique(dynamicColors), function(col){
+  col.array = unique(dynamicColors)
+
+  df_test = mclapply( col.array, function(col){
 
     # get genes in this cluster
     geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
 
     res = lapply( names(resid.lst), function(key){
 
-      message(key, ' ', col)
+      message(key, ' ', col, ' ', match(col, col.array), '/', length(col.array))
 
       # extact expression residuals for genes in this cluster
       Y = t(resid.lst[[key]][geneid,])
@@ -687,7 +689,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
     res$Cohort = names(resid.lst)
     rownames(res) = c()
     res
-  })
+  }, mc.cores=4)
 
   # Format results data.frame
   df_test = do.call(rbind, df_test)
