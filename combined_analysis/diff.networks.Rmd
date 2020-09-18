@@ -19,7 +19,7 @@ output:
 
 cd /hpc/users/hoffmg01/work/covarr-de
 # rm -rf combined_analysis/diff.networks_cache
-ml git pandoc  udunits proj gdal geos
+ml git pandoc udunits proj gdal geos
 git pull
 R
 
@@ -48,6 +48,7 @@ library(variancePartition)
 library(decorate)
 library(ggrepel)
 library(cowplot) 
+library(knitr) 
 library(plyr) 
 library(qvalue)  
 library(BiocParallel)  
@@ -111,11 +112,11 @@ df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discover
 
 ```{r null.results}
 p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
-print(1 - qvalue(p)$pi0)
+# print(1 - qvalue(p)$pi0)
 hist(p)
 
 p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
-1 - qvalue(p)$pi0
+data.frame(pi1 = 1 - qvalue(p)$pi0, "# DE" = sum(p.adjust(p, 'fdr') < 0.05)) %>% kable
 hist(p)
 ```
 
