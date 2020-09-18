@@ -225,9 +225,6 @@ plot_grid( plotlist = figList, ncol=1)
 ```
 
 
-```{r exit, cache=FALSE, eval=FALSE}
-knitr::knit_exit()
-```
 
 ## Module enrichment
 ```{r top.enrich.Sex}
@@ -414,7 +411,7 @@ plot_grid( plotlist = figList, ncol=1)
 
 
 ## Module enrichment
-```{r top.enrich.Dx_sex}
+```{r top.enrich.Dx_Sex}
 df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Dx_Sex)
 
