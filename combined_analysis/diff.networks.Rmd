@@ -67,13 +67,28 @@ knitr::opts_chunk$set(
 ```
 
 ```{r load.data}
+# Load data
 resid.add = readRDS(synGet('syn22416489')$path)
+vobj.lst = readRDS(synGet('syn22416446')$path)
 METADATA = readRDS(synGet('syn22416411')$path)
 METADATA$Reported_Gender = factor(METADATA$Reported_Gender, c("Male", "Female"))
+
+# identify genes to keep: remove chrY genes
+geneEnsID = lapply(resid.add, function(x){
+	lapply(x, rownames)
+	})
+geneEnsID = unique(unlist(geneEnsID))
+
+df_genes = data.frame(ENSEMBL = geneEnsID, stringsAsFactors=FALSE) %>% getGeneSymbol('ENSEMBL')
+table(df_genes$Chrom)
+
+keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
 ```
 
-# Null network
 
+
+
+# Null network
 ```{r diff.networks.null}
 
 # Compute difference networks
@@ -90,7 +105,7 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net[[1]]
+C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
 
 rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -133,7 +148,7 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net[[1]]
+C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
 
 rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -212,7 +227,7 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net[[1]]
+C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
 
 rm(diff.net) # saving this to disk is slow, so just delete it
 

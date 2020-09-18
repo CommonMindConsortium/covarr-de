@@ -662,6 +662,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
       # extact expression residuals for genes in this cluster
       Y = t(resid.lst[[key]][geneid,])
+      # W = t(vobj.lst[[key]][geneid,]$weights)
 
       # extract metadata
       i = match(rownames(Y), rownames(METADATA))
