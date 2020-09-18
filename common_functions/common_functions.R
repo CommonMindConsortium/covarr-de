@@ -893,7 +893,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   lim = range(c(df2$cor1, df2$cor2))
 
-  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_abline(color="grey", linetype="dashed") + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[lvlidx[1]])) + ylab(paste('Correlation in', lvl[lvlidx[2]]))
+  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_abline(color="grey", linetype="dashed") + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[lvlidx[1]])) + ylab(paste('Correlation in', lvl[lvlidx[2]])) 
 
   # upper is C2 and lower is C1, since C1 is baseline, is lvl[1]
   C = C2
@@ -933,6 +933,9 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
   df_net$weight = apply(df_net, 1, function(x){
     C[x['name.from'], x['name.to']]
   })
+  # threshold weight at 1
+  df_net$weight = pmax(-1.2, pmin(1.2, df_net$weight))
+
   df_net$z = scale(df_net$weight)
   df_net = df_net[abs(df_net$z) >= zcutoff,]
 
@@ -957,7 +960,7 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
     scale_edge_width(name='|Corr Diff|',range = c(0.2, 2)) +
     geom_node_point(size=base_size, color="grey80") +
     geom_node_text(aes(label = name), repel = FALSE,size=base_size/3) +
-    scale_edge_color_gradient2(name='Corr Diff', low="blue", mid="white", high="red", lim=c(-1,1)) +
+    scale_edge_color_gradient2(name='Corr Diff', low="blue", mid="white", high="red", lim=c(-1.2,1.2)) +
     labs(edge_width = "Correlation")  + 
     theme_graph(base_size=base_size, title_size=base_size) + 
     theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5))
@@ -1040,7 +1043,7 @@ plot_enrich = function( df, module ){
   df2$Geneset = factor(df2$Geneset, df2$Geneset)
 
   ylim = max(-log10(df$FDR))
-  ggplot(df2, aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
+  ggplot(df2[1:10,], aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
 }
 
 
