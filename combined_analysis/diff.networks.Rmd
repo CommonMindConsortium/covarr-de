@@ -18,7 +18,7 @@ output:
 <!---
 
 cd /hpc/users/hoffmg01/work/covarr-de
-# rm -rf combined_analysis/diff.networks_cache
+# rm -rf combined_analysis/diff.networks_* combined_analysis/diff.networks.html
 ml git pandoc udunits proj gdal geos
 git pull
 R
@@ -86,7 +86,7 @@ df_genes = data.frame(ENSEMBL = geneEnsID, stringsAsFactors=FALSE) %>% getGeneSy
 
 keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
 
-minClusterSize = 50
+minClusterSize = 20
 ```
 
 ```{r load.go}
@@ -551,12 +551,12 @@ rstat_edges$weight = 1:9
 rstat_nodes <- data.frame(name = c("Hadley", "David", "Romain", "Julia"))
 rstat_edges <- data.frame(from = c(1, 1, 1, 2, 3, 3, 4, 4, 4),
                          to = c(2, 3, 4, 1, 1, 2, 1, 2, 3))
-rstat_edges$weight = 1:9
+rstat_edges$weight = rnorm(9)
 
 net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
      
 
-ggraph(net, layout = "auto") + 
+ggraph(net, layout = "stress") + 
   geom_node_point(size=10, color="blue") +
   geom_edge_link(aes(width = weight), alpha = 0.8) + 
   scale_edge_width(range = c(0.2, 2)) +
