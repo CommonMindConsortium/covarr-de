@@ -85,6 +85,8 @@ df_genes = data.frame(ENSEMBL = geneEnsID, stringsAsFactors=FALSE) %>% getGeneSy
 # table(df_genes$Chrom)
 
 keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
+
+minClusterSize = 50
 ```
 
 ```{r load.go}
@@ -102,6 +104,10 @@ res = lapply( unique(METADATA$Institution), function(INST){
 })
 ```
 
+```{r load.dream}
+fit_marginal.lst = readRDS(synGet('syn22416500')$path)
+fit_inter_sex.disease.lst = readRDS(synGet('syn22416524')$path)
+```
 
 
 
@@ -129,7 +135,7 @@ rm(diff.net) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
 
 dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
@@ -141,14 +147,14 @@ hist(tab, xlab="Cluster size")
 df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, useSLED=FALSE)   #, BPPARAM=SnowParam(18)) 
 ```
 
-```{r null.results}
+```{r null.results, fig.width=5}
 p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
-hist(p)
+hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
 
 p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
 data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05), check.names=FALSE) %>% kable
-hist(p)
+hist(p, main="P-values under the null in the replication cohort", xlab="p-value")
 ```
 
 
@@ -172,7 +178,7 @@ rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
 
 dynamicColors.Sex = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors.Sex)
@@ -228,10 +234,10 @@ plot_grid( plotlist = figList, ncol=1)
 
 ## Module enrichment
 ```{r top.enrich.Sex}
-df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+df_module.Sex = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Sex)
 
-df_module_enrich.Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
+df_module_enrich.Sex = enrich.test( df_module.Sex, go.gs, df_cohort2$Module[i])
 ```
 
 ```{r plot.enrich.Sex, fig.width=9}
@@ -265,7 +271,7 @@ rm(diff.net.Dx) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
 
 dynamicColors.Dx = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
@@ -319,10 +325,10 @@ plot_grid( plotlist = figList, ncol=1)
 
 ## Module enrichment
 ```{r top.enrich.Dx}
-df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+df_module.Dx = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Dx)
 
-df_module_enrich.Dx = enrich.test( df_module, go.gs, df_cohort2$Module[i])
+df_module_enrich.Dx = enrich.test( df_module.Dx, go.gs, df_cohort2$Module[i])
 ```
 
 
@@ -364,7 +370,7 @@ rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = 20)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
 
 dynamicColors.Dx_Sex = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors.Dx_Sex)
@@ -425,10 +431,10 @@ plot_grid( plotlist = figList, ncol=1)
 
 ## Module enrichment
 ```{r top.enrich.Dx_Sex}
-df_module = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
+df_module.Dx_Sex = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Dx_Sex)
 
-df_module_enrich.Dx_Sex = enrich.test( df_module, go.gs, df_cohort2$Module[i])
+df_module_enrich.Dx_Sex = enrich.test( df_module.Dx_Sex, go.gs, df_cohort2$Module[i])
 ```
 
 

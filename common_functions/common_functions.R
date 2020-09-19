@@ -995,7 +995,7 @@ enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module)
   gs.list = limma::ids2indices( recodeToList(gs_set), df_module$ENSEMBL)
      
   # filter by size of gene set
-  n_genes_in = 10
+  n_genes_in = 50
   gs.list = gs.list[sapply(gs.list, length) >= n_genes_in]
 
   # for each module
