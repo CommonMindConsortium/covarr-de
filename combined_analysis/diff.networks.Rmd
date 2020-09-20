@@ -239,7 +239,7 @@ plot_grid( plotlist = figList, ncol=1)
 df_module.Sex = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Sex)
 
-df_module_enrich.Sex = enrich.test( df_module.Sex, go.gs, df_cohort2$Module[i], 150).  
+df_module_enrich.Sex = enrich.test( df_module.Sex, go.gs, df_cohort2$Module[i], 150) 
 ```
 
 ```{r plot.enrich.Sex, fig.width=9}
