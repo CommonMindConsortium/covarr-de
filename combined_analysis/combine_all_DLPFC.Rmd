@@ -102,6 +102,8 @@ library(pvclust)
 library(metafor)
 library(data.table)
 library(cowplot)
+library(ggraph)
+library(tidygraph)
 library(kableExtra)
 library(githubr)
 library(ggrepel)
@@ -260,6 +262,20 @@ ind = METADATA$SampleID [is.na(METADATA$EV.1)]
 writeLines(paste('Following', length(ind), 'counts are missing ancestry information'))
 writeLines(paste(ind, collapse = ', '))
 METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
+
+# drop individuals who where sequenced twice here
+tab = table(METADATA$Individual_ID)
+
+dropSamples = sapply( names(tab[tab > 1]), function(id){
+
+  idx = which(METADATA$Individual_ID == id)
+  df = METADATA[idx,]
+
+  # remove individuals that have less then max reads
+  i = which(df$MappedReads < max(df$MappedReads))
+  rownames(METADATA)[idx[i]]
+  } )
+METADATA = METADATA[!(rownames(METADATA) %in% dropSamples),]
 ```
 
 
@@ -293,16 +309,112 @@ METADATA %>% group_by( Institution, Reported_Gender) %>% dplyr::summarise(count 
   kable(caption="Institution, Sex") %>% kable_styling(full_width=FALSE) 
 
 METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
-  kable(caption="Diagnosis, Institution, Sex") %>% kable_styling(full_width=FALSE) 
+kable(caption="Diagnosis, Institution, Sex") %>% kable_styling(full_width=FALSE) 
+```
 
-ggplot(METADATA, aes(Reported_Gender, ageOfDeath)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + facet_wrap(~Institution, nrow=1)
+```{r joint.cca, fig.width=7, fig.height=7}
+variables = c('Reported_Gender', 'CellType', 'ageOfDeath', 'Institution', "Dx")
+
+df_cca = lapply(variables, function(v1){
+
+  if( v1 == "CellType"){
+    form1 = ~ GABA + GLU + Olig + MgAs
+  }else{
+    form1 = as.formula(paste0('~', v1))
+  }
+  M1 = model.matrix(form1, METADATA)
+
+  res = lapply(variables, function(v2){
+
+    if( v2 == "CellType"){
+      form2 = ~ GABA + GLU + Olig + MgAs
+    }else{
+      form2 = as.formula(paste0('~', v2))
+    }
+    M2 = model.matrix(form2, METADATA)
+
+    fit = cancor(M1, M2)
+    V_sqrt = sqrt(mean(fit$cor^2)) # Cramer's sqrt V
+
+    data.frame(v1, v2, V_sqrt)
+  })
+  do.call(rbind, res)
+})
+df_cca = do.call(rbind, df_cca)
+
+C = matrix(df_cca$V_sqrt, ncol=length(variables))
+rownames(C) = variables
+colnames(C) = variables
+
+plotCorrMatrix(C, main='CCA')
+```
+
+```{r explain.CellType}
+CTs = c('GABA', 'GLU', 'Olig', 'MgAs')
+
+form = ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution + Dx
+
+Y = clr(METADATA[,CTs])
+
+vp = fitExtractVarPartModel( t(Y), form, METADATA, BPPARAM=SerialParam())
+plotPercentBars(vp) + ggtitle("Explain cell type composition")
+
+ymax = max(rowSums(vp[,-ncol(vp)]))*110
+plotPercentBars(vp) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax))
+```
+
+
+
+
+```{r sex.graph, fig.width=7, fig.height=7}
+library(ggplot2)
+library(ggraph)
+library(tidygraph)
+
+df_cca2 = df_cca[with(df_cca, v1!=v2),]
+
+rstat_nodes <- data.frame(name = unique(df_cca2$v1))
+
+rstat_edges <- data.frame(from = match(df_cca2$v1, rstat_nodes$name),
+                         to = match(df_cca2$v2, rstat_nodes$name),
+                         Rsq = df_cca2$V_sqrt^2 )
+
+net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
+     
+
+ggraph(net,  layout = 'igraph', algorithm = 'star') + 
+  geom_edge_link(aes(width = Rsq, color=Rsq), alpha = 1) +
+  geom_node_point(size=20, color="grey70") +
+  geom_node_text(aes(label = name), repel = FALSE) +
+  theme_graph() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) +
+  scale_edge_width(name=bquote(R^2)) +
+  scale_edge_color_gradient(name=bquote(R^2), low="white", high="red", lim=c(0, max(df_cca2$V_sqrt^2))) +
+  ggtitle("Pairwise squared correlation")
+```
+
+
+
+
+
+```{r sex.confounding, fig.width=5, fig.height=5}
+form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath 
+par(mfrow=c(2,2))
+res = lapply( unique(METADATA$Institution), function(INST){
+  i = METADATA$Institution == INST
+  C = canCorPairs(form, METADATA[i,]) 
+  plotCorrMatrix(C, main=INST)
+})
+```
+
+```{r sex.by.age}
+ggplot(METADATA, aes(Reported_Gender, ageOfDeath, fill=Reported_Gender)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + facet_wrap(~Institution, nrow=1) + scale_fill_manual(values = c("red", "blue"))
 ```
 
 
 ### Sex by cell fraction
 ```{r summary.sex, fig.width=8, fig.height=10}
 figList = lapply(colnames(df_cellFractions), function(CT){
-  ggplot(METADATA, aes_string('Reported_Gender', CT)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + facet_wrap(~Institution, nrow=1)
+  ggplot(METADATA, aes_string('Reported_Gender', CT, fill='Reported_Gender')) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + facet_wrap(~Institution, nrow=1) + scale_fill_manual(values = c("red", "blue"))
 })
 plot_grid(plotlist=figList, ncol=1) 
 ```
@@ -1058,6 +1170,10 @@ form.lst = list(
   `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
   `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
 
+# drop chrY genes
+df_genes  = data.frame(ENSEMBL = rownames(vobj.lst[[1]])) %>% getGeneSymbol('ENSEMBL')
+keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
+
 fit_inter_sex.disease.lst = lapply( vobj.lst, function(vobj){
 
   i = match(colnames(vobj), rownames(METADATA))
@@ -1065,7 +1181,7 @@ fit_inter_sex.disease.lst = lapply( vobj.lst, function(vobj){
 
   form_use = form.lst[[info$Cohort[1]]]
 
-  fit = dream(vobj, form_use, info, BPPARAM = SnowParam(18))  
+  fit = dream(vobj[keep.ensID,], form_use, info, BPPARAM = SnowParam(18))  
   eBayes( fit )
   })
 names(fit_inter_sex.disease.lst) = names(vobj.lst)
@@ -1081,7 +1197,7 @@ res_zenith.inter_sex.disease = lapply( names(fit_inter_sex.disease.lst), functio
 
   fit = fit_inter_sex.disease.lst[[key]]
 
-  res.GO = run_zenith(  fit, 
+  res.GO = run_zenith(  fit,   
                         coefTest,
                         gs.GO.collection)
   res.GO$Resource = "GO"   
@@ -1096,7 +1212,7 @@ res_zenith.inter_sex.disease = lapply( names(fit_inter_sex.disease.lst), functio
   rbind(res.GO, res.MSigDB)
 })
 names(res_zenith.inter_sex.disease) = names(fit_inter_sex.disease.lst)
-
+ 
 
 # only autosomes
 res_zenith.inter_sex.disease_autosome = lapply( names(fit_inter_sex.disease.lst), function(key){
@@ -1128,7 +1244,7 @@ names(res_zenith.inter_sex.disease_autosome) = names(fit_inter_sex.disease.lst)
 ## Meta-analysis of zenith results
 ```{r zenith.meta.inter_sex.disease, eval=TRUE}
 res_meta_zenith.inter_sex.disease = zenith_meta_analysis( res_zenith.inter_sex.disease )  
-res_meta_zenith.inter_sex.disease_autosome = zenith_meta_analysis( res_zenith.inter_sex.disease_autosome )
+res_meta_zenith.inter_sex.disease_autosome = zenith_meta_analysis( res_zenith.inter_sex.disease_autosome )  
 ```
 
 
@@ -1144,7 +1260,7 @@ df_DE_results.inter_sex.disease = lapply(fit_inter_sex.disease.lst, function(fit
     res$Coef = coef
     res %>% getGeneSymbol()  
     })
-  names(res) = coefTest
+  names(res) = coefTest 
   res
   })
 names(df_DE_results.inter_sex.disease) = names(fit_inter_sex.disease.lst)
@@ -1159,7 +1275,7 @@ figList.Scz = lapply( names(df_DE_results), function(key){
   main = paste(key, coef, sep = ': ' )
   plotVolcano( df, df$Symbol[1:10] ) + ggtitle( main )
 })
-
+ 
 # volcano plots
 plot_grid(plotlist=figList.Scz, nrow=1)
 ```
@@ -1176,7 +1292,7 @@ tab.de.inter_sex.disease.lst = lapply(coefTest, function(coef){
   tab.de.inter_sex.disease.lst
   })
 names(tab.de.inter_sex.disease.lst) = coefTest
-
+ 
 # Create list preparing for meta-analysis for SCZ
 df_meta.inter_sex.disease = lapply(coefTest, function(coef){
   # Run meta-analysis
@@ -1192,7 +1308,7 @@ resConcord.inter_sex.disease = plot_concordance(tab.de.inter_sex.disease.lst[[co
 main = "Concordance of DxSCZ:Reported_GenderMale"
 plot_grid(  resConcord.inter_sex.disease$fig_logFC + ggtitle(main),
             resConcord.inter_sex.disease$fig_tstat + ggtitle(main), nrow=1)
-  
+   
 data.frame(Cohort = names(tab.de.inter_sex.disease.lst[[coef]]),
           "# DE"  = resConcord.inter_sex.disease$n.de,
           pi1     = resConcord.inter_sex.disease$pi_single,
@@ -1212,7 +1328,7 @@ resConcord.inter_sex.disease$tab_corr %>% mutate_if(is.numeric, format, digits=3
 # volcano plot for meta-analysis.  
 main = paste('Meta-analysis', coef, sep = ': ' )
 plotVolcano( df_meta.inter_sex.disease[[coef]], df_meta.inter_sex.disease[[coef]]$Symbol[1:20] ) + ggtitle( main )
-  
+   
 data.frame(pi1 = 1 - qvalue(df_meta.inter_sex.disease[[coef]]$P)$pi0,
           `# DE` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.05),
           `# DE @ 10%` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.1),
@@ -1232,7 +1348,7 @@ figList = lapply(df_meta.inter_sex.disease[[coef]]$Symbol[1:20], function(geneSy
   fig2 = plot_gene(residuals.lst, df_meta.inter_sex.disease[[coef]], geneSymbol, "Dx") + xlab("Diagnosis") + facet_wrap(~Reported_Gender + Cohort, nrow=1)
 
   plot_grid(fig1, fig2, nrow=1)
-})
+}) 
  
 plot_grid(plotlist=figList, ncol=1)
 ```
@@ -1244,17 +1360,18 @@ plot_grid(plotlist=figList, ncol=1)
 coef = 'DxSCZ:Reported_GenderMale'   
 show_zenith_results( res_meta_zenith.inter_sex.disease, coef, "GO", FDR=0.1)  
 show_zenith_results( res_meta_zenith.inter_sex.disease, coef, "MSigDB", FDR=0.1)  
-
+ 
 show_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "GO", FDR=0.1) 
 show_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB", FDR=0.1)    
 ```
 
 
 
+# Dx test with in Males and then Females
 
 
 ```{r store, eval=TRUE}
-if( params$upload ){
+if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.
   CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
