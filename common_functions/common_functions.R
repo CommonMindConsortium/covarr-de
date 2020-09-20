@@ -723,7 +723,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
     res$Cohort = names(resid.lst)
     rownames(res) = c()
     res
-  }, mc.cores=12)
+  }, mc.cores=4)
 
   # Format results data.frame
   df_test = do.call(rbind, df_test)
