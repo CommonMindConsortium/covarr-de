@@ -49,6 +49,7 @@ library(variancePartition)
 library(decorate)
 library(ggrepel)
 library(cowplot) 
+library(metap) 
 library(zenith) 
 library(knitr) 
 library(plyr) 
@@ -116,7 +117,7 @@ df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 
 
 
-# Null network
+# Null permuations
 ```{r diff.networks.null}
 
 # Compute difference networks for multiple random permutations
@@ -148,7 +149,7 @@ df_test = lapply( 1:10, function(k){
 	# hist(tab, xlab="Cluster size")
 
 	# Hypothesis testing         
-	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE) 
+	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE) 
 
 	df_test
 })
@@ -160,18 +161,61 @@ p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
 
-fit_perm_null = beta.mle(p)
+beta_perm = list()
+beta_perm[['MSSM-Penn-Pitt']] = beta.mle(p)
 
 calc_p = function(p, fit){
-	pbeta(p, 	shape1=fit_perm_null$param['alpha'], 
-				shape2=fit_perm_null$param['beta'], 
+	pbeta(p, 	shape1=fit$param['alpha'], 
+				shape2=fit$param['beta'], 
 				lower.tail=TRUE)
 }
 
 p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
 data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05) / length(p), check.names=FALSE) %>% kable
 hist(p, main="P-values under the null in the replication cohort", xlab="p-value")
+
+beta_perm[['NIMH-HBCC']] = beta.mle(p)
 ```
+
+
+# Null permuations
+```{r diff.networks.null}
+
+# Compute difference networks for multiple random permutations
+##############################
+
+resVersion = "Sex"
+
+METADATA$rnd = sample(c('A','B'), nrow(METADATA), replace=TRUE)
+METADATA$rnd = factor(METADATA$rnd, c('A','B'))
+
+variable = 'rnd'
+
+diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
+   
+# Discover clusters in first cohort
+#----------------------------------
+C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
+
+rm(diff.net) # saving this to disk is slow, so just delete it
+
+hcl = hclust( as.dist(C.diff.discovery) )
+
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+
+dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
+tab = table(dynamicColors)
+
+# hist(tab, xlab="Cluster size")
+
+# Hypothesis testing         
+df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE) 
+```
+
+
+
+
+
 
 # Sex network
 ## Difference networks
@@ -202,8 +246,36 @@ hist(tab, xlab="Cluster size")
 
 ```{r testing}
 # Hypothesis testing         
-df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA)#, BPPARAM=SnowParam(18)) 
+df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=TRUE)
 ```
+
+
+```{r test, eval=FALSE}
+df2 = lapply( unique(df_test$Cohort), function(chrt){
+	df = df_test[df_test$Cohort == chrt,]
+	df$P.Value = calc_p(df$P.Value, beta_perm[[chrt]])
+	df$FDR = p.adjust(df$P.Value, "fdr")
+	df
+})
+df2 = do.call(rbind, df2)
+
+df3 = lapply( unique(df2$Module), function(mod){
+
+	message(mod)
+	# combine p-values with Fisher's method
+	p.meta = sumlog(df2$P.Value[df2$Module == mod])$p
+
+	data.frame(Module = mod, P.Value = p.meta)
+} )
+df3 = do.call(rbind, df3)
+df3 = df3[!is.na(df3$P.Value),]
+df3$FDR = qvalue(c(1,df3$P.Value))$qvalues[-1]
+
+
+df3$FDR = p.adjust(df3$P.Value, "fdr")
+```
+
+
 
 ## Discovery cohort
 ```{r plot.discovery}
@@ -311,7 +383,7 @@ hist(tab, xlab="Cluster size")
 
 ```{r testing.Dx}
 # Hypothesis testing     
-df_test.Dx = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx, METADATA)  
+df_test.Dx = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx, METADATA, variable, useSLED=TRUE)  
 ```
 
 ## Discovery cohort
