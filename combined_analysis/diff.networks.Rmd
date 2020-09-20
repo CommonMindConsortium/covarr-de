@@ -62,7 +62,7 @@ knitr::opts_chunk$set(
   echo = FALSE,
   warning=FALSE,
   message=FALSE,
-  error = FALSE,  
+  error = FALSE,   
   tidy = FALSE,
   cache = TRUE,
   cache.lazy = FALSE)
@@ -367,7 +367,7 @@ plot_grid(plotlist = figList, ncol=1)
 ```
 
 ## DE enrichment
-```{r cameraPR.Dx}
+```{r cameraPR.Dx, fig.width=7, fig.height=20}
 res_enrich_DE = enrich_module_DE( df_module.Dx )
 
 figList = lapply( df_cohort2$Module[i], function(module){

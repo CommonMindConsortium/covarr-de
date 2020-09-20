@@ -94,7 +94,6 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
   res = with(df, cor.test(logFC.x, logFC.y, method="spearman"))
   tab_corr = data.frame(R_spearman = res$estimate, P = res$p.value)
   
-
   pi1_x = 1 - qvalue(df$P.Value.x)$pi0
   pi1_y = 1 - qvalue(df$P.Value.y)$pi0
 
@@ -103,20 +102,28 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
 
   p = with(df, P.Value.y[adj.P.Val.x < 0.05])
   n.de.x = length(p)
-  pi_discovery_x = tryCatch( 
-    1 - qvalue(p)$pi0, 
-    error = function(e){
-      # must have a p-value > 0.95 to work
-      1 - qvalue(c(1,p))$pi0
-      })
+  if( n.de.x > 0){
+    pi_discovery_x = tryCatch( 
+      1 - qvalue(p)$pi0, 
+      error = function(e){
+        # must have a p-value > 0.95 to work
+        1 - qvalue(c(1,p))$pi0
+        })
+  }else{
+      pi_discovery_x = 0
+  }
 
   p = with(df, P.Value.x[adj.P.Val.y < 0.05])
   n.de.y = length(p)
-  pi_discovery_y = tryCatch( 
-    1 - qvalue(p)$pi0, 
-    error = function(e){
-      NA
-      })
+  if( n.de.y > 0){
+    pi_discovery_y = tryCatch( 
+      1 - qvalue(p)$pi0, 
+      error = function(e){
+        NA
+        })
+  }else{
+    pi_discovery_y = 0
+  }
 
   tab_pi = data.frame(Discovery = names(resList), pi1 = c(pi_discovery_x, pi_discovery_y))
 
