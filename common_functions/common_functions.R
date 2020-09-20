@@ -684,7 +684,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
   col.array = unique(dynamicColors)
 
-  df_test = lapply( col.array, function(col){
+  df_test = mclapply( col.array, function(col){
 
     # get genes in this cluster
     geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
