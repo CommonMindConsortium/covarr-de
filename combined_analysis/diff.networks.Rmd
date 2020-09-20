@@ -118,7 +118,7 @@ df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 
 
 # Null permuations
-```{r diff.networks.null}
+```{r diff.networks.perm}
 
 # Compute difference networks for multiple random permutations
 ##############################
@@ -156,7 +156,7 @@ df_test = lapply( 1:10, function(k){
 df_test = do.call(rbind, df_test)
 ```
 
-```{r null.results, fig.width=5}
+```{r perm.results, fig.width=5}
 p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
@@ -181,8 +181,8 @@ beta_perm[['NIMH-HBCC']] = beta.mle(p)
 # Null permuations
 ```{r diff.networks.null}
 
-# Compute difference networks for multiple random permutations
-##############################
+# Compute difference networks for 1 random permutation
+######################################################
 
 resVersion = "Sex"
 
