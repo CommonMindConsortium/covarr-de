@@ -990,7 +990,7 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
 
 enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module), minSize=50 ){
 
-
+  # only keep genes that are in at least one gene set
   df_module = df_module[df_module$ENSEMBL %in% unique(unlist(geneIds(gs_set))),]
 
   # Map from Ensembl genes in geneSets_GO to 
@@ -1053,9 +1053,35 @@ plot_enrich = function( df, module, base_size=11 ){
 
 
 
+enrich_module_DE = function(df_module){ 
+  # create gene set lists from modules
+  mods = unique(df_module$Module)
+  modules.gs = lapply( mods, function(mod){
+    df_module$ENSEMBL[df_module$Module == mod]
+    })
+  names(modules.gs) = unique(df_module$Module)
 
+  keys = c(names(df_meta), names(df_meta.inter_sex.disease))
 
+  res_enrich_DE = lapply( keys, function(key){
 
+    df = df_meta[[key]]
+
+    if( is.null(df) ) df = df_meta.inter_sex.disease[[key]]
+    
+    idx = match( trim_ensembl_ids(rownames(df)), df_module$ENSEMBL)
+    modules.list = limma::ids2indices( modules.gs, df_module$ENSEMBL[idx])
+         
+    res = cameraPR( with(df, logFC/se), modules.list )
+    res$Geneset = rownames(res)
+    rownames(res) = c()
+    res$Test = key
+    res
+  })
+  res_enrich_DE = do.call(rbind, res_enrich_DE)
+
+  res_enrich_DE
+}
 
 
 
