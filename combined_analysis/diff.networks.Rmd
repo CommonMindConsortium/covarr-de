@@ -119,36 +119,40 @@ df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 # Null network
 ```{r diff.networks.null}
 
-# Compute difference networks
+# Compute difference networks for multiple random permutations
 ##############################
 
 resVersion = "Sex"
 
-METADATA$rnd = sample(c('A','B'), nrow(METADATA), replace=TRUE)
-METADATA$rnd = factor(METADATA$rnd, c('A','B'))
+df_test = lapply( 1:10, function(k){
+	METADATA$rnd = sample(c('A','B'), nrow(METADATA), replace=TRUE)
+	METADATA$rnd = factor(METADATA$rnd, c('A','B'))
 
-variable = 'rnd'
+	variable = 'rnd'
 
-diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
-   
-# Discover clusters in first cohort
-#----------------------------------
-C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
+	diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
+	   
+	# Discover clusters in first cohort
+	#----------------------------------
+	C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
 
-rm(diff.net) # saving this to disk is slow, so just delete it
+	rm(diff.net) # saving this to disk is slow, so just delete it
 
-hcl = hclust( as.dist(C.diff.discovery) )
+	hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+	dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
 
-dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
-tab = table(dynamicColors)
-hist(tab, xlab="Cluster size")
-```
+	dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
+	tab = table(dynamicColors)
 
-```{r testing.null}
-# Hypothesis testing         
-df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, useSLED=FALSE)   #, BPPARAM=SnowParam(18)) 
+	# hist(tab, xlab="Cluster size")
+
+	# Hypothesis testing         
+	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, useSLED=FALSE) 
+
+	df_test
+})
+df_test = do.call(rbind, df_test)
 ```
 
 ```{r null.results, fig.width=5}
@@ -156,11 +160,18 @@ p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
 
+fit_perm_null = beta.mle(p)
+
+calc_p = function(p, fit){
+	pbeta(p, 	shape1=fit_perm_null$param['alpha'], 
+				shape2=fit_perm_null$param['beta'], 
+				lower.tail=TRUE)
+}
+
 p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
-data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05), check.names=FALSE) %>% kable
+data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05) / length(p), check.names=FALSE) %>% kable
 hist(p, main="P-values under the null in the replication cohort", xlab="p-value")
 ```
-
 
 # Sex network
 ## Difference networks
