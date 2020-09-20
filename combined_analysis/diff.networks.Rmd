@@ -268,7 +268,9 @@ figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
 
-	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+	lim = max(-log10(res$PValue))
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
@@ -374,7 +376,9 @@ figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
 
-	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+	lim = max(-log10(res$PValue))
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
@@ -498,7 +502,9 @@ figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
 
-	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+	lim = max(-log10(res$PValue))
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
