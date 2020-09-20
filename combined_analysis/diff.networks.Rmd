@@ -94,6 +94,17 @@ minClusterSize = 20
 go.gs = get_GeneOntology()
 ```
 
+
+```{r load.WES}
+df_schema = fread(synGet('syn22343823')$path)
+
+df_schema2 = df_schema[,data.frame(ENSEMBL = Gene,
+									OR1 = `OR (Class I)`,
+									OR2 = `OR (Class II)`,
+									P.value = `P meta`)]
+
+
+
 ```{r sex.confounding, fig.width=5, fig.height=5}
 form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath 
 par(mfrow=c(2,2))
@@ -481,7 +492,7 @@ plot_grid(plotlist = figList, ncol=1)
 
 ## DE enrichment
 ```{r cameraPR.Dx_Sex}
-res_enrich_DE = enrich_module_DE( df_module_enrich.Dx_Sex )
+res_enrich_DE = enrich_module_DE( df_module.Dx_Sex )
 
 figList = lapply( df_cohort2$Module[i], function(module){
 
