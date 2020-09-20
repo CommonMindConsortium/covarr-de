@@ -206,8 +206,6 @@ dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClu
 dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
 
-# hist(tab, xlab="Cluster size")
-
 # Hypothesis testing         
 df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE) 
 ```
