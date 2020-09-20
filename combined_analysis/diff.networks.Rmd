@@ -107,6 +107,8 @@ res = lapply( unique(METADATA$Institution), function(INST){
 ```{r load.dream}
 fit_marginal.lst = readRDS(synGet('syn22416500')$path)
 fit_inter_sex.disease.lst = readRDS(synGet('syn22416524')$path)
+df_meta = readRDS(synGet('syn22416508')$path)
+df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 ```
 
 
@@ -237,7 +239,7 @@ plot_grid( plotlist = figList, ncol=1)
 df_module.Sex = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Sex)
 
-df_module_enrich.Sex = enrich.test( df_module.Sex, go.gs, df_cohort2$Module[i])
+df_module_enrich.Sex = enrich.test( df_module.Sex, go.gs, df_cohort2$Module[i], 150).  
 ```
 
 ```{r plot.enrich.Sex, fig.width=9}
@@ -246,6 +248,20 @@ figList = lapply( df_cohort2$Module[i], function(module){
 	}) 
 plot_grid(plotlist = figList, ncol=1)
 ```
+
+## DE enrichment
+```{r cameraPR.Sex}
+res_enrich_DE = enrich_module_DE( df_module.Sex )
+
+figList = lapply( df_cohort2$Module[i], function(module){
+
+	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+}) 
+plot_grid(plotlist = figList, ncol=1)
+```
+
 
 
 
@@ -328,16 +344,33 @@ plot_grid( plotlist = figList, ncol=1)
 df_module.Dx = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Dx)
 
-df_module_enrich.Dx = enrich.test( df_module.Dx, go.gs, df_cohort2$Module[i])
+df_module_enrich.Dx = enrich.test( df_module.Dx, go.gs, df_cohort2$Module[i], 150)
 ```
 
 
 ```{r plot.enrich.Dx, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
 	plot_enrich(df_module_enrich.Dx, module, 8) + ggtitle(module)
-	}) 
+	})    
 plot_grid(plotlist = figList, ncol=1)
 ```
+
+## DE enrichment
+```{r cameraPR.Dx}
+res_enrich_DE = enrich_module_DE( df_module.Dx )
+
+figList = lapply( df_cohort2$Module[i], function(module){
+
+	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+}) 
+plot_grid(plotlist = figList, ncol=1)
+```
+
+
+
+
 
 # Interaction analysis
 
@@ -434,16 +467,32 @@ plot_grid( plotlist = figList, ncol=1)
 df_module.Dx_Sex = data.frame(	ENSEMBL = rownames(C.diff.discovery) %>% trim_ensembl_ids, 
 						Module = dynamicColors.Dx_Sex)
 
-df_module_enrich.Dx_Sex = enrich.test( df_module.Dx_Sex, go.gs, df_cohort2$Module[i])
+df_module_enrich.Dx_Sex = enrich.test( df_module.Dx_Sex, go.gs, df_cohort2$Module[i], 150)
 ```
 
 
 ```{r plot.enrich.Dx_Sex, fig.width=9}
 figList = lapply( df_cohort2$Module[i], function(module){
-	plot_enrich(df_module_enrich.Dx_Sex, module, 8) + ggtitle(module)
+	plot_enrich(df_module_enrich.Dx_Sex, module, 8) + ggtitle(module) 
 	}) 
 plot_grid(plotlist = figList, ncol=1)
 ```
+
+
+## DE enrichment
+```{r cameraPR.Dx_Sex}
+res_enrich_DE = enrich_module_DE( df_module_enrich.Dx_Sex )
+
+figList = lapply( df_cohort2$Module[i], function(module){
+
+	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
+
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0)) + ggtitle(module)
+}) 
+plot_grid(plotlist = figList, ncol=1)
+```
+
+
 
 
 ```{r exit, cache=FALSE}

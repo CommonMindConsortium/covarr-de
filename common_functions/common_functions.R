@@ -988,14 +988,17 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
 
 
 
-enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module) ){
+enrich.test = function(df_module, gs_set, testModules = unique(df_module$Module), minSize=50 ){
+
+
+  df_module = df_module[df_module$ENSEMBL %in% unique(unlist(geneIds(gs_set))),]
 
   # Map from Ensembl genes in geneSets_GO to 
   # from trimmed Ensembl names from RNA-seq data 
   gs.list = limma::ids2indices( recodeToList(gs_set), df_module$ENSEMBL)
      
   # filter by size of gene set
-  n_genes_in = 50
+  n_genes_in = minSize
   gs.list = gs.list[sapply(gs.list, length) >= n_genes_in]
 
   # for each module
