@@ -680,7 +680,7 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
 }
 
 
-test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, useSLED=TRUE, BPPARAM=SerialParam()){
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, BPPARAM=SerialParam()){
 
   col.array = unique(dynamicColors)
 
@@ -723,7 +723,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
     res$Cohort = names(resid.lst)
     rownames(res) = c()
     res
-  })#, mc.cores=4)
+  }, mc.cores=4)
 
   # Format results data.frame
   df_test = do.call(rbind, df_test)
