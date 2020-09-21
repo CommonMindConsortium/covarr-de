@@ -225,7 +225,7 @@ df_test_recal = apply_permutation_null( df_test_null )
 
 table(df_test_recal$FDR < 0.05) 
 
-df_test_meta = module_meta_analsis( df_test_recal )
+df_test_meta = module_meta_analysis( df_test_recal )
 
 table(df_test_meta$FDR < 0.05)
 ```
