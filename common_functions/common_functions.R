@@ -679,12 +679,49 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
   res
 }
 
+sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.5){
+
+  eval_stat = function(idx){
+    lvls = levels(info[[variable]])
+
+    C.lst = lapply( levels(info[[variable]]), function(lvl){
+      j = (info[[variable]] == lvl)
+      cora( Y[idx,][j,]) 
+    })
+    names(C.lst) = levels(info[[variable]])
+
+    D = C.lst[[lvls[2]]] - C.lst[[lvls[1]]]
+    # svd(C.diff, nu=0, nv=0)$d[1]
+    # partial_eigen(C.diff, n=1)$values
+    max(0, sLED:::sLEDTestStat(D, rho=rho, sumabs.seq = sumabs.seq)$stats)
+  }
+
+  # evaluate on real data
+  val = eval_stat(1:nrow(info))
+
+  # permutation
+  val_perm = sapply( seq_len(nperm), function(k){
+    idx = sample.int(nrow(info), nrow(info))
+    eval_stat( idx )
+  })
+
+   # estimate null distribution as a gamma
+  fit = egamma( val_perm )
+  up = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2], lower.tail=FALSE)
+  down = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2])
+  P.Value = 2*min(c(up, down))
+
+  P.Value
+}
+
+
+
 
 test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, BPPARAM=SerialParam()){
 
   col.array = unique(dynamicColors)
 
-  df_test = mclapply( col.array, function(col){
+  df_test = lapply( col.array, function(col){
 
     # get genes in this cluster
     geneid = rownames(C.diff.discovery)[which(dynamicColors==col)]
@@ -702,7 +739,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       info = METADATA[i,]
 
       # eval statistical hypothesis
-      res = boxM_permute( Y, info[[variable]])
+      # res = boxM_permute( Y, info[[variable]])
 
       if( useSLED ){
         # sLED
@@ -710,20 +747,26 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
         Y1 = Y[info[[variable]] == lvl[1],]
         Y2 = Y[info[[variable]] == lvl[2],]
 
-        res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
+        # res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
+
+        # D = cora(Y2) - cora(Y1)
+        # p.sled = max(0, sLED:::sLEDTestStat(D, rho=1, sumabs.seq = .5)$stats)
+
+        p.sled = sLED_perm(Y, info, variable, 20)
+
       }else{
-        res_sLED = list(pVal=NA)
+        p.sled = NA
       }
-      data.frame( Module        = col, 
-                  P.Value       = res$p.value, 
-                  P.Value.sLED  = res_sLED$pVal,
-                  n.genes       = length(geneid))
+      data.frame( Module  = col, 
+                  # P.Value       = res$p.value, 
+                  P.Value  = p.sled,
+                  n.genes  = length(geneid))
     })
     res = do.call(rbind, res)
     res$Cohort = names(resid.lst)
     rownames(res) = c()
     res
-  }, mc.cores=4)
+  })#, mc.cores=4)
 
   # Format results data.frame
   df_test = do.call(rbind, df_test)

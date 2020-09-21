@@ -479,7 +479,7 @@ hist(tab, xlab="Cluster size")
 
 ```{r testing.Dx_Sex}
 # Hypothesis testing     
-df_test.Dx_Sex = test_differential_correlation_interaction(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx_Sex, METADATA, nperm=1000)    
+df_test.Dx_Sex = test_differential_correlation_interaction(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx_Sex, METADATA, nperm=20)    
 ```
 
 ## Discovery cohort
@@ -490,7 +490,7 @@ ggplot(df_test.Dx_Sex, aes(Module, -log10(P.Value))) + geom_bar(stat='identity',
 
 ```{r modules.in.discovery.Dx_Sex, fig.width=10, fig.height=50}
    
-figList = lapply(df_test$Module[1:5], function(mod){. 
+figList = lapply(df_test.Dx_Sex$Module[1:5], function(mod){. 
 
 	plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")   
 	})
