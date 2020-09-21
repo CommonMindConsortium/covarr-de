@@ -146,9 +146,9 @@ df_test = lapply( 1:10, function(k){
 
 	hcl = hclust( as.dist(C.diff.discovery) )
 
-	dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+	dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
 
-	dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
+	dynamicColors = labels2colors(dynamicMods)
 	tab = table(dynamicColors)
 
 	# hist(tab, xlab="Cluster size")
@@ -208,9 +208,9 @@ rm(diff.net) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
 
-dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
+dynamicColors = labels2colors(dynamicMods)
 tab = table(dynamicColors)
 
 # Hypothesis testing         
@@ -254,16 +254,16 @@ rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
 
-dynamicColors.Sex = labels2colors(dynamicMods, colorSeq = colors())
+dynamicColors.Sex = labels2colors( dynamicMods )
 tab = table(dynamicColors.Sex)
 hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing}
 # Hypothesis testing         
-df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=FALSE)
+df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, .3, 20)
 ```
 
 
@@ -388,9 +388,9 @@ rm(diff.net.Dx) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
 
-dynamicColors.Dx = labels2colors(dynamicMods, colorSeq = colors())
+dynamicColors.Dx = labels2colors(dynamicMods )
 tab = table(dynamicColors)
 hist(tab, xlab="Cluster size")
 ```
@@ -527,9 +527,9 @@ rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize)
+dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
 
-dynamicColors.Dx_Sex = labels2colors(dynamicMods, colorSeq = colors())
+dynamicColors.Dx_Sex = labels2colors(dynamicMods)
 tab = table(dynamicColors.Dx_Sex)
 hist(tab, xlab="Cluster size")
 ```

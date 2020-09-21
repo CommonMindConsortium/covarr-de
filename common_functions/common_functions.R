@@ -678,9 +678,9 @@ sLED_adapt = function(Y1, Y2, npermute=c(1000,1e6), BPPARAM=SerialParam()){
   res
 }
 
-sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.5){
+sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.2){
 
-  eval_stat = function(idx){
+  eval_stat = function(idx, sumabs.seq){
     lvls = levels(info[[variable]])
 
     C.lst = lapply( levels(info[[variable]]), function(lvl){
@@ -692,16 +692,22 @@ sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.5){
     D = C.lst[[lvls[2]]] - C.lst[[lvls[1]]]
     # svd(C.diff, nu=0, nv=0)$d[1]
     # partial_eigen(C.diff, n=1)$values
-    max(0, sLED:::sLEDTestStat(D, rho=rho, sumabs.seq = sumabs.seq)$stats)
+
+    res = sLED:::sLEDTestStat(D, rho=rho, sumabs.seq = sumabs.seq)
+
+    data.frame(sumabs.seq, 
+              n.active=rowSums(res$leverage > 0), 
+              stats=pmax(0, res$stats))
   }
 
   # evaluate on real data
-  val = eval_stat(1:nrow(info))
+  res = eval_stat(1:nrow(info), sumabs.seq)#=seq(.2, 1, length.out=5))
+  val = res$stats
 
   # permutation
   val_perm = sapply( seq_len(nperm), function(k){
     idx = sample.int(nrow(info), nrow(info))
-    eval_stat( idx )
+    eval_stat( idx, sumabs.seq )$stats
   })
 
    # estimate null distribution as a gamma
@@ -710,13 +716,14 @@ sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.5){
   down = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2])
   P.Value = 2*min(c(up, down))
 
-  P.Value
+  data.frame(p = P.Value, n.active = res$n.active)
 }
 
 
 
 
-test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, BPPARAM=SerialParam()){
+
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, sumabs.seq, nperm){
 
   col.array = unique(dynamicColors)
 
@@ -731,8 +738,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
       # extact expression residuals for genes in this cluster
       Y = t(resid.lst[[key]][geneid,])
-      # W = t(vobj.lst[[key]][geneid,]$weights)
-
+     
       # extract metadata
       i = match(rownames(Y), rownames(METADATA))
       info = METADATA[i,]
@@ -740,25 +746,21 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       # eval statistical hypothesis
       # res = boxM_permute( Y, info[[variable]])
 
-      # if( useSLED ){
-        # sLED
-        lvl = levels(info[[variable]])
-        Y1 = Y[info[[variable]] == lvl[1],]
-        Y2 = Y[info[[variable]] == lvl[2],]
+      lvl = levels(info[[variable]])
+      Y1 = Y[info[[variable]] == lvl[1],]
+      Y2 = Y[info[[variable]] == lvl[2],]
 
-        # res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
+      # res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
 
-        # D = cora(Y2) - cora(Y1)
-        # p.sled = max(0, sLED:::sLEDTestStat(D, rho=1, sumabs.seq = .5)$stats)
+      # D = cora(Y2) - cora(Y1)
+      # p.sled = max(0, sLED:::sLEDTestStat(D, rho=1, sumabs.seq = .5)$stats)
 
-        p.sled = sLED_perm(Y, info, variable, 20)
+      res.sled = sLED_perm(Y, info, variable, nperm=nperm, sumabs.seq=sumabs.seq)
 
-      # }else{
-      #   p.sled = NA
-      # }
       data.frame( Module  = col, 
                   # P.Value       = res$p.value, 
-                  P.Value  = p.sled,
+                  P.Value  = res.sled$p,
+                  n.active  = res.sled$n.active,
                   n.genes  = length(geneid))
     })
     res = do.call(rbind, res)
