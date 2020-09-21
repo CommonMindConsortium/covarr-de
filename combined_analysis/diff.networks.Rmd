@@ -176,11 +176,11 @@ calc_p = function(p, fit){
 				lower.tail=TRUE)
 }
 
-p = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
+p2 = df_test$P.Value[df_test$Cohort== "NIMH-HBCC"]
 data.frame("# DE" = sum(p.adjust(p, 'fdr') < 0.05) / length(p), check.names=FALSE) %>% kable
-hist(p, main="P-values under the null in the replication cohort", xlab="p-value")
+hist(p2, main="P-values under the null in the replication cohort", xlab="p-value")
 
-beta_perm[['NIMH-HBCC']] = beta.mle(p)
+beta_perm[['NIMH-HBCC']] = beta.mle(p2 + 1e-10)
 ```
 
 
