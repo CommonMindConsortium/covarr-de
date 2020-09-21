@@ -723,7 +723,7 @@ sLED_perm = function(Y, info, variable, nperm, rho=1, sumabs.seq=.2){
 
 
 
-test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, sumabs.seq, nperm){
+test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE, sumabs.seq, nperm){
 
   col.array = unique(dynamicColors)
 
@@ -734,7 +734,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
     res = lapply( names(resid.lst), function(key){
 
-      message(key, ' ', col, ' ', match(col, col.array), '/', length(col.array))
+      if(runif(1) < .1) message(key, ' ', col, ' ', match(col, col.array), '/', length(col.array))
 
       # extact expression residuals for genes in this cluster
       Y = t(resid.lst[[key]][geneid,])
@@ -743,19 +743,24 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       i = match(rownames(Y), rownames(METADATA))
       info = METADATA[i,]
 
-      # eval statistical hypothesis
-      # res = boxM_permute( Y, info[[variable]])
+      if( ! useSLED ){
+        # eval statistical hypothesis
+        res = boxM_permute( Y, info[[variable]])
 
-      lvl = levels(info[[variable]])
-      Y1 = Y[info[[variable]] == lvl[1],]
-      Y2 = Y[info[[variable]] == lvl[2],]
+        res.sled = list(p = res$p.value, n.active=ncol(Y))
 
-      # res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
+      }else{
+        lvl = levels(info[[variable]])
+        Y1 = Y[info[[variable]] == lvl[1],]
+        Y2 = Y[info[[variable]] == lvl[2],]
 
-      # D = cora(Y2) - cora(Y1)
-      # p.sled = max(0, sLED:::sLEDTestStat(D, rho=1, sumabs.seq = .5)$stats)
+        # res_sLED = sLED_adapt( scale(Y1), scale(Y2), npermute=c(500,50000), BPPARAM=BPPARAM)
 
-      res.sled = sLED_perm(Y, info, variable, nperm=nperm, sumabs.seq=sumabs.seq)
+        # D = cora(Y2) - cora(Y1)
+        # p.sled = max(0, sLED:::sLEDTestStat(D, rho=1, sumabs.seq = .5)$stats)
+
+        res.sled = sLED_perm(Y, info, variable, nperm=nperm, sumabs.seq=sumabs.seq)
+      }
 
       data.frame( Module  = col, 
                   # P.Value       = res$p.value, 
@@ -827,7 +832,7 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
         C.diff = C_alt - C_baseline
         # svd(C.diff, nu=0, nv=0)$d[1]
         # partial_eigen(C.diff, n=1)$values
-        max(0, sLED:::sLEDTestStat(C.diff, rho=1, sumabs.seq = 1)$stats)
+        max(0, sLED:::sLEDTestStat(C.diff, rho=1, sumabs.seq = .5)$stats)
       }
 
       # evaluate on real data

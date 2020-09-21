@@ -119,7 +119,7 @@ df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 
 
 # Null permuations
-```{r diff.networks.perm, eval=FALSE}
+```{r diff.networks.perm}
 
 # Compute difference networks for multiple random permutations
 ##############################
@@ -146,7 +146,8 @@ df_test = lapply( 1:10, function(k){
 
 	hcl = hclust( as.dist(C.diff.discovery) )
 
-	dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+	# dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+	dynamicMods = cutree(hcl, k=200)
 
 	dynamicColors = labels2colors(dynamicMods)
 	tab = table(dynamicColors)
@@ -154,14 +155,14 @@ df_test = lapply( 1:10, function(k){
 	# hist(tab, xlab="Cluster size")
 
 	# Hypothesis testing         
-	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE) 
+	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, .5, 20) 
 
 	df_test
 })
 df_test = do.call(rbind, df_test)
 ```
 
-```{r perm.results, fig.width=5, eval=FALSE}
+```{r perm.results, fig.width=5}
 p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
@@ -184,7 +185,7 @@ beta_perm[['NIMH-HBCC']] = beta.mle(p)
 
 
 # Null network
-```{r diff.networks.null, eval=FALSE}
+```{r diff.networks.null}
 
 # Compute difference networks for 1 random permutation
 ######################################################
@@ -208,17 +209,18 @@ rm(diff.net) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+# dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+dynamicMods = cutree(hcl, k=200)
 
-dynamicColors = labels2colors(dynamicMods)
+dynamicColors = labels2colors(dynamicMods, colorSeq=colors())
 tab = table(dynamicColors)
 
 # Hypothesis testing         
-df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE) 
+df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, .5, 20) 
 ```
 
 
-```{r recalibrate.null, eval=FALSE}
+```{r recalibrate.null}
 df_test_recal = apply_permutation_null( df_test_null )
 
 table(df_test_recal$FDR < 0.05) 
@@ -240,9 +242,9 @@ variable = 'Reported_Gender'
 
 diff.net.Sex = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
-res = pickSFT( diff.net.Sex )
+# res = pickSFT( diff.net.Sex )
 
-ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+# ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
 
 # Discover clusters in first cohort
 #----------------------------------
@@ -254,16 +256,22 @@ rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+# dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+dynamicMods = cutree(hcl, k=200)
 
-dynamicColors.Sex = labels2colors( dynamicMods )
+# find k so that max size of cluster is
+# k = sapply( seq(100, 1000, by=10), function(k) max(table(cutree(hcl, k=k))))
+
+dynamicMods = cutree(hcl, k=200)
+
+dynamicColors.Sex = labels2colors( dynamicMods, colorSeq=colors() )
 tab = table(dynamicColors.Sex)
 hist(tab, xlab="Cluster size")
 ```
 
 ```{r testing}
 # Hypothesis testing         
-df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, .3, 20)
+df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=TRUE, .5, 20)
 ```
 
 
@@ -359,7 +367,7 @@ plot_grid(plotlist = figList, ncol=1)
 
 
 
-
+<!---
 
 # Disease network
 ## Difference networks
@@ -373,9 +381,9 @@ variable = 'Dx'
 
 diff.net.Dx = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
-res = pickSFT( diff.net.Dx )
+# res = pickSFT( diff.net.Dx )
 
-ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+# ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
 
 # Discover clusters in first cohort
 #----------------------------------
@@ -388,7 +396,8 @@ rm(diff.net.Dx) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+# dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+dynamicMods = cutree(hcl, k=200)
 
 dynamicColors.Dx = labels2colors(dynamicMods )
 tab = table(dynamicColors)
@@ -486,7 +495,7 @@ figList = lapply( df_cohort2$Module[i], function(module){
 plot_grid(plotlist = figList, ncol=1)
 ```
 
-
+--->
 
 
 
@@ -506,9 +515,9 @@ variable = 'Dx_Sex'
 
 net.Dx_Sex = get_networks(resid.add[[resVersion]], METADATA, variable)
 
-res = pickSFT( net.Dx_Sex )
+# res = pickSFT( net.Dx_Sex )
 
-ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+# ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
 
 pwr = 7
 
@@ -527,7 +536,8 @@ rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
-dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+# dynamicMods = cutreeDynamic(hcl, distM=C.diff.discovery, minClusterSize = minClusterSize, deepSplit=2)
+dynamicMods = cutree(hcl, k=200)
 
 dynamicColors.Dx_Sex = labels2colors(dynamicMods)
 tab = table(dynamicColors.Dx_Sex)
