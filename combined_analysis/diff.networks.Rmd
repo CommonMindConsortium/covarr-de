@@ -285,7 +285,8 @@ ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module)
 
 ```{r modules.in.second.cohort, fig.width=8, fig.height=25}
 
-i = which(df_cohort2$FDR < 0.05)
+# i = which(df_cohort2$FDR < 0.05)
+i = 1:5
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
