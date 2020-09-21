@@ -118,7 +118,7 @@ df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
 
 
 # Null permuations
-```{r diff.networks.perm}
+```{r diff.networks.perm, eval=FALSE}
 
 # Compute difference networks for multiple random permutations
 ##############################
@@ -133,11 +133,13 @@ df_test = lapply( 1:10, function(k){
 
 	diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
 	   
+	pwr = 7
+
 	# Discover clusters in first cohort
 	#----------------------------------
 	C = diff.net[[1]]
-	C.diff.discovery = C[[2]] - C[[1]]
-	C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
+	C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
+	C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
 	rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -158,7 +160,7 @@ df_test = lapply( 1:10, function(k){
 df_test = do.call(rbind, df_test)
 ```
 
-```{r perm.results, fig.width=5}
+```{r perm.results, fig.width=5, eval=FALSE}
 p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 # print(1 - qvalue(p)$pi0)
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
@@ -181,7 +183,7 @@ beta_perm[['NIMH-HBCC']] = beta.mle(p)
 
 
 # Null network
-```{r diff.networks.null}
+```{r diff.networks.null, eval=FALSE}
 
 # Compute difference networks for 1 random permutation
 ######################################################
@@ -198,8 +200,8 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
 # Discover clusters in first cohort
 #----------------------------------
 C = diff.net[[1]]
-C.diff.discovery = C[[2]] - C[[1]]
-C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
+C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
+C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
 rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -239,14 +241,13 @@ diff.net.Sex = get_difference_network(resid.add[[resVersion]], METADATA, variabl
    
 res = pickSFT( diff.net.Sex )
 
-ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab(="Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
-
+ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
 
 # Discover clusters in first cohort
 #----------------------------------
 C = diff.net[[1]]
-C.diff.discovery = C[[2]] - C[[1]]
-C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
+C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
+C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
 rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
@@ -263,9 +264,6 @@ hist(tab, xlab="Cluster size")
 # Hypothesis testing         
 df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=FALSE)
 ```
-
-
-df_sft = pickSFT( diff.net.Sex )
 
 
 
@@ -374,9 +372,16 @@ variable = 'Dx'
 
 diff.net.Dx = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
+res = pickSFT( diff.net.Dx )
+
+ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net.Dx[[1]][keep.ensID,keep.ensID]
+
+C = diff.net[[1]]
+C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
+C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
 rm(diff.net.Dx) # saving this to disk is slow, so just delete it
 
@@ -499,7 +504,13 @@ resVersion = "Dx_Sex"
 variable = 'Dx_Sex'
 
 net.Dx_Sex = get_networks(resid.add[[resVersion]], METADATA, variable)
-   
+
+res = pickSFT( net.Dx_Sex )
+
+ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab("Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+
+pwr = 7
+
 lvls = levels(METADATA$Dx_Sex)
 
 print(paste0('(',lvls[4], ' - ',lvls[3], ') - (',lvls[2], ' - ',lvls[1], ')'))
@@ -507,7 +518,7 @@ print(paste0('(',lvls[4], ' - ',lvls[3], ') - (',lvls[2], ' - ',lvls[1], ')'))
 # Discover clusters in first cohort
 #----------------------------------
 C = net.Dx_Sex[[1]]
-C.diff.discovery = (C[[lvls[4]]] - C[[lvls[3]]]) - (C[[lvls[2]]] - C[[lvls[1]]])
+C.diff.discovery = (C[[lvls[4]]]^pwr - C[[lvls[3]]]^pwr) - (C[[lvls[2]]]^pwr - C[[lvls[1]]]^pwr)
 
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
