@@ -168,7 +168,7 @@ p = df_test$P.Value[df_test$Cohort=="MSSM-Penn-Pitt"]
 hist(p, main="P-values under the null in the discovery cohort", xlab="p-value")
 
 beta_perm = list()
-beta_perm[['MSSM-Penn-Pitt']] = beta.mle(p)
+beta_perm[['MSSM-Penn-Pitt']] = beta.mle(p + 1e-10)
 
 calc_p = function(p, fit){
 	pbeta(p, 	shape1=fit$param['alpha'], 
