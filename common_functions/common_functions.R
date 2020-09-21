@@ -741,7 +741,7 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
       # eval statistical hypothesis
       # res = boxM_permute( Y, info[[variable]])
 
-      if( useSLED ){
+      # if( useSLED ){
         # sLED
         lvl = levels(info[[variable]])
         Y1 = Y[info[[variable]] == lvl[1],]
@@ -754,9 +754,9 @@ test_differential_correlation = function(resid.lst, C.diff.discovery, dynamicCol
 
         p.sled = sLED_perm(Y, info, variable, 20)
 
-      }else{
-        p.sled = NA
-      }
+      # }else{
+      #   p.sled = NA
+      # }
       data.frame( Module  = col, 
                   # P.Value       = res$p.value, 
                   P.Value  = p.sled,
