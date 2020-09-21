@@ -135,7 +135,9 @@ df_test = lapply( 1:10, function(k){
 	   
 	# Discover clusters in first cohort
 	#----------------------------------
-	C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
+	C = diff.net[[1]]
+	C.diff.discovery = C[[2]] - C[[1]]
+	C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
 
 	rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -195,7 +197,9 @@ diff.net = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net[[1]][keep.ensID,keep.ensID]
+C = diff.net[[1]]
+C.diff.discovery = C[[2]] - C[[1]]
+C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
 
 rm(diff.net) # saving this to disk is slow, so just delete it
 
@@ -212,11 +216,13 @@ df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.dis
 
 
 ```{r recalibrate.null}
-
 df_test_recal = apply_permutation_null( df_test_null )
+
+table(df_test_recal$FDR < 0.05) 
 
 df_test_meta = module_meta_analsis( df_test_recal )
 
+table(df_test_meta$FDR < 0.05)
 ```
 
 # Sex network
@@ -231,9 +237,16 @@ variable = 'Reported_Gender'
 
 diff.net.Sex = get_difference_network(resid.add[[resVersion]], METADATA, variable)
    
+res = pickSFT( diff.net.Sex )
+
+ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep=' - '))) + geom_point() + theme_bw() + theme(aspect.ratio=1,  plot.title = element_text(hjust = 0.5)) + xlab(="Soft Threshold (power)") + ylab("Scale Free Topology Model Fit,signed R^2") + ggtitle("Scale independence")
+
+
 # Discover clusters in first cohort
 #----------------------------------
-C.diff.discovery = diff.net.Sex[[1]][keep.ensID,keep.ensID]
+C = diff.net[[1]]
+C.diff.discovery = C[[2]] - C[[1]]
+C.diff.discovery = C.diff.discovery[[1]][keep.ensID,keep.ensID]
 
 rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
@@ -252,7 +265,23 @@ df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.disc
 ```
 
 
+df_sft = pickSFT( diff.net.Sex )
 
+
+
+
+
+```{r recalibrate.Sex}
+table(df_test.Sex$FDR < 0.05)
+
+df_test_recal = apply_permutation_null( df_test.Sex )
+
+table(df_test_recal$FDR < 0.05) 
+
+df_test_meta = module_meta_analysis( df_test_recal )
+
+table(df_test_meta$FDR < 0.05)
+```
 
 
 ## Discovery cohort
@@ -364,6 +393,21 @@ hist(tab, xlab="Cluster size")
 # Hypothesis testing     
 df_test.Dx = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx, METADATA, variable, useSLED=FALSE)  
 ```
+
+
+```{r recalibrate.Dx}
+table(df_test.Dx$FDR < 0.05)
+
+df_test_recal = apply_permutation_null( df_test.Dx )
+
+table(df_test_recal$FDR < 0.05) 
+
+df_test_meta = module_meta_analysis( df_test_recal )
+
+table(df_test_meta$FDR < 0.05)
+```
+
+
 
 ## Discovery cohort
 ```{r plot.discovery.Dx}
@@ -482,6 +526,22 @@ hist(tab, xlab="Cluster size")
 # Hypothesis testing     
 df_test.Dx_Sex = test_differential_correlation_interaction(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx_Sex, METADATA, nperm=20)    
 ```
+
+
+
+```{r recalibrate.Dx_Sex}
+table(df_test.Dx_Sex$FDR < 0.05)
+
+df_test_recal = apply_permutation_null( df_test.Dx_Sex )
+
+table(df_test_recal$FDR < 0.05) 
+
+df_test_meta = module_meta_analysis( df_test_recal )
+
+table(df_test_meta$FDR < 0.051)
+```
+
+
 
 ## Discovery cohort
 ```{r plot.discovery.Dx_Sex}

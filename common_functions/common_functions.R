@@ -606,7 +606,7 @@ zenith_meta_analysis = function(res_zenith, coefTest){
 get_difference_network = function(resid.lst, METADATA, variable){
 
   # For each cohort
-  diff.net = lapply( resid.lst, function(resid){
+  C.lst = lapply( resid.lst, function(resid){
 
     i = match(colnames(resid), rownames(METADATA))
     info = METADATA[i,]
@@ -618,12 +618,11 @@ get_difference_network = function(resid.lst, METADATA, variable){
     })
     names(C.lst) = levels(info[[variable]])
 
-    # Compute difference in correlation matrices
-    C.lst[[1]] - C.lst[[2]]
-    })
-  names(diff.net) = names(resid.lst)
+    C.lst
+  })
+  names(C.lst) = names(resid.lst)
 
-  diff.net
+  C.lst
 }
 
 # like get_difference_network, but don't compute difference
@@ -1165,5 +1164,26 @@ module_meta_analysis = function(df2){
   df3$FDR = p.adjust(df3$P.Value, "fdr")
   df3
 }
+
+pickSFT = function( diff.net ){
+
+  df = lapply( names(diff.net), function(key){
+    df = lapply( names(diff.net[[key]]), function(key2){
+      res = pickSoftThreshold( diff.net[[key]][[key2]][1:1000, 1:1000] )
+      df = res$fitIndices
+      df$Cohort = key
+      df$Dataset = key2
+      df
+      })
+    do.call(rbind, df)
+  })
+  do.call(rbind, df)
+}
+
+
+
+
+
+
 
 
