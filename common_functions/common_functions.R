@@ -1169,7 +1169,7 @@ pickSFT = function( diff.net ){
 
   df = lapply( names(diff.net), function(key){
     df = lapply( names(diff.net[[key]]), function(key2){
-      res = pickSoftThreshold( diff.net[[key]][[key2]][1:1000, 1:1000] )
+      res = pickSoftThreshold( diff.net[[key]][[key2]] )
       df = res$fitIndices
       df$Cohort = key
       df$Dataset = key2
