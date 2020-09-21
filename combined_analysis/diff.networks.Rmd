@@ -178,7 +178,7 @@ beta_perm[['NIMH-HBCC']] = beta.mle(p)
 ```
 
 
-# Null permuations
+# Null network
 ```{r diff.networks.null}
 
 # Compute difference networks for 1 random permutation

@@ -826,7 +826,7 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
         C.diff = C_alt - C_baseline
         # svd(C.diff, nu=0, nv=0)$d[1]
         # partial_eigen(C.diff, n=1)$values
-        max(0, sLED:::sLEDTestStat(C.diff, rho=1, sumabs.seq = .5)$stats)
+        max(0, sLED:::sLEDTestStat(C.diff, rho=1, sumabs.seq = 1)$stats)
       }
 
       # evaluate on real data
@@ -843,7 +843,7 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
       up = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2], lower.tail=FALSE)
       down = pgamma(val, shape=fit$parameters[1], scale=fit$parameters[2])
       P.Value = 2*min(c(up, down))
-
+  
       data.frame( Module        = col, 
                   P.Value       = P.Value, 
                   n.genes       = length(geneid))
@@ -1140,7 +1140,9 @@ enrich_module_DE = function(df_module){
 apply_permutation_null = function(df_test){
   df2 = lapply( unique(df_test$Cohort), function(chrt){
     df = df_test[df_test$Cohort == chrt,]
-    df$P.Value = calc_p(df$P.Value, beta_perm[[chrt]])
+    if( chrt != 'NIMH-HBCC' ){
+      df$P.Value = calc_p(df$P.Value, beta_perm[[chrt]])
+    }
     df$FDR = p.adjust(df$P.Value, "fdr")
     df
   })
@@ -1148,11 +1150,9 @@ apply_permutation_null = function(df_test){
   df2
 }
 
-module_meta_analsis = function(df2){
+module_meta_analysis = function(df2){
 
   df3 = lapply( unique(df2$Module), function(mod){
-
-    message(mod)
     # combine p-values with Fisher's method
     p.meta = sumlog(df2$P.Value[df2$Module == mod])$p
 
