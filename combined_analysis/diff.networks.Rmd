@@ -245,7 +245,7 @@ ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep='
 
 # Discover clusters in first cohort
 #----------------------------------
-C = diff.net[[1]]
+C = diff.net.Sex[[1]]
 C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
