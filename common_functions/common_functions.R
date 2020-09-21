@@ -782,9 +782,11 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
 
         C.diff = C_alt - C_baseline
         # svd(C.diff, nu=0, nv=0)$d[1]
-        partial_eigen(C.diff, n=1)$values
+        # partial_eigen(C.diff, n=1)$values
+        max(0, sLEDTestStat(C.diff, rho=1, sumabs.seq = .5)$stats)
       }
 
+      # evaluate on real data
       val = eval_stat(1:nrow(info))
 
       # permutation
