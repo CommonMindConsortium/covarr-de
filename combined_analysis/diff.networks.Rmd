@@ -149,7 +149,7 @@ df_test = lapply( 1:10, function(k){
 	# hist(tab, xlab="Cluster size")
 
 	# Hypothesis testing         
-	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE) 
+	df_test = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE) 
 
 	df_test
 })
@@ -207,13 +207,17 @@ dynamicColors = labels2colors(dynamicMods, colorSeq = colors())
 tab = table(dynamicColors)
 
 # Hypothesis testing         
-df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE) 
+df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=FALSE) 
 ```
 
 
+```{r recalibrate.null}
 
+df_test_recal = apply_permutation_null( df_test_null )
 
+df_test_meta = module_meta_analsis( df_test_recal )
 
+```
 
 # Sex network
 ## Difference networks
@@ -244,34 +248,10 @@ hist(tab, xlab="Cluster size")
 
 ```{r testing}
 # Hypothesis testing         
-df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=TRUE)
+df_test.Sex = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Sex, METADATA, variable, useSLED=FALSE)
 ```
 
 
-```{r test, eval=FALSE}
-df2 = lapply( unique(df_test$Cohort), function(chrt){
-	df = df_test[df_test$Cohort == chrt,]
-	df$P.Value = calc_p(df$P.Value, beta_perm[[chrt]])
-	df$FDR = p.adjust(df$P.Value, "fdr")
-	df
-})
-df2 = do.call(rbind, df2)
-
-df3 = lapply( unique(df2$Module), function(mod){
-
-	message(mod)
-	# combine p-values with Fisher's method
-	p.meta = sumlog(df2$P.Value[df2$Module == mod])$p
-
-	data.frame(Module = mod, P.Value = p.meta)
-} )
-df3 = do.call(rbind, df3)
-df3 = df3[!is.na(df3$P.Value),]
-df3$FDR = qvalue(c(1,df3$P.Value))$qvalues[-1]
-
-
-df3$FDR = p.adjust(df3$P.Value, "fdr")
-```
 
 
 
@@ -381,7 +361,7 @@ hist(tab, xlab="Cluster size")
 
 ```{r testing.Dx}
 # Hypothesis testing     
-df_test.Dx = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx, METADATA, variable, useSLED=TRUE)  
+df_test.Dx = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors.Dx, METADATA, variable, useSLED=FALSE)  
 ```
 
 ## Discovery cohort
@@ -591,6 +571,49 @@ knitr::knit_exit()
 
 
 <!---
+
+X = Rfast::matrnorm(10, 4)
+Y = Rfast::matrnorm(10, 4)
+
+C1 = cor(X)
+C2 = cor(Y)
+D = C1 - C2
+
+pdf("/Users/gabrielhoffman/Dropbox/Presentations/CMC3/CMC_DE_sex/figures/diffCor.pdf")
+variancePartition::plotCorrMatrix(C1, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(C2, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(D, sort=FALSE, dendrogram="none")
+dev.off()
+
+set.seed(1)
+X1 = Rfast::matrnorm(20, 4)
+X2 = Rfast::matrnorm(20, 4)
+X3 = Rfast::matrnorm(20, 4)
+X4 = Rfast::matrnorm(20, 4)
+
+C1 = cor(X1)
+C2 = cor(X2)
+C3 = cor(X3)
+C4 = cor(X4)
+Da = C1 - C2
+Db = C3 - C4
+
+pdf("/Users/gabrielhoffman/Dropbox/Presentations/CMC3/CMC_DE_sex/figures/diffCor2.pdf")
+variancePartition::plotCorrMatrix(C1, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(C2, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(C3, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(C4, sort=FALSE, dendrogram="none")
+variancePartition::plotCorrMatrix(Da-Db, sort=FALSE, dendrogram="none")
+dev.off()
+
+
+
+
+
+
+
+
+
 
 
 # need to generate correct residuals

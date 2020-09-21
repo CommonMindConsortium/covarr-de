@@ -1092,5 +1092,33 @@ enrich_module_DE = function(df_module){
 
 
 
+apply_permutation_null = function(df_test){
+  df2 = lapply( unique(df_test$Cohort), function(chrt){
+    df = df_test[df_test$Cohort == chrt,]
+    df$P.Value = calc_p(df$P.Value, beta_perm[[chrt]])
+    df$FDR = p.adjust(df$P.Value, "fdr")
+    df
+  })
+  df2 = do.call(rbind, df2)
+  df2
+}
+
+module_meta_analsis = function(df2){
+
+  df3 = lapply( unique(df2$Module), function(mod){
+
+    message(mod)
+    # combine p-values with Fisher's method
+    p.meta = sumlog(df2$P.Value[df2$Module == mod])$p
+
+    data.frame(Module = mod, P.Value = p.meta)
+  } )
+  df3 = do.call(rbind, df3)
+  df3 = df3[!is.na(df3$P.Value),]
+  df3$FDR = qvalue(c(1,df3$P.Value))$qvalues[-1]
+
+  df3$FDR = p.adjust(df3$P.Value, "fdr")
+  df3
+}
 
 
