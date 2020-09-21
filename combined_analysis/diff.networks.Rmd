@@ -87,7 +87,8 @@ df_genes = data.frame(ENSEMBL = geneEnsID, stringsAsFactors=FALSE) %>% getGeneSy
 
 keep.ensID = df_genes$ENSEMBL[df_genes$Chrom %in% c(1:22, 'X', 'MT')]
 
-minClusterSize = 20
+minClusterSize = 50
+pwr = 7
 ```
 
 ```{r load.go}
@@ -379,7 +380,7 @@ ggplot(res, aes(Power, -sign(slope)*SFT.R.sq, color=paste(Cohort, Dataset, sep='
 # Discover clusters in first cohort
 #----------------------------------
 
-C = diff.net[[1]]
+C = diff.net.Dx[[1]]
 C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
