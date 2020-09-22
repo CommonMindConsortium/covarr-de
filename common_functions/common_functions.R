@@ -992,7 +992,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   # fig_merge = plot_grid( fig1, fig2, nrow=1)
   # plot_grid( fig_merge, fig3, nrow=2, rel_heights=c(1,1.5) )  
-  list(fig1, fig2, fig3, fig.leverage)  
+  list(fig_cor = fig1, fig_heatmap = fig2, fig_network = fig3, fig_leverage = fig.leverage)  
 }
 
 # plot_module( mod, df_test, METADATA, dynamicColors, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt", 5) 
