@@ -929,6 +929,10 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
              paste0('(',lvl[2], ' - ',lvl[1], ')'))
     lvlidx = 1:2
 
+    res = sLED:::sLEDTestStat(C2-C1, rho=1, sumabs.seq = .5)
+
+    df_leverage = data.frame(Gene = colnames(C2), leverage = t(res$leverage))
+
   }else{
     stop(length(lvlidx))
   }
@@ -936,6 +940,12 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   hcl = hclust(as.dist(1 - C1), method="ward.D2")
   C1 = C1[hcl$order,hcl$order]
   C2 = C2[hcl$order,hcl$order]
+
+  # reorder based on clustering
+  df_leverage$Gene = factor(df_leverage$Gene, rownames(C2))
+
+  ylim = max(df_leverage$leverage)*1.05
+  fig.leverage = ggplot(df_leverage, aes(Gene, leverage)) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=5) + coord_flip() + theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + xlab("") + ylab("Leverage") + scale_y_continuous(limits=c(0, ylim), expand=c(0,0))
 
   # create data.frame to compare correlation values
   ind <- which( upper.tri(C1,diag=FALSE) , arr.ind = TRUE )
@@ -969,6 +979,8 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
             limits = c(-1, 1), na.value = "grey") + theme_bw(base_size) + 
         theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
             legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + ylab(lvl[lvlidx[2]]) + xlab(lvl[lvlidx[1]])
+
+   fig2 = plot_grid(fig2, fig.leverage, ncol=2)     
 
   # plot network   
   main = paste(key, clusterID, paste0('(', lvl[lvlidx[2]], ' - ', lvl[lvlidx[1]], ')'), 'FDR =', format(FDR, digits=3))

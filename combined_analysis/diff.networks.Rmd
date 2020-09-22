@@ -624,10 +624,10 @@ GWASTools::qqPlot(df_test_meta.Dx_Sex$P.Value)
 
 
 
-```{r modules.in.second.cohort.Dx_Sex, fig.width=8, fig.height=80}
+```{r modules.in.second.cohort.Dx_Sex, fig.width=12, fig.height=40}
   
 # i = which(df_cohort2$FDR < 0.1) 
-i = 1:2
+i = 1
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
