@@ -104,6 +104,11 @@ df_schema2 = df_schema[,data.frame(ENSEMBL = Gene,
 									OR1 = `OR (Class I)`,
 									OR2 = `OR (Class II)`,
 									P.value = `P meta`)]
+
+df_schema2$chisq = qchisq(df_schema2$P.value, 1, lower.tail=FALSE)
+df_schema2 = df_schema2[!is.na(df_schema2$P.value),]
+
+rownames(df_schema2) = df_schema2$ENSEMBL
 ```
 
 
@@ -639,7 +644,7 @@ df_module_enrich.Dx_Sex = enrich.test( df_module.Dx_Sex, go.gs, df_cohort2$Modul
 ```
 
 
-```{r plot.enrich.Dx_Sex, fig.width=9}
+```{r plot.enrich.Dx_Sex, fig.width=7, fig.height=12}
 figList = lapply( df_cohort2$Module[i], function(module){
 	plot_enrich(df_module_enrich.Dx_Sex, module, 8) + ggtitle(module) 
 	}) 
@@ -654,7 +659,7 @@ res_enrich_DE = enrich_module_DE( df_module.Dx_Sex )
 figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
-
+   
 	lim = max(-log10(res$PValue))
 
 	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")

@@ -1103,8 +1103,8 @@ plot_enrich = function( df, module, base_size=11 ){
   df2 = df[df$Module == module,]
   df2$Geneset = factor(df2$Geneset, df2$Geneset)
 
-  ylim = max(-log10(df$FDR))
-  ggplot(df2[1:10,], aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw(base_size) + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
+  ylim = max(-log10(df$p.value))
+  ggplot(df2[1:10,], aes(Geneset, -log10(p.value))) + geom_bar(stat='identity', fill=module) + theme_bw(base_size) + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~P)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
 }
 
 
@@ -1119,18 +1119,25 @@ enrich_module_DE = function(df_module){
     })
   names(modules.gs) = unique(df_module$Module)
 
-  keys = c(names(df_meta), names(df_meta.inter_sex.disease))
+  keys = c(names(df_meta), names(df_meta.inter_sex.disease), "SCHEMA")
 
   res_enrich_DE = lapply( keys, function(key){
 
-    df = df_meta[[key]]
-
-    if( is.null(df) ) df = df_meta.inter_sex.disease[[key]]
+    if( key == "SCHEMA"){
+      df = df_schema2
+      df$stat = df$chisq
+    }else{
+      df = df_meta[[key]]
+      if( is.null(df) ) df = df_meta.inter_sex.disease[[key]]
+      df$stat = with(df, (logFC/se)^2)
+    }   
     
     idx = match( trim_ensembl_ids(rownames(df)), df_module$ENSEMBL)
     modules.list = limma::ids2indices( modules.gs, df_module$ENSEMBL[idx])
          
-    res = cameraPR( with(df, logFC/se), modules.list )
+    res = cameraPR( df$stat, modules.list )
+    res$PValue = res$PValue / 2
+    res$FDR = c()
     res$Geneset = rownames(res)
     rownames(res) = c()
     res$Test = key
