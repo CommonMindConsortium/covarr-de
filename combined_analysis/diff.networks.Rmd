@@ -341,7 +341,7 @@ df = df_cohort2[df_cohort2$P.Value < 0.1,]
 ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~FDR)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.second.cohort, fig.width=8, fig.height=25}
+```{r modules.in.second.cohort, fig.width=8, fig.height=50}
 
 # i = which(df_cohort2$FDR < 0.05)
 i = 1:5
@@ -381,7 +381,7 @@ figList = lapply( df_cohort2$Module[i], function(module){
 
 	lim = max(-log10(res$PValue))
 
-	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed") + ylab(bquote(-log[10]~P))
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
@@ -593,7 +593,7 @@ table(df_test_meta.Dx_Sex$FDR < 0.051)
 ggplot(df_test.Dx_Sex, aes(Module, -log10(P.Value))) + geom_bar(stat='identity', fill=df_test.Dx_Sex$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + facet_wrap(~Cohort) + ylab(bquote(-log[10]~P)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed")
 ```
 
-```{r modules.in.discovery.Dx_Sex, fig.width=10, fig.height=50}
+```{r modules.in.discovery.Dx_Sex, fig.width=8, fig.height=50}
    
 figList = lapply(df_test.Dx_Sex$Module[1:5], function(mod){. 
 
@@ -627,7 +627,7 @@ GWASTools::qqPlot(df_test_meta.Dx_Sex$P.Value)
 ```{r modules.in.second.cohort.Dx_Sex, fig.width=8, fig.height=80}
   
 # i = which(df_cohort2$FDR < 0.1) 
-i = 1:5
+i = 1:2
 
 figList = lapply(df_cohort2$Module[i], function(mod){
 
@@ -671,7 +671,7 @@ figList = lapply( df_cohort2$Module[i], function(module){
    
 	lim = max(-log10(res$PValue))
 
-	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
+	ggplot(res, aes(Test, -log10(PValue))) + geom_bar(stat="identity", fill=res$Geneset[1]) + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5))  + scale_y_continuous(expand=c(0,0), lim=c(0, lim*1.05)) + ggtitle(module) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed") + ylab(bquote(-log[10]~P))
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
