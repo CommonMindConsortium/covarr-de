@@ -929,13 +929,13 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
              paste0('(',lvl[2], ' - ',lvl[1], ')'))
     lvlidx = 1:2
 
-    res = sLED:::sLEDTestStat(C2-C1, rho=1, sumabs.seq = .5)
-
-    df_leverage = data.frame(Gene = colnames(C2), leverage = t(res$leverage))
-
   }else{
     stop(length(lvlidx))
   }
+
+  res = sLED:::sLEDTestStat(C2-C1, rho=1, sumabs.seq = .5)
+  df_leverage = data.frame(Gene = colnames(C2), leverage = t(res$leverage))
+
   # reorder for clustering
   hcl = hclust(as.dist(1 - C1), method="ward.D2")
   C1 = C1[hcl$order,hcl$order]
