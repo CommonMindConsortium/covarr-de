@@ -1119,12 +1119,15 @@ enrich_module_DE = function(df_module){
     })
   names(modules.gs) = unique(df_module$Module)
 
-  keys = c(names(df_meta), names(df_meta.inter_sex.disease), "SCHEMA")
+  keys = c(names(df_meta), names(df_meta.inter_sex.disease), "SCHEMA", "ASD")
 
   res_enrich_DE = lapply( keys, function(key){
 
     if( key == "SCHEMA"){
       df = df_schema2
+      df$stat = df$chisq
+    }else if( key == "ASD"){
+      df = df_asd2
       df$stat = df$chisq
     }else{
       df = df_meta[[key]]

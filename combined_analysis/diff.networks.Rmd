@@ -109,6 +109,15 @@ df_schema2$chisq = qchisq(df_schema2$P.value, 1, lower.tail=FALSE)
 df_schema2 = df_schema2[!is.na(df_schema2$P.value),]
 
 rownames(df_schema2) = df_schema2$ENSEMBL
+
+# ASD
+df_asd = fread(synGet('syn22343811')$path)
+colnames(df_asd)[colnames(df_asd)=="Q‑Val" ] = 'Q'
+df_asd2 = data.frame(ENSEMBL = df_asd$Gene, Q = df_asd$Q)
+df_asd2$chisq = qchisq(df_asd2$Q + 1e-15, 1, lower.tail=FALSE)
+rownames(df_asd2) = df_asd2$ENSEMBL
+
+
 ```
 
 
@@ -365,7 +374,7 @@ plot_grid(plotlist = figList, ncol=1)
 ## DE enrichment
 ```{r cameraPR.Sex, fig.width=7, fig.height=12}
 res_enrich_DE = enrich_module_DE( df_module.Sex )
-
+ 
 figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
@@ -655,7 +664,7 @@ plot_grid(plotlist = figList, ncol=1)
 ## DE enrichment
 ```{r cameraPR.Dx_Sex, fig.width=7, fig.height=12}
 res_enrich_DE = enrich_module_DE( df_module.Dx_Sex )
-
+  
 figList = lapply( df_cohort2$Module[i], function(module){
 
 	res = res_enrich_DE[res_enrich_DE$Geneset == module,]
