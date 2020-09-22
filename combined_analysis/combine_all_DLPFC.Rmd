@@ -13,7 +13,7 @@ output:
     toc: true
     toc_float: true
 params:
-  upload: TRUE
+  upload: FALSE
 ---
 
 
@@ -128,7 +128,12 @@ knitr::opts_chunk$set(
   message=FALSE,
   error = FALSE,
   tidy = FALSE,
+  dev = c('png', 'pdf'),
   cache = TRUE)
+
+
+colorArray = colors()[grep("grey|gray", colors(), invert=TRUE)]
+
 ```
 
 ```{r read.counts}
@@ -352,25 +357,43 @@ plotCorrMatrix(C, main='CCA')
 ```{r explain.CellType}
 CTs = c('GABA', 'GLU', 'Olig', 'MgAs')
 
-form = ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution + Dx
+form = ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution 
 
 Y = clr(METADATA[,CTs])
 
-vp = fitExtractVarPartModel( t(Y), form, METADATA, BPPARAM=SerialParam())
-plotPercentBars(vp) + ggtitle("Explain cell type composition")
+df = lapply( colnames(Y), function(id){
 
-ymax = max(rowSums(vp[,-ncol(vp)]))*110
-plotPercentBars(vp) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax))
+  fit = lm(Y[,id] ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution, METADATA)
+  
+  data.frame( Test     = rownames(anova(fit))[1:4],
+              CellType = id, 
+              p        = anova(fit)[,'Pr(>F)'][1:4], 
+              frac     =  calcVarPart(fit)[1:4])
+})
+df = data.table(do.call(rbind, df))
+
+df$Test[df$Test=='Reported_Gender'] = "Sex"
+df$Test[df$Test=='ageOfDeath:Institution'] = "Age of death"
+df$p.adj = p.adjust(df$p, "bonferroni")
+
+ymax = max(df[,sum(frac),by="CellType"]$V1)*105
+ggplot(df, aes(CellType, frac*100, fill=Test)) + geom_bar(stat="identity") + coord_flip() + theme_bw() + theme(aspect.ratio=1, panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +  ylab("Variance explained (%)") + theme(axis.line = element_line(colour = "transparent"), 
+        axis.line.x = element_line(colour = "black"), panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), panel.border = element_blank(), 
+        panel.background = element_blank(), axis.ticks.y = element_blank(), 
+        legend.key = element_blank(), plot.margin = unit(c(0, 
+            0.3, 0, 0.8), "cm")) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + xlab('')
+
+
+ggplot(df, aes(CellType, Test, fill=-log10(pmax(1e-16,p)), label=ifelse(p.adj<0.05, '*', ''))) + geom_tile() + theme_bw() + scale_fill_gradient(name = bquote(-log[10]~P), low="white", high="red", limit=c(0, NA)) + theme(aspect.ratio=1, panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) + geom_text() + coord_flip()
 ```
 
 
 
 
-```{r sex.graph, fig.width=7, fig.height=7}
-library(ggplot2)
-library(ggraph)
-library(tidygraph)
-
+```{r sex.graph, fig.width=7, fig.height=7, dev="png"}
 df_cca2 = df_cca[with(df_cca, v1!=v2),]
 
 rstat_nodes <- data.frame(name = unique(df_cca2$v1))
@@ -380,7 +403,6 @@ rstat_edges <- data.frame(from = match(df_cca2$v1, rstat_nodes$name),
                          Rsq = df_cca2$V_sqrt^2 )
 
 net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
-     
 
 ggraph(net,  layout = 'igraph', algorithm = 'star') + 
   geom_edge_link(aes(width = Rsq, color=Rsq), alpha = 1) +
@@ -965,6 +987,30 @@ show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
 ```
 
 
+```{r plot.gene_set_test.marginal, eval=TRUE}
+ plot_zenith_results = function( res, coef, Resource, FDR = 0.05){
+   
+  i = which((res$Resource == Resource) & (res$Coef == coef))
+  df = res[i,]
+
+  # filter by FDR
+  df = df[df$FDR <= FDR,]
+  df$Coef = c()
+  df$se = c()
+  df$Resource = c()
+
+  df = df[order(df$PValue, decreasing=TRUE),]
+  df$Set = factor(df$Set, df$Set)
+  ymax = max(-log10(df$PValue)) * 1.05
+  ggplot(df, aes(Set, -log10(PValue))) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~P)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax))
+}
+                 
+ plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05)
+```
+
+```{r, fig.width=9}
+ plot_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
+```
 
 # Sex Analysis
 ```{r test.Sex, fig.height=5, fig.width=10}
@@ -1064,9 +1110,27 @@ plot_circos_logFC( df_meta[[coef]] ) + ggtitle("Meta analysis")
 ```
 
 
-## Plot top examples
+## Plot top examples - not chrY
+```{r plot.forrest.dlpfc.Sex.autosomes, fig.width=8, fig.height=20}  
+Symbols = df_meta[[coef]][df_meta[[coef]]$Chrom !='Y',]$Symbol[1:10]
+figList = lapply(Symbols, function(geneSymbol){
+
+  fig1 = plot_forrest( c(tab.de.lst[[coef]], list("Meta-analysis" = df_meta[[coef]])), geneSymbol)
+
+  fig2 = plot_gene( residuals.lst, df_meta[[coef]], geneSymbol, "Reported_Gender", fill=c("red", "blue")) + xlab("Sex")
+     
+  plot_grid(fig1, fig2, nrow=1)
+})      
+    
+plot_grid(plotlist=figList, ncol=1)
+```
+
+
+## Plot top examples - autosomes
 ```{r plot.forrest.dlpfc.Sex, fig.width=8, fig.height=20}  
-figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
+Symbols = df_meta[[coef]][df_meta[[coef]]$Chrom %in% 1:22,]$Symbol[1:10]
+
+figList = lapply(Symbols, function(geneSymbol){
 
   fig1 = plot_forrest( c(tab.de.lst[[coef]], list("Meta-analysis" = df_meta[[coef]])), geneSymbol)
 
@@ -1084,10 +1148,21 @@ show_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)
 show_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)        
 ```
 
+```{r plot.gene_set_test.marginal.Sex, eval=TRUE}
+ plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)         
+ plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)        
+```
+
+
 ### Only autosomes
 ```{r show.gene_set_test.marginal.Sex.autosome, eval=TRUE}
 show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.1) 
 show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.1)   
+```
+
+```{r plot.gene_set_test.marginal.Sex.autosome, eval=TRUE}
+ plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.1) 
+ plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.1)   
 ```
 
 
@@ -1157,6 +1232,11 @@ plot_grid(plotlist=figList, ncol=1)
 ```{r show.gene_set_test.marginal.Age, eval=TRUE}
 show_zenith_results( res_meta_zenith, "ageOfDeath", "GO", FDR=0.01)   
 show_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)    
+```
+
+```{r plot.gene_set_test.marginal.Age, eval=TRUE}
+ plot_zenith_results( res_meta_zenith, "ageOfDeath", "GO", FDR=0.01)   
+ plot_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)    
 ```
 
 
@@ -1365,9 +1445,104 @@ show_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "GO", FDR
 show_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB", FDR=0.1)    
 ```
 
+```{r plot.gene_set_test.marginal.inter_sex.disease, eval=TRUE}
+coef = 'DxSCZ:Reported_GenderMale'   
+ plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "GO", FDR=0.1)  
+ plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "MSigDB", FDR=0.1)  
+ 
+ plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "GO", FDR=0.1) 
+ plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB", FDR=0.1)    
+```
 
 
-# Dx test with in Males and then Females
+
+# Dx test separately in Males and then Females
+```{r dream.sex.disease.separately}
+form.lst = list(
+  `MSSM-Penn-Pitt`  = ~ Dx + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
+  `NIMH-HBCC`       = ~ Dx + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+
+# DE for males and females separately
+fit.separ = lapply( vobj.lst, function(vobj){
+
+  fit.lst = lapply(unique(METADATA$Reported_Gender), function(Sex){
+
+    i = match(colnames(vobj), rownames(METADATA))
+    info = METADATA[i,]
+    idx = which(info$Reported_Gender == Sex)
+
+    form_use = form.lst[[info$Cohort[1]]]
+
+    fit = dream(vobj[,idx], form_use, info[idx,], BPPARAM = SnowParam(18))  
+    eBayes( fit )
+  })
+  names(fit.lst) = unique(METADATA$Reported_Gender)
+  fit.lst
+  })
+names(fit.separ) = names(vobj.lst)
+
+# meta-analysis
+df_meta.separ = lapply(unique(METADATA$Reported_Gender), function(Sex){
+  tab.lst = lapply( names(vobj.lst), function(chrt){
+    topTable(fit.separ[[chrt]][[Sex]], coef="DxSCZ", sort.by='none', number=Inf)
+  })
+
+  res = run_meta_analysis( tab.lst, "FE") %>% getGeneSymbol
+  res$t = with(res, logFC/se)
+  res
+})
+names(df_meta.separ) = unique(METADATA$Reported_Gender)
+```
+
+
+```{r separ.concordance.scz, fig.height=6, fig.width=10}
+# Concordance analysis
+resConcord.separ = plot_concordance( df_meta.separ, showGenes = df_meta[['DxSCZ']]$Symbol[1:20])    
+
+main = "Concordance of SCZ across sexes"
+plot_grid(  resConcord.separ$fig_logFC + ggtitle(main),
+            resConcord.separ$fig_tstat + ggtitle(main), nrow=1)
+
+data.frame(Cohort = names(df_meta.separ),
+          "# DE"  = resConcord.separ$n.de,
+          pi1     = resConcord.separ$pi_single,
+          check.names=FALSE) %>% 
+          mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FALSE)
+
+resConcord.separ$tab_pi %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for replication") %>% kable_styling(full_width=FALSE)
+resConcord.separ$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="Correlation between t-statistics") %>% kable_styling(full_width=FALSE)
+```
+
+
+```{r compare.separate, fig.width=5, fig.height=5}
+df = merge( df_meta.separ[[1]], df_meta.separ[[2]], by="row.names")
+
+fit = with(df, lm(logFC.y ~ logFC.x))
+
+coef(summary(fit) ) %>%  kable(caption="logFC is larger in males") %>% kable_styling(full_width=FALSE) 
+
+ # compare logFC
+tstat = with(df, (logFC.y - logFC.x) / (sqrt(se.y^2 + se.x^2)))
+
+qqt(tstat)
+abline(0, 1, col="red")
+p = 2*pt(abs(tstat), df=778, lower.tail=FALSE)
+table(p.adjust(p) < 0.05)
+```
+
+## Plot top examples
+```{r plot.forrest.dlpfc.separ, fig.width=8, fig.height=40}  
+   
+figList = lapply(df_meta.separ[[1]]$Symbol[1:20], function(geneSymbol){
+  fig1 = plot_forrest( df_meta.separ, geneSymbol, plot2='p')
+
+  plot_grid(fig1, nrow=1)
+}) 
+ 
+plot_grid(plotlist=figList, ncol=1)
+```
+
+
 
 
 ```{r store, eval=TRUE}
