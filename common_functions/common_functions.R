@@ -902,7 +902,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   info = METADATA[i,]
 
   # perform hypothesis test
-  res = boxM_permute( Y, info[[variable]])
+  # res = boxM_permute( Y, info[[variable]])
 
   FDR = df_test[with(df_test, Cohort==key & Module == clusterID),'FDR']
 
