@@ -116,8 +116,6 @@ colnames(df_asd)[colnames(df_asd)=="Q‑Val" ] = 'Q'
 df_asd2 = data.frame(ENSEMBL = df_asd$Gene, Q = df_asd$Q)
 df_asd2$chisq = qchisq(df_asd2$Q + 1e-15, 1, lower.tail=FALSE)
 rownames(df_asd2) = df_asd2$ENSEMBL
-
-
 ```
 
 
@@ -597,7 +595,7 @@ ggplot(df_test.Dx_Sex, aes(Module, -log10(P.Value))) + geom_bar(stat='identity',
    
 figList = lapply(df_test.Dx_Sex$Module[1:5], function(mod){. 
 
-	plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")   
+	plot_module( mod, /, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "MSSM-Penn-Pitt")   
 	})
   
 plot_grid( plotlist = figList, ncol=1)

@@ -934,7 +934,8 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   }
 
   res = sLED:::sLEDTestStat(C2-C1, rho=1, sumabs.seq = .5)
-  df_leverage = data.frame(Gene = colnames(C2), leverage = t(res$leverage))
+  df_leverage = data.frame(Gene = colnames(C2), leverage = t(res$leverage), stringsAsFactors=FALSE)
+  genes.has.leverage = df_leverage$Gene[df_leverage$leverage > 0]
 
   # reorder for clustering
   hcl = hclust(as.dist(1 - C1), method="ward.D2")
@@ -980,11 +981,14 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
         theme(aspect.ratio = 1, plot.title = element_text(hjust = 0.5), 
             legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text.x=element_text(angle=45, hjust=1)) + ggtitle(main) + ylab(lvl[lvlidx[2]]) + xlab(lvl[lvlidx[1]])
 
-   fig2 = plot_grid(fig2, fig.leverage, ncol=2)     
+  fig2 = plot_grid(fig2 + theme(legend.position="left", aspect.ratio=1), fig.leverage, ncol=2, align='v', rel_widths=c(4, 1), axis='t')      
 
   # plot network   
+  D = C2 - C1
   main = paste(key, clusterID, paste0('(', lvl[lvlidx[2]], ' - ', lvl[lvlidx[1]], ')'), 'FDR =', format(FDR, digits=3))
-  fig3 = plot_corr_network( C2 - C1 , base_size=base_size, zcutoff=zcutoff) + ggtitle(main)
+
+  D = D[genes.has.leverage,genes.has.leverage]
+  fig3 = plot_corr_network( D , base_size=base_size, zcutoff=zcutoff) + ggtitle(main)
 
   fig_merge = plot_grid( fig1, fig2, nrow=1)
   plot_grid( fig_merge, fig3, nrow=2, rel_heights=c(1,1.5) )    
