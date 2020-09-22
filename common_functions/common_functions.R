@@ -1104,7 +1104,7 @@ plot_enrich = function( df, module, base_size=11 ){
   df2$Geneset = factor(df2$Geneset, df2$Geneset)
 
   ylim = max(-log10(df$FDR))
-  ggplot(df2[1:10,], aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw(base_size) + theme(plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
+  ggplot(df2[1:10,], aes(Geneset, -log10(FDR))) + geom_bar(stat='identity', fill=module) + theme_bw(base_size) + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + scale_y_continuous(expand=c(0,0), lim=c(0, ylim*1.05)) 
 }
 
 
