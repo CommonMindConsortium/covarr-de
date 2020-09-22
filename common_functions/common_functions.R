@@ -1013,7 +1013,7 @@ plot_corr_network = function( C, zcutoff = 1.3, seed=1, base_size=11){
   set.seed(seed)
 
   # plot
-  ggraph(net, layout = "igraph", algorithm='graphopt') + 
+  ggraph(net, layout = "stress") + #igraph", algorithm='graphopt') + 
     geom_edge_link(aes(width = abs(weight), color=weight), alpha = 1) + 
     scale_edge_width(name='|Corr Diff|',range = c(0.2, 2)) +
     geom_node_point(size=base_size, color="grey80") +
