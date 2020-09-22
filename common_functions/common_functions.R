@@ -882,7 +882,7 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
 
 
 # Plots for each module
-plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2){
+plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2, zcutoff=1.3){
 
   clusterID = as.character(clusterID)
 
@@ -972,7 +972,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   # plot network   
   main = paste(key, clusterID, paste0('(', lvl[lvlidx[2]], ' - ', lvl[lvlidx[1]], ')'), 'FDR =', format(FDR, digits=3))
-  fig3 = plot_corr_network( C2 - C1 , base_size=base_size) + ggtitle(main)
+  fig3 = plot_corr_network( C2 - C1 , base_size=base_size, zcutoff=zcutoff) + ggtitle(main)
 
   fig_merge = plot_grid( fig1, fig2, nrow=1)
   plot_grid( fig_merge, fig3, nrow=2, rel_heights=c(1,1.5) )    
