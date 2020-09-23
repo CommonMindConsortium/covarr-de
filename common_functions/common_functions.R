@@ -986,6 +986,7 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   C1 = res$C1
   C2 = res$C2
  
+  lvl = levels(info[[variable]])
 
   ylim = max(df_leverage$leverage)*1.05
   fig.leverage = ggplot(df_leverage, aes(Gene, leverage)) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=5) + coord_flip() + theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + xlab("") + ylab("Leverage") + scale_y_continuous(limits=c(0, ylim), expand=c(0,0))

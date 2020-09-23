@@ -19,16 +19,46 @@ params:
 
 <!---
 
-cd /hpc/users/hoffmg01/work/covarr-de
-# rm -rf combined_analysis/diff.networks_* combined_analysis/diff.networks.html
+#
+
+cd /hpc/users/hoffmg01/work/covarr-de/
+# rm -rf combined_analysis/diff.networks_cache/html/* combined_analysis/diff.networks.html
 ml git pandoc udunits proj gdal geos
 git pull
 R
 
 system("git pull")
 
+rmarkdown::render("combined_analysis/diff.networks.Rmd")
 
-rmarkdown::render("combined_analysis/diff.networks.Rmd", output_dir="/sc/arion/scratch/hoffmg01/network")
+
+
+
+
+
+
+ll /hpc/users/hoffmg01/work/covarr-de/combined_analysis/diff.networks_cache/html/
+
+
+cd /hpc/users/hoffmg01/work/covarr-de
+# rm -rf combined_analysis/diff.networks_* combined_analysis/diff.networks.html
+ml git pandoc udunits proj gdal geos
+git pull
+cd /sc/arion/scratch/hoffmg01/network/
+\cp -f /hpc/users/hoffmg01/work/covarr-de/combined_analysis/diff.networks.Rmd /sc/arion/scratch/hoffmg01/network
+R
+
+system("cd /hpc/users/hoffmg01/work/covarr-de; git pull")
+
+
+rmarkdown::render("diff.networks.Rmd", output_dir="/sc/arion/scratch/hoffmg01/network/", intermediates_dir='/sc/arion/scratch/hoffmg01/network/')
+
+
+ll /hpc/users/hoffmg01/work/covarr-de/combined_analysis/diff.networks_cache/html/
+
+
+
+
 
 
 --->
