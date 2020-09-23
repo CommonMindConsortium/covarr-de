@@ -881,8 +881,7 @@ test_differential_correlation_interaction = function(resid.lst, C.diff.discovery
 
 
 
-# Plots for each module
-plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2, zcutoff=1.3){
+get_module_results = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2, zcutoff=1.3){
 
   clusterID = as.character(clusterID)
 
@@ -900,13 +899,6 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   # extract metadata
   i = match(rownames(Y), rownames(METADATA))
   info = METADATA[i,]
-
-  # perform hypothesis test
-  # res = boxM_permute( Y, info[[variable]])
-
-  FDR = df_test[with(df_test, Cohort==key & Module == clusterID),'FDR']
-
-  main = paste(key, clusterID, 'FDR =', format(FDR, digits=3))
 
   # Evaluate correlation matrix for each category
   lvl = levels(info[[variable]])
@@ -945,10 +937,14 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
   # reorder based on clustering
   df_leverage$Gene = factor(df_leverage$Gene, rownames(C2))
 
-  ylim = max(df_leverage$leverage)*1.05
-  fig.leverage = ggplot(df_leverage, aes(Gene, leverage)) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=5) + coord_flip() + theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + xlab("") + ylab("Leverage") + scale_y_continuous(limits=c(0, ylim), expand=c(0,0))
+  list( C1          = C1,
+        C2          = C2,
+        D           = C2 - C1,
+        df_leverage = df_leverage)
+}
 
-  # create data.frame to compare correlation values
+cor_pair_to_data.frame = function(C1, C2){
+   # create data.frame to compare correlation values
   ind <- which( upper.tri(C1,diag=FALSE) , arr.ind = TRUE )
 
   df2 = data.frame( col = dimnames(C1)[[2]][ind[,2]] ,
@@ -960,15 +956,48 @@ plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.disc
 
   df2$pair[i] = with(df2[i,], paste(col, '/',row))
 
-  lim = range(c(df2$cor1, df2$cor2))
+  df2
+}
 
-  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_abline(color="grey", linetype="dashed") + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[lvlidx[1]])) + ylab(paste('Correlation in', lvl[lvlidx[2]])) 
+cor_matrices_to_data.frame = function(C1, C2){
 
   # upper is C2 and lower is C1, since C1 is baseline, is lvl[1]
   C = C2
   C[lower.tri(C)] = C1[lower.tri(C1)]
   diag(C) = NA
   df = reshape2::melt(C)
+
+  df
+}
+
+
+
+
+# Plots for each module
+plot_module = function( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size=11, lvlidx = 1:2, zcutoff=1.3){
+
+  FDR = df_test[with(df_test, Cohort==key & Module == clusterID),'FDR']
+
+  main = paste(key, clusterID, 'FDR =', format(FDR, digits=3))
+
+  res = get_module_results( clusterID, df_test, METADATA, dynamicColors, C.diff.discovery, resid.lst, variable, key, base_size, lvlidx, zcutoff)
+
+  df_leverage = res$df_leverage
+  C1 = res$C1
+  C2 = res$C2
+ 
+
+  ylim = max(df_leverage$leverage)*1.05
+  fig.leverage = ggplot(df_leverage, aes(Gene, leverage)) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=5) + coord_flip() + theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + xlab("") + ylab("Leverage") + scale_y_continuous(limits=c(0, ylim), expand=c(0,0))
+
+  df2 = cor_pair_to_data.frame(C1, C2)
+
+  lim = range(c(df2$cor1, df2$cor2))
+
+  fig1 = ggplot(df2, aes(cor1, cor2, label=pair)) + geom_abline(color="grey", linetype="dashed") + geom_point(aes(color=ifelse(pair=='', "grey", "red"))) + theme_bw(base_size) + theme(aspect.ratio = 1, legend.position='none', plot.title = element_text(hjust = 0.5))  + geom_text_repel(direction='x', nudge_x=1, hjust=1, segment.size = 0.2, box.padding=.2, size=base_size/2) + scale_color_manual(values=c("grey50", "red")) + xlim(lim) + ylim(lim) + ggtitle(main) + xlab(paste('Correlation in', lvl[lvlidx[1]])) + ylab(paste('Correlation in', lvl[lvlidx[2]])) 
+
+  # upper is C2 and lower is C1, since C1 is baseline, is lvl[1]
+  df = cor_matrices_to_data.frame(C1, C2)
 
   colsFun = colorRampPalette( c("blue", "white","red"))
   color = colsFun(1000)
@@ -1214,6 +1243,41 @@ pickSFT = function( diff.net ){
   do.call(rbind, df)
 }
 
+
+
+
+
+save_network_results = function(diff.net, hcl, dynamicColors, df_test, prefix){
+
+  file = paste0(prefix, '_diff.net.RDS')
+  saveRDS(diff.net, file=file)
+    nEXP_OBJ = File(file, 
+                    name = "Differential network", 
+                    parentId = CODE$properties$id)
+    synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+
+    file = paste0(prefix, '_hcl.RDS')
+  saveRDS(hcl, file=file)
+    nEXP_OBJ = File(file,  
+                    name = "Network modules as hclust", 
+                    parentId = CODE$properties$id)
+    synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+
+    file = paste0(prefix, '_dynamicColors')
+  saveRDS(dynamicColors, file=file)
+    nEXP_OBJ = File(file,  
+                    name = "Network modules", 
+                    parentId = CODE$properties$id)
+    synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+
+
+    file = paste0(prefix, '_dynamicColors')
+  saveRDS(df_test, file=file)
+    nEXP_OBJ = File(file,  
+                    name = "Differential correlation results", 
+                    parentId = CODE$properties$id)
+    synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+}
 
 
 

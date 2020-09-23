@@ -12,6 +12,7 @@ output:
   html_document:
     toc: true
     toc_float: true
+upload: FALSE
 ---
 
 
@@ -30,6 +31,11 @@ rmarkdown::render("combined_analysis/diff.networks.Rmd")
 
 
 --->
+
+
+
+
+
 
 Since we are generating networks across cohorts and sexes, identifiying conserved clusters using standard methods becomes non-trivial.  Instead of defining clusters for each subset and evaluating the difference, we first compute the differences in the correlation networks, then identify a single set of clusters based on this difference-network.  Then use hypothesis test of differential correlation in the second cohort to get p-value.
 
@@ -53,6 +59,7 @@ library(metap)
 library(zenith) 
 library(knitr) 
 library(plyr) 
+library(githubr)
 library(qvalue)  
 library(BiocParallel)  
 })   
@@ -69,11 +76,26 @@ knitr::opts_chunk$set(
   cache.lazy = FALSE)
 ```
 
+```{r synapse.parameters, include=FALSE, cache=TRUE}
+
+parentId = 'syn22416298';
+activityName = 'Differential network analysis - DLPFC';
+activityDescription = 'Differential network analysis - DLPFC';
+
+thisFileName <- 'diff.networks.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/',thisFileName))
+```
+
 ```{r load.data}
 # Load data
 resid.add = readRDS(synGet('syn22416489')$path)
 vobj.lst = readRDS(synGet('syn22416446')$path)
 METADATA = readRDS(synGet('syn22416411')$path)
+ALL_USED_IDs = c('syn22416489', 'syn22416446', 'syn22416411')
+
 METADATA$Reported_Gender = factor(METADATA$Reported_Gender, c("Male", "Female"))
 
 # identify genes to keep: remove chrY genes
@@ -99,6 +121,7 @@ go.gs = get_GeneOntology()
 
 ```{r load.WES}
 df_schema = fread(synGet('syn22343823')$path)
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn22343823')
 
 df_schema2 = df_schema[,data.frame(ENSEMBL = Gene,
 									OR1 = `OR (Class I)`,
@@ -112,6 +135,7 @@ rownames(df_schema2) = df_schema2$ENSEMBL
 
 # ASD
 df_asd = fread(synGet('syn22343811')$path)
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn22343811')
 colnames(df_asd)[colnames(df_asd)=="Q‑Val" ] = 'Q'
 df_asd2 = data.frame(ENSEMBL = df_asd$Gene, Q = df_asd$Q)
 df_asd2$chisq = qchisq(df_asd2$Q + 1e-15, 1, lower.tail=FALSE)
@@ -125,6 +149,8 @@ fit_marginal.lst = readRDS(synGet('syn22416500')$path)
 fit_inter_sex.disease.lst = readRDS(synGet('syn22416524')$path)
 df_meta = readRDS(synGet('syn22416508')$path)
 df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
+
+ALL_USED_IDs = c(ALL_USED_IDs, c('syn22416500', 'syn22416524', 'syn22416508', 'syn22416532'))
 ```
 
 
@@ -217,7 +243,7 @@ C = diff.net[[1]]
 C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
-rm(diff.net) # saving this to disk is slow, so just delete it
+# rm(diff.net) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
@@ -231,7 +257,6 @@ tab = table(dynamicColors)
 df_test_null = test_differential_correlation(resid.add[[resVersion]], C.diff.discovery, dynamicColors, METADATA, variable, useSLED=TRUE, .5, 100) 
 ```
 
-
 ```{r recalibrate.null}
 df_test_recal = apply_permutation_null( df_test_null )
 
@@ -241,6 +266,21 @@ df_test_meta = module_meta_analysis( df_test_recal )
 
 table(df_test_meta$FDR < 0.05)
 ```
+
+```{r save.network.null}
+if( params$upload ){    
+  # Code
+  # Make sure these match the folder name and parent Id in the first chunk.
+  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
+  CODE <- synStore(CODE)
+
+  # Store data 
+  save_network_results( diff.net, hcl, dynamicColors, df_test_null, "nullTest")
+}
+```
+
+
+
 
 # Sex network
 ## Difference networks
@@ -264,7 +304,7 @@ C = diff.net.Sex[[1]]
 C.diff.discovery = C[[2]]^pwr - C[[1]]^pwr
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
-rm(diff.net.Sex) # saving this to disk is slow, so just delete it
+# rm(diff.net.Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
@@ -383,6 +423,20 @@ figList = lapply( df_cohort2$Module[i], function(module){
 }) 
 plot_grid(plotlist = figList, ncol=1)
 ```
+
+
+```{r save.network.Sex}
+if( params$upload ){    
+  # Code
+  # Make sure these match the folder name and parent Id in the first chunk.
+  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
+  CODE <- synStore(CODE)
+
+  # Store data 
+  save_network_results( diff.net.Sex, hcl, dynamicColors.Sex, df_test.Sex, "SexTest")
+}
+```
+
 
 
 
@@ -552,7 +606,7 @@ C.diff.discovery = (C[[lvls[4]]]^pwr - C[[lvls[3]]]^pwr) - (C[[lvls[2]]]^pwr - C
 
 C.diff.discovery = C.diff.discovery[keep.ensID,keep.ensID]
 
-rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
+# rm(net.Dx_Sex) # saving this to disk is slow, so just delete it
 
 hcl = hclust( as.dist(C.diff.discovery) )
 
@@ -614,7 +668,7 @@ ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module)
 ```
 
 
-```{r plot.meta.Dx_Sex, fig.width=5, fig.height=9}
+```{r plot.meta.Dx_Sex, fig.width=5, fig.height}
 ggplot(df_test_meta.Dx_Sex, aes(Module, -log10(P.Value))) + geom_bar(stat='identity', fill=df_test_meta.Dx_Sex$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + ylab(bquote(-log[10]~P)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed") 
 
 GWASTools::qqPlot(df_test_meta.Dx_Sex$P.Value)
@@ -635,11 +689,18 @@ figList = lapply(df_cohort2$Module[i], function(mod){
 
 	fig3 = plot_module( mod, df_test.Dx_Sex, METADATA, dynamicColors.Dx_Sex, C.diff.discovery, resid.add[[resVersion]], variable, "NIMH-HBCC", lvlidx=1:4) 
 
-	plot_grid(fig1, fig2, fig3, ncol=1)
+	plot_grid(fig1$fig_cor, fig2$fig_cor, fig3$fig_cor, nrow=1)
+	plot_grid(fig1$fig_heatmap, fig2$fig_heatmap, fig3$fig_heatmap, nrow=1)
+	plot_grid(fig1$fig_network, fig2$fig_network, fig3$fig_network, nrow=1)
+	plot_grid(fig1$fig_cor, fig2$fig_cor, fig3$fig_cor, nrow=1)
 	})
   
 plot_grid( plotlist = figList, ncol=1)
 ```
+
+
+
+
 
 
 ## Module enrichment
@@ -675,6 +736,19 @@ plot_grid(plotlist = figList, ncol=1)
 ```
 
 
+
+
+```{r save.network.Dx_Sex}
+if( params$upload ){    
+  # Code
+  # Make sure these match the folder name and parent Id in the first chunk.
+  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
+  CODE <- synStore(CODE)
+
+  # Store data 
+  save_network_results( net.Dx_Sex, hcl, dynamicColors.Dx_Sex, df_test.Dx_Sex, "Dx_SexTest")
+}
+```
 
 
 ```{r exit, cache=FALSE}
