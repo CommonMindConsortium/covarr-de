@@ -1,0 +1,128 @@
+---
+title: "CommonMind Consortium: DLPFC"
+subtitle: "Plots for Differential network analysis - DLPFC"
+author:
+- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$ and Kelsey Montgomery$^{2}$"
+  affiliation: | 
+    [1] Icahn School of Medicine at Mount Sinai, New York
+    [2] Sage Bionetworks, Seattle, WA
+date: "Run on `r Sys.time()`"
+documentclass: article
+output:
+  html_document:
+    toc: true
+    toc_float: true
+upload: FALSE
+---
+
+
+
+<!---
+
+cd /hpc/users/hoffmg01/work/covarr-de
+ml git pandoc udunits proj gdal geos
+git pull
+R
+
+system("git pull")
+
+
+rmarkdown::render("combined_analysis/plot_diff.networks.Rmd")
+
+
+--->
+
+
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(synapser)
+
+synLogin()
+
+library(WGCNA)
+library(variancePartition)
+library(decorate)
+library(ggrepel)
+library(cowplot) 
+library(metap) 
+library(zenith) 
+library(knitr) 
+library(plyr) 
+library(githubr)
+library(qvalue)  
+library(BiocParallel)  
+})   
+source("../common_functions/common_functions.R")   
+# source("common_functions/common_functions.R")   
+  
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,   
+  tidy = FALSE,
+  cache = TRUE,
+  cache.lazy = FALSE)
+```
+
+```{r synapse.parameters, include=FALSE, cache=TRUE, eval=FALSE}
+
+parentId = 'syn22416298';
+activityName = 'Plots for Differential network analysis - DLPFC';
+activityDescription = 'Plots for Differential network analysis - DLPFC';
+
+thisFileName <- 'diff.networks.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/',thisFileName))
+```
+
+
+
+```{r load.data}
+# Load data
+resid.add = readRDS(synGet('syn22416489')$path)
+vobj.lst = readRDS(synGet('syn22416446')$path)
+METADATA = readRDS(synGet('syn22416411')$path)
+ALL_USED_IDs = c('syn22416489', 'syn22416446', 'syn22416411')
+
+METADATA$Reported_Gender = factor(METADATA$Reported_Gender, c("Male", "Female"))
+```
+
+
+
+```{r load.dream}
+fit_marginal.lst = readRDS(synGet('syn22416500')$path)
+fit_inter_sex.disease.lst = readRDS(synGet('syn22416524')$path)
+df_meta = readRDS(synGet('syn22416508')$path)
+df_meta.inter_sex.disease = readRDS(synGet('syn22416532')$path)
+
+ALL_USED_IDs = c(ALL_USED_IDs, c('syn22416500', 'syn22416524', 'syn22416508', 'syn22416532'))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
