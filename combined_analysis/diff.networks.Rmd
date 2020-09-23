@@ -1,6 +1,6 @@
 ---
 title: "CommonMind Consortium: DLPFC"
-subtitle: "Analysis of read count data by cohort"
+subtitle: "Differential network analysis - DLPFC"
 author:
 - name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$ and Kelsey Montgomery$^{2}$"
   affiliation: | 
@@ -12,7 +12,8 @@ output:
   html_document:
     toc: true
     toc_float: true
-upload: TRUE
+params:
+	upload: FALSE
 ---
 
 
