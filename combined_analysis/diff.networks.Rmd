@@ -28,7 +28,7 @@ R
 system("git pull")
 
 
-rmarkdown::render("combined_analysis/diff.networks.Rmd")
+rmarkdown::render("combined_analysis/diff.networks.Rmd", output_dir="/sc/arion/scratch/hoffmg01/network")
 
 
 --->
@@ -165,7 +165,7 @@ ALL_USED_IDs = c(ALL_USED_IDs, c('syn22416500', 'syn22416524', 'syn22416508', 's
 
 resVersion = "Sex"
 
-df_test = lapply( 1:10, function(k){
+df_test = lapply( 1, function(k){
 	METADATA$rnd = sample(c('A','B'), nrow(METADATA), replace=TRUE)
 	METADATA$rnd = factor(METADATA$rnd, c('A','B'))
 
