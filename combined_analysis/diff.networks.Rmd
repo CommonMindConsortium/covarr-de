@@ -668,7 +668,7 @@ ggplot(df, aes(Module, -log10(FDR))) + geom_bar(stat='identity', fill=df$Module)
 ```
 
 
-```{r plot.meta.Dx_Sex, fig.width=5, fig.height}
+```{r plot.meta.Dx_Sex, fig.width=5, fig.height=8}
 ggplot(df_test_meta.Dx_Sex, aes(Module, -log10(P.Value))) + geom_bar(stat='identity', fill=df_test_meta.Dx_Sex$Module) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + coord_flip() + ylab(bquote(-log[10]~P)) + scale_y_continuous(expand=c(0,0)) + geom_hline(yintercept = -log10(0.05), color="red", linetype="dashed") 
 
 GWASTools::qqPlot(df_test_meta.Dx_Sex$P.Value)
