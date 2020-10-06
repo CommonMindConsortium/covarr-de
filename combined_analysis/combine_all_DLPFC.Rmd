@@ -121,6 +121,7 @@ library(variancePartition)
 
 }) 
 source("../common_functions/common_functions.R")   
+# source("common_functions/common_functions.R")   
   
 knitr::opts_chunk$set(
   echo = FALSE,
@@ -395,8 +396,14 @@ ggplot(df, aes(CellType, Test, fill=-log10(pmax(1e-16,p)), label=ifelse(p.adj<0.
 
 ```{r sex.graph, fig.width=7, fig.height=7, dev="png"}
 df_cca2 = df_cca[with(df_cca, v1!=v2),]
+df_cca2$key = apply(df_cca2, 1, function(x){
+  x = sort(c(x['v1'], x['v2']))
+  paste(x[1], x[2])
+  }) 
+df_cca2 = df_cca2[!duplicated(df_cca2$key),]
 
-rstat_nodes <- data.frame(name = unique(df_cca2$v1))
+
+rstat_nodes <- data.frame(name = unique(c(df_cca2$v1, df_cca2$v2)))
 
 rstat_edges <- data.frame(from = match(df_cca2$v1, rstat_nodes$name),
                          to = match(df_cca2$v2, rstat_nodes$name),
@@ -410,9 +417,10 @@ ggraph(net,  layout = 'igraph', algorithm = 'star') +
   geom_node_text(aes(label = name), repel = FALSE) +
   theme_graph() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) +
   scale_edge_width(name=bquote(R^2)) +
-  scale_edge_color_gradient(name=bquote(R^2), low="white", high="red", lim=c(0, max(df_cca2$V_sqrt^2))) +
-  ggtitle("Pairwise squared correlation")
+  scale_edge_color_gradient(name=bquote(R^2), low="white", high="red", lim=c(0, max(df_cca2$V_sqrt^2))) +  ggtitle("Pairwise squared correlation")
 ```
+
+
 
 
 
@@ -432,6 +440,12 @@ res = lapply( unique(METADATA$Institution), function(INST){
 ggplot(METADATA, aes(Reported_Gender, ageOfDeath, fill=Reported_Gender)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + facet_wrap(~Institution, nrow=1) + scale_fill_manual(values = c("red", "blue"))
 ```
 
+```{r fraction.female}
+df = xtabs(~Reported_Gender + Institution, METADATA)
+df2 = apply(df, 2, function(x) x / sum(x))
+
+plotPercentBars(data.frame(t(df2))) + scale_fill_manual(values=c("red", "blue")) + ylab("Fraction of samples") + xlab("Institution")
+```
 
 ### Sex by cell fraction
 ```{r summary.sex, fig.width=8, fig.height=10}
@@ -779,7 +793,7 @@ figList = lapply(df_meta[[coef]]$Symbol[1:10], function(geneSymbol){
 
   fig2 = plot_gene(residuals.lst, df_meta[[coef]], geneSymbol, "Dx") + xlab("Diagnosis")
 
-  plot_grid(fig1, fig2, nrow=1)
+  plot_grid(fig1, fig2, nrow=1, rel_widths=c(.8, 1))
 })
  
 plot_grid(plotlist=figList, ncol=1)
@@ -906,67 +920,6 @@ corrplot(reorder, col = col2(200))
 
 
 
-
-```{r test.multtest, eval=FALSE}
-
-library(irlba)
-library(pinnacle)
-library(poolR)
-library(matrixStats)
-
-
-i = with(res_meta_zenith, (Resource == 'GO') & (Coef == "DxSCZ"))
-df = res_meta_zenith[i,]
-df$qvalue = qvalue(df$PValue)$qvalue
-# df$p.adjust = p.adjust(df$PValue, method="bon" )
-df$p.adjust = pmin(1, 2805 * df$PValue)
-
-M = recodeToSparseMatrix(gs.GO)
-M = M[rownames(M) %in% trim_ensembl_ids(rownames(df_meta_SCZ)),]
-keep = (colSums(M) >= 10) & (colnames(M) %in% rownames(df) )
-M = M[,keep]
-
-
-
-m = colMeans(M)
-s = apply(M, 2, var) * nrow(M) / (nrow(M) + 1)
-
-dcmp = irlba( M, nv = 500, center=m, scale=sqrt(s), right_only=FALSE)
-ev = dcmp$d^2 / nrow(M)
-
-plot(cumsum(ev) / ncol(M))
-
-
-
-df_unsort = df[colnames(M),]
-edcmp = list(vectors = dcmp$v, values = dcmp$d^2 / nrow(M))
-
-res = p.corr.adjust( df_unsort$PValue, dcmp = edcmp, method.sim="eigen", B = nrow(df_unsort)*4)
-
-
-
-plot( cumsum(dcmp$d^2 / sum(dcmp$d^2)))
-
-C = cor(as.matrix(M[,1:1000]))
-evals = eigen(C)$values
-
-dcmp = svd(scale(M) / sqrt(nrow(M)))
-dcmp$d^2
-
-plot(cumsum(dcmp$d^2 / sum(dcmp$d^2)))
-
-meff(C, method='gao')
-
-
-
-dcmp = svd(scale(M[,1:100]))
-
-
-meff(eigen = dcmp$d^2 , method = "galwey")
-
-
-```
-
 ```{r show.gene_set_test.marginal, eval=TRUE}
 show_zenith_results = function( res, coef, Resource, FDR = 0.05){
 	 
@@ -1001,8 +954,8 @@ show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
 
   df = df[order(df$PValue, decreasing=TRUE),]
   df$Set = factor(df$Set, df$Set)
-  ymax = max(-log10(df$PValue)) * 1.05
-  ggplot(df, aes(Set, -log10(PValue))) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~P)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax))
+  ymax = max(-log10(df$FDR)) * 1.05
+  ggplot(df, aes(Set, -log10(FDR))) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
 }
                  
  plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05)
@@ -1069,7 +1022,8 @@ resConcord.Sex$tab_corr  %>% mutate_if(is.numeric, format, digits=3) %>% kable(c
 tab.de.lst.autosome = lapply(tab.de.lst[[coef]], function(x) x[x$Chrom %in% 1:22,])
 
 # Concordance analysis
-resConcord.Sex = plot_concordance(tab.de.lst.autosome, showGenes = tab.de.lst.autosome$Symbol[1:20])
+df = df_meta[[coef]][df_meta[[coef]]$Chrom %in% 1:22,]
+resConcord.Sex = plot_concordance(tab.de.lst.autosome, showGenes = df$Symbol[1:20])
 
 main = "Concordance of Sex - autosomes"
 plot_grid(  resConcord.Sex$fig_logFC + ggtitle(main),
@@ -1097,6 +1051,10 @@ plot_grid(fig1, fig2, ncol=2)
 data.frame(pi1 = 1 - qvalue(df_meta[[coef]]$P)$pi0,
           `# DE` = sum(df_meta[[coef]]$adj.P.Val < 0.05),
           check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for Sex meta-analysis") %>% kable_styling(full_width=FALSE)
+
+data.frame(pi1 = 1 - qvalue(df$P)$pi0,
+          `# DE` = sum(df$adj.P.Val < 0.05),
+          check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for Sex meta-analysis - autosomes") %>% kable_styling(full_width=FALSE)
 ```
 
 ## Sex circos
@@ -1149,7 +1107,7 @@ show_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)
 ```
 
 ```{r plot.gene_set_test.marginal.Sex, eval=TRUE}
- plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)         
+ plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)               
  plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)        
 ```
 
@@ -1239,7 +1197,146 @@ show_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)
  plot_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)    
 ```
 
+# Comparison with GTEx
+```{r gtex.sex, fig.height=6, fig.width=10}
 
+# read beta and se from GTEx
+df_gtex.beta = read.table(synGet("syn22891761")$path, header=TRUE, row.names=1)
+df_gtex.se = read.table(synGet("syn22891767")$path, header=TRUE, row.names=1)
+df_gtex.lfsr = read.table(synGet("syn22891755")$path, header=TRUE, row.names=1)
+df_signif = fread(synGet("syn22891771")$path) 
+df_signif = df_signif[tissue =='Brain_Frontal_Cortex_BA9', ]
+# identical(rownames(df_gtex.beta), rownames(df_gtex.se))
+# identical(rownames(df_gtex.lfsr), rownames(df_gtex.se))
+
+# data.frame of GTEx results
+df_gtex_BA9 = data.frame( ENSEMBL.full = rownames(df_gtex.beta),
+                          ENSEMBL = trim_ensembl_ids( rownames(df_gtex.beta) ),
+                          logFC = -1*df_gtex.beta[,'Brain_Frontal_Cortex_BA9'],
+                          se = df_gtex.se[,'Brain_Frontal_Cortex_BA9'],
+                          adj.P.Val = df_gtex.lfsr[,'Brain_Frontal_Cortex_BA9'])
+
+df_gtex_BA9$isSignif = FALSE
+df_gtex_BA9$isSignif[ df_gtex_BA9$ENSEMBL.full %in% df_signif$gene] = TRUE
+
+df_gtex_BA9 = df_gtex_BA9 %>% getGeneSymbol( "ENSEMBL")
+
+df_gtex_BA9$t = with(df_gtex_BA9, logFC / se)
+df_gtex_BA9$P.Value = with(df_gtex_BA9, 2*pnorm(abs(t), lower.tail=FALSE))
+# df_gtex_BA9$adj.P.Val = p.adjust(df_gtex_BA9$P.Value, "fdr")
+df_gtex_BA9 = df_gtex_BA9[!is.na(df_gtex_BA9$logFC),]
+rownames(df_gtex_BA9) = df_gtex_BA9$ENSEMBL
+
+# data.frame of CMC results from meta-analysis
+df = df_meta[['Reported_GenderMale']]
+df$t = with(df, logFC / se)
+rownames(df) = trim_ensembl_ids( rownames(df) )
+
+# all genes
+resConcord.gtex = plot_concordance( list('CMC v3' = df, 'GTEx BA9' = df_gtex_BA9), showGenes=df$Symbol[1:10] )
+
+
+main = "Concordance with GTEx (all genes)"
+plot_grid(  resConcord.gtex$fig_logFC + ggtitle(main),
+            resConcord.gtex$fig_tstat + ggtitle(main), nrow=1)
+         
+# resConcord.gtex$tab_pi %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for replication") %>% kable_styling(full_width=FALSE)
+resConcord.gtex$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="Correlation between t-statistics") %>% kable_styling(full_width=FALSE)
+
+# because GTEx uses MASH to combine 44 tissue, standard plot_concordance() does give 
+# correct replication values
+df.merge = merge(df, df_gtex_BA9, by="row.names")
+
+table(df.merge$isSignif)
+
+df_repl = data.frame(Discovery = c("GTEx", "CMC"), rate = c(NA, NA))
+
+# Discover in CMC
+# with(df.merge, table(isSignif[adj.P.Val.x < 0.05]))
+# with(df, 1 - qvalue(P.Value.y[adj.P.Val.x < 0.05])$pi0)
+lfsr = with(df.merge, adj.P.Val.y[adj.P.Val.x < 0.05]) 
+df_repl$rate[1] = sum(1-lfsr) / length(lfsr)
+
+# Discover in GTEx
+# with(df, 1 - qvalue(P.Value.x[adj.P.Val.y < 0.05])$pi0)
+# df_repl$rate[2] = with(df.merge, 1 - qvalue(P.Value.x[isSignif])$pi0)
+
+res = with(df.merge, ash( logFC.x, se.x))
+df.merge$lsfr = res$result$lfsr
+
+lfsr = with(df.merge, lsfr[adj.P.Val.x < 0.05]) 
+df_repl$rate[2] = sum(1-lfsr) / length(lfsr)
+
+df_repl %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FALSE)
+
+# how any DEGs?
+# sum(apply(df_gtex.lfsr, 1, function(x) any(x <= 0.05, na.rm=TRUE)))
+
+# df_combine = apply(df_gtex.lfsr, 2, function(x) sum(x <= 0.05, na.rm=TRUE))
+# df_combine = data.frame(Tissue = names(df_combine), Count = df_combine)
+# df_combine$Tissue = factor(df_combine$Tissue, rev(df_combine$Tissue))
+
+# ggplot(df_combine, aes(Tissue, Count)) + geom_bar(stat="identity") + theme_bw() + coord_flip()
+
+# # All genes: 
+# sum(df_gtex.lfsr[,'Brain_Frontal_Cortex_BA9'] < 0.05, na.rm=TRUE)
+# sum(df_gtex.lfsr[,'Brain_Frontal_Cortex_BA9'] < 0.05, na.rm=TRUE)
+
+# # expressed in CMC
+# sum(df_gtex_BA9$adj.P.Val < 0.05, na.rm=TRUE)
+
+# sum( df$adj.P.Val.y < 0.05)
+
+# # get significant genes directly
+# df_combine = df_signif[,data.frame(Count = length(gene)), by="tissue"]
+# df_combine$tissue = factor(df_combine$tissue, rev(df_combine$tissue))
+
+# ggplot(df_combine, aes(tissue, Count)) + geom_bar(stat="identity") + theme_bw() + coord_flip()
+
+
+
+
+```
+
+```{r gtex.sex.2, fig.height=6, fig.width=10}
+# autosomes
+df = df[df$Chrom %in% 1:22,]
+
+resConcord.gtex = plot_concordance( list('CMC v3' = df, 'GTEx BA9' = df_gtex_BA9), showGenes=df$Symbol[1:10] ) 
+
+main = "Concordance with GTEx (autosomes)"
+plot_grid(  resConcord.gtex$fig_logFC + ggtitle(main),
+            resConcord.gtex$fig_tstat + ggtitle(main), nrow=1)
+         
+# resConcord.gtex$tab_pi %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for replication") %>% kable_styling(full_width=FALSE)
+resConcord.gtex$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="Correlation between t-statistics") %>% kable_styling(full_width=FALSE)
+
+df.merge = merge(df, df_gtex_BA9, by="row.names")
+
+table(df.merge$isSignif)
+
+df_repl = data.frame(Discovery = c("GTEx", "CMC"), rate = c(NA, NA))
+
+# Discover in CMC
+# with(df.merge, table(isSignif[adj.P.Val.x < 0.05]))
+# with(df, 1 - qvalue(P.Value.y[adj.P.Val.x < 0.05])$pi0)
+lfsr = with(df.merge, adj.P.Val.y[adj.P.Val.x < 0.05]) 
+df_repl$rate[1] = sum(1-lfsr) / length(lfsr)
+
+# Discover in GTEx
+# with(df, 1 - qvalue(P.Value.x[adj.P.Val.y < 0.05])$pi0)
+# df_repl$rate[2] = with(df.merge, 1 - qvalue(P.Value.x[isSignif])$pi0)
+
+res = with(df.merge, ash( logFC.x, se.x))
+df.merge$lsfr = res$result$lfsr
+
+lfsr = with(df.merge, lsfr[adj.P.Val.x < 0.05]) 
+df_repl$rate[2] = sum(1-lfsr) / length(lfsr)
+
+df_repl %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FALSE)
+```
+
+ 
 
 
 
@@ -1494,6 +1591,20 @@ df_meta.separ = lapply(unique(METADATA$Reported_Gender), function(Sex){
 names(df_meta.separ) = unique(METADATA$Reported_Gender)
 ```
 
+```{r separate.test.sz}
+
+df = merge(df_meta.separ[[1]], df_meta.separ[[2]], by="row.names")
+
+
+df$tstat = with(df, (logFC.x - logFC.y) / sqrt(se.x^2 + se.y^2))
+
+df$p = 2*pnorm(abs(df$tstat), 0, 1, lower.tail=FALSE)
+df$FDR = p.adjust(df$p, "fdr")
+
+head(df[df$FDR < 0.1,])
+
+```
+
 
 ```{r separ.concordance.scz, fig.height=6, fig.width=10}
 # Concordance analysis
@@ -1514,21 +1625,6 @@ resConcord.separ$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(
 ```
 
 
-```{r compare.separate, fig.width=5, fig.height=5}
-df = merge( df_meta.separ[[1]], df_meta.separ[[2]], by="row.names")
-
-fit = with(df, lm(logFC.y ~ logFC.x))
-
-coef(summary(fit) ) %>%  kable(caption="logFC is larger in males") %>% kable_styling(full_width=FALSE) 
-
- # compare logFC
-tstat = with(df, (logFC.y - logFC.x) / (sqrt(se.y^2 + se.x^2)))
-
-qqt(tstat)
-abline(0, 1, col="red")
-p = 2*pt(abs(tstat), df=778, lower.tail=FALSE)
-table(p.adjust(p) < 0.05)
-```
 
 ## Plot top examples
 ```{r plot.forrest.dlpfc.separ, fig.width=8, fig.height=40}  
