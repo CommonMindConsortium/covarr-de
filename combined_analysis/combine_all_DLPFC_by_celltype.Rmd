@@ -470,7 +470,6 @@ plot_grid(plotlist=figList, ncol=1)
 ```
 
 ```{r create.voom}
-
 vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
 
   idx = METADATA$Cohort == chrt
