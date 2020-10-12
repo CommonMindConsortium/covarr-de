@@ -1,6 +1,6 @@
 ---
 title: "CommonMind Consortium: DLPFC"
-subtitle: "Analysis of read count data by cohort"
+subtitle: "Cell type specific analysis of read count data by cohort"
 author:
 - name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$ and Kelsey Montgomery$^{2}$"
   affiliation: | 
@@ -48,9 +48,9 @@ rmarkdown::render("combined_analysis/combine_all_DLPFC_by_celltype.Rmd")
 library(synapser)
 library(knit2synapse)
 synLogin()
-knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_DLPFC.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_DLPFC_by_celltype.Rmd",
                                           parentId ="syn22416298",
-                                          folderName = 'Joint analysis of DLPFC count data',
+                                          folderName = 'Cell type specific analysis of read count data by cohort',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
 ```
@@ -60,10 +60,10 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_
 
 library(githubr)
 parentId = 'syn22416298';
-activityName = 'Joint analysis of DLPFC count data';
-activityDescription = 'Joint analysis of DLPFC count data';
+activityName = 'Cell type specific analysis of read count data by cohort';
+activityDescription = 'Cell type specific analysis of read count data by cohort';
 
-thisFileName <- 'combine_all_DLPFC.Rmd'
+thisFileName <- 'combine_all_DLPFC_by_celltype.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
@@ -297,9 +297,9 @@ METADATA = merge(METADATA, celFrac_ilr, by.x = 'SampleID', by.y='row.names')
 
 ```{r preprocess.data1, results='asis'}
 # Match covariates to expression data
-indToRetain = intersect(METADATA$SampleID, colnames(geneCountsMerged))
+indToRetain = intersect(METADATA$SampleID, colnames(geneExpr))
      
-geneCountsMerged = geneCountsMerged[,indToRetain]
+geneExpr = geneExpr[,indToRetain]
      
 rownames(METADATA) = METADATA$SampleID
 ```
@@ -468,6 +468,12 @@ figList = lapply(colnames(celFrac_ilr), function(CT){
 })
 plot_grid(plotlist=figList, ncol=1) 
 ```
+
+```{r create.voom}
+
+
+```
+
 
 ```{r process.counts}
 # keep genes that are express in at least one combination of cohort and gender
@@ -1643,7 +1649,7 @@ plot_grid(plotlist=figList, ncol=1)
 if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.
-  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
+  CODE <- Folder(name = "Cell type specific analysis of read count data by cohort", parentId = "syn22416298")
   CODE <- synStore(CODE)
 
   # Store data 
