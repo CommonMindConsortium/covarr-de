@@ -13,8 +13,8 @@ output:
     toc: true
     toc_float: true
 params:
-  upload: FALSE
-  cellType: "Glu"
+  upload: TRUE
+  cellType: "GLU"
 ---
 
 
@@ -303,13 +303,18 @@ geneExpr = geneExpr[,indToRetain]
 rownames(METADATA) = METADATA$SampleID
 ```
 
-
 ```{r create.voom}
 vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
 
   idx = METADATA$Cohort == chrt
 
-  new("EList", list(E = geneExpr[,idx], weights = 1/geneExpr.se[rownames(geneExpr), colnames(geneExpr)][,idx]))
+  # get variance withing cohort
+  # only keep genes with variance > 0
+  v = apply( geneExpr[,idx], 1, var)
+
+  E = geneExpr[v > 0,idx]
+
+  new("EList", list(E = E, weights = 1/geneExpr.se[rownames(E), colnames(E)]))
   })
 names(vobj.lst) = levels(METADATA$Cohort)
 ```
@@ -1417,7 +1422,7 @@ plot_grid(plotlist=figList, ncol=1)
 if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.
-  CODE <- Folder(name = activityName, parentId = parentId)
+  CODE <- Folder(name = gsub(":", " -",activityName), parentId = parentId)
   CODE <- synStore(CODE)
 
   # Store data 
@@ -1434,7 +1439,7 @@ if( params$upload ){
   # Standard analysis
   # storeData( "geneCountsMerged", "Merged DLPFC counts for both cohorts")
   storeData( "METADATA", "Merged metadata used here for both cohorts")
-  storeData( "isexpr", "Genes used in this analysis")
+  # storeData( "isexpr", "Genes used in this analysis")
   storeData( "vobj.lst", "Voom results for each cohort")
   storeData( "resid.add", "Residuals correcting for covariates and add back - (Dx_Sex Dx Sex)")
   storeData( "fit_marginal.lst", "dream fit for marginal analysis")
