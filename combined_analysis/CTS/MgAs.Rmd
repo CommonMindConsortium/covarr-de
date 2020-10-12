@@ -14,7 +14,7 @@ output:
     toc_float: true
 params:
   upload: FALSE
-  cellType: "GABA"
+  cellType: "MgAs"
 ---
 
 
@@ -29,7 +29,7 @@ R
 system("git pull")
 
 
-rmarkdown::render("combined_analysis/combine_all_DLPFC_by_celltype.Rmd")
+rmarkdown::render("combined_analysis/CTS/MgAs.Rmd")
 
 
 
@@ -50,8 +50,8 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_DLPFC_by_celltype.Rmd",
-                                          parentId ="syn22416298",
-                                          folderName = 'Cell type specific analysis of read count data by cohort',
+                                          parentId ="syn23241817",
+                                          folderName = 'Analysis of read count data by cohort: MgAs',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
 ```
@@ -60,20 +60,18 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
 
 library(githubr)
-parentId = 'syn22416298';
-activityName = 'Cell type specific analysis of read count data by cohort';
-activityDescription = 'Cell type specific analysis of read count data by cohort';
+parentId = 'syn23241817';
+activityName = 'Analysis of read count data by cohort: MgAs';
+activityDescription = 'Analysis of read count data by cohort: MgAs';
 
-thisFileName <- 'combine_all_DLPFC_by_celltype.Rmd'
+thisFileName <- 'MgAs.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/',thisFileName))
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/CTS/',thisFileName))
 ```
 
 
-
-<!---
 
 ```{r setup, include=FALSE}
 suppressPackageStartupMessages({
@@ -110,7 +108,7 @@ library(edgeR)
 library(variancePartition)
 
 }) 
-source("../common_functions/common_functions.R")   
+source("../../common_functions/common_functions.R")   
 # source("common_functions/common_functions.R")   
   
 knitr::opts_chunk$set(
@@ -1415,21 +1413,20 @@ plot_grid(plotlist=figList, ncol=1)
 
 
 
-
 ```{r store, eval=TRUE}
 if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.
-  CODE <- Folder(name = "Cell type specific analysis of read count data by cohort", parentId = "syn22416298")
+  CODE <- Folder(name = activityName, parentId = parentId)
   CODE <- synStore(CODE)
 
   # Store data 
-  storeData = function( name, cellType, description){
-    file = paste0(name, "_", cellType, ".RDS")
+  storeData = function( name, description){
+    file = paste0(name, "_", params$cellType, ".RDS")
     saveRDS( eval(parse(text=name)), file=file)
 
     nEXP_OBJ = File(file, 
-                    name = paste0(cellType, ' - ',description), 
+                    name = paste0(params$cellType, ' - ',description), 
                     parentId = CODE$properties$id)
     synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
   }

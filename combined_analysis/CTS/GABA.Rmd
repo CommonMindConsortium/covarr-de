@@ -64,7 +64,7 @@ parentId = 'syn23241817';
 activityName = 'Analysis of read count data by cohort: GABA';
 activityDescription = 'Analysis of read count data by cohort: GABA';
 
-thisFileName <- 'GABA'
+thisFileName <- 'GABA.Rmd'
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
@@ -72,8 +72,6 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_a
 ```
 
 
-
-<!---
 
 ```{r setup, include=FALSE}
 suppressPackageStartupMessages({
@@ -110,7 +108,7 @@ library(edgeR)
 library(variancePartition)
 
 }) 
-source("../common_functions/common_functions.R")   
+source("../../common_functions/common_functions.R")   
 # source("common_functions/common_functions.R")   
   
 knitr::opts_chunk$set(
