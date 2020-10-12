@@ -538,7 +538,7 @@ ggplot(df, aes(A, B, color=density)) + geom_point() + geom_point(size=.4) + them
 ### Test marginals for Scz vs controls
 ```{r differential.expression.simple}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + InstitutionageOfDeath,
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath,
   `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
 
 fit_marginal.lst = lapply( vobj.lst, function(vobj){
