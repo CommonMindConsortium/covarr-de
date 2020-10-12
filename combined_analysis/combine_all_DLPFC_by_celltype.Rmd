@@ -471,88 +471,23 @@ plot_grid(plotlist=figList, ncol=1)
 
 ```{r create.voom}
 
+vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
 
-```
+  idx = METADATA$Cohort == chrt
 
-
-```{r process.counts}
-# keep genes that are express in at least one combination of cohort and gender
-isexpr.lst = dlply(METADATA, .(Cohort), .fun = function(mtd){
-	rowSums(cpm(geneCountsMerged[,mtd$SampleID])>.5) >= .3*ncol(geneCountsMerged[,mtd$SampleID])
-	})
-
-isexpr = do.call(rbind, isexpr.lst)
-isexpr = colSums(isexpr) == 2 # keep gene expressed in both cohorts 
-table(isexpr)
-   
-# Normalize each cohort separately
-dge.lst = lapply( levels(METADATA$Cohort), function(Cohort){
-  # normalize counts
-  dge = DGEList( geneCountsMerged[isexpr,METADATA$Cohort==Cohort] )
-  calcNormFactors(dge, "none") # TMM
-})
-names(dge.lst) = levels(METADATA$Cohort)
-
-# form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
-
-form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
-
-vobj.lst = lapply(dge.lst, function(dge){
-
-  i = match(colnames(dge), rownames(METADATA))
-  info = METADATA[i,]
-
-  form_use = form.lst[[info$Cohort[1]]]
-
-  voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+  new("EList", list(E = geneExpr[,idx], weights = 1/geneExpr.se[rownames(geneExpr), colnames(geneExpr)][,idx]))
   })
-names(vobj.lst) = names(dge.lst)
-```
-
-### Voom trend plots
-```{r plot.voom, fig.height=5, fig.width=10}
-fig1 = plot_voom(vobj.lst[[1]]) + ggtitle(names(vobj.lst)[1])
-fig2 = plot_voom(vobj.lst[[2]]) + ggtitle(names(vobj.lst)[2])
-plot_grid( fig1, fig2, nrow=1) 
-
-df = lapply( names(vobj.lst), function(key){
-  data.frame(Cohort = key,  vobj.lst[[key]]$voom.line)
-  })
-df = do.call(rbind, df)
-
-ggplot(df, aes(x, y, color=Cohort)) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + geom_line(size=1.2) + xlab(bquote(log[2](count + 0.5))) + ylab(expression( sqrt("standard deviation"))) + ggtitle("Compare voom trends") + ylim(0, max(df$y)) + scale_color_manual(name="Status", values=c("#3758ba", "#33e65c")) + guides(color = guide_legend(override.aes = list(size = 1))) 
+names(vobj.lst) = levels(METADATA$Cohort)
 ```
 
 
-<!---
-
-# Examine genes on chrX and chrY
-
-# dge = DGEList(geneCountsMerged)
-# dge = calcNormFactors(dge, "none")
-# geneExpr = cpm(dge, log=TRUE)
-
-# df = merge( data.frame(Expression = geneExpr['ENSG00000229807.11',]), METADATA, by="row.names")
-# ggplot(df, aes(Reported_Gender, Expression)) + geom_violin() + theme_bw() + facet_wrap(~Cohort)
-
-# id = 'ENSG00000229807.11'
-# isexpr[id]
-
-# df = as.data.frame(vobj.lst[[2]]$voom.xy)
-# with(df, plot(x,y, cex=.2, pch=20))
-# with(df[id,], points(x,y, col="red", pch=20, cex=2))
-
-
---->
 
 ```{r Create.residuals}
 
 ### Create residuals
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath,
+  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
 
 eval_residuals = function( form ){
   # Compute residuals, but add back in Dx*Reported_Gender
@@ -604,8 +539,8 @@ ggplot(df, aes(A, B, color=density)) + geom_point() + geom_point(size=.4) + them
 ### Test marginals for Scz vs controls
 ```{r differential.expression.simple}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + InstitutionageOfDeath,
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
 
 fit_marginal.lst = lapply( vobj.lst, function(vobj){
 
@@ -1664,7 +1599,7 @@ if( params$upload ){
   }
 
   # Standard analysis
-  storeData( "geneCountsMerged", "Merged DLPFC counts for both cohorts")
+  # storeData( "geneCountsMerged", "Merged DLPFC counts for both cohorts")
   storeData( "METADATA", "Merged metadata used here for both cohorts")
   storeData( "isexpr", "Genes used in this analysis")
   storeData( "vobj.lst", "Voom results for each cohort")
