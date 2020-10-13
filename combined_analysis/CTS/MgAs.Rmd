@@ -326,7 +326,9 @@ names(vobj.lst) = levels(METADATA$Cohort)
 # only keep genes common to both cohorts
 isexpr = intersect(rownames(vobj.lst[[1]]), rownames(vobj.lst[[2]]))
 
-
+vobj.lst = lapply(vobj.lst, function(vobj){
+  vobj[isexpr,]
+  })
 ```
 
 
