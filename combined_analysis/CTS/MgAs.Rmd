@@ -13,7 +13,7 @@ output:
     toc: true
     toc_float: true
 params:
-  upload: FALSE
+  upload: TRUE
   cellType: "MgAs"
 ---
 
@@ -51,7 +51,7 @@ library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_DLPFC_by_celltype.Rmd",
                                           parentId ="syn23241817",
-                                          folderName = 'Analysis of read count data by cohort: MgAs',
+                                          folderName = 'Analysis of read count data by cohort: GABA',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
 ```
@@ -150,10 +150,6 @@ geneExpr.CTS.se = readRDS(synGet('syn23234858')$path)
 
 geneExpr = geneExpr.CTS[,params$cellType,]
 geneExpr.se = geneExpr.CTS.se[,params$cellType,]
-
-v = apply(geneExpr, 1, var)
-
-
 
 ```
 
@@ -307,17 +303,23 @@ geneExpr = geneExpr[,indToRetain]
 rownames(METADATA) = METADATA$SampleID
 ```
 
-
 ```{r create.voom}
 vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
 
-  idx = METADATA$Cohort == chrt
-
-  # get variance withing cohort
+  # get variance within cohort and sex
   # only keep genes with variance > 0
-  v = apply( geneExpr[,idx], 1, var)
+  # v = apply( geneExpr[,idx], 1, var)
+  v = lapply( unique(METADATA$Reported_Gender), function(Gnd){
+    idx = with(METADATA, (Cohort == chrt) & (Reported_Gender==Gnd))
+    isVar = apply( geneExpr[,idx], 1, var) > 0
+    names(isVar[isVar])
+    })
 
-  E = geneExpr[v > 0,idx]
+  # genes with variance in both sexes
+  isexpr = intersect(v[[1]], v[[2]])
+
+  # get expressed genes form this cohort
+  E = geneExpr[isexpr, METADATA$Cohort == chrt]
 
   new("EList", list(E = E, weights = 1/geneExpr.se[rownames(E), colnames(E)]))
   })
@@ -330,8 +332,6 @@ vobj.lst = lapply(vobj.lst, function(vobj){
   vobj[isexpr,]
   })
 ```
-
-
 
 ```{r Create.residuals}
 
@@ -355,7 +355,7 @@ eval_residuals = function( form ){
     form_use = form.lst[[info$Cohort[1]]]
 
     # Compute residuals which adding back Diagnosis and Sex effects
-    resid.lst = fitVarPartModel(vobj, form_use, info, fxn = f, BPPARAM = SnowParam(4))  
+    resid.lst = fitVarPartModel(vobj, form_use, info, fxn = f, BPPARAM = SnowParam(18))  
     do.call(rbind, resid.lst)
     })
   names(residuals.lst) = names(vobj.lst)
@@ -1134,8 +1134,8 @@ df_repl %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FAL
 # Sex by Disease interaction
 ```{r dream.sex.disease}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath ,
+  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath )
 
 # drop chrY genes
 df_genes  = data.frame(ENSEMBL = rownames(vobj.lst[[1]])) %>% getGeneSymbol('ENSEMBL')
@@ -1148,7 +1148,7 @@ fit_inter_sex.disease.lst = lapply( vobj.lst, function(vobj){
 
   form_use = form.lst[[info$Cohort[1]]]
 
-  fit = dream(vobj[keep.ensID,], form_use, info, BPPARAM = SnowParam(4))  
+  fit = dream(vobj[keep.ensID,], form_use, info, BPPARAM = SnowParam(18))  
   eBayes( fit )
   })
 names(fit_inter_sex.disease.lst) = names(vobj.lst)
@@ -1346,8 +1346,8 @@ coef = 'DxSCZ:Reported_GenderMale'
 # Dx test separately in Males and then Females
 ```{r dream.sex.disease.separately}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath ,
+  `NIMH-HBCC`       = ~ Dx + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
 
 # DE for males and females separately
 fit.separ = lapply( vobj.lst, function(vobj){
@@ -1431,6 +1431,7 @@ plot_grid(plotlist=figList, ncol=1)
 
 
 ```{r store, eval=TRUE}
+
 if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.

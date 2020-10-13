@@ -306,13 +306,20 @@ rownames(METADATA) = METADATA$SampleID
 ```{r create.voom}
 vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
 
-  idx = METADATA$Cohort == chrt
-
-  # get variance withing cohort
+  # get variance within cohort and sex
   # only keep genes with variance > 0
-  v = apply( geneExpr[,idx], 1, var)
+  # v = apply( geneExpr[,idx], 1, var)
+  v = lapply( unique(METADATA$Reported_Gender), function(Gnd){
+    idx = with(METADATA, (Cohort == chrt) & (Reported_Gender==Gnd))
+    isVar = apply( geneExpr[,idx], 1, var) > 0
+    names(isVar[isVar])
+    })
 
-  E = geneExpr[v > 0,idx]
+  # genes with variance in both sexes
+  isexpr = intersect(v[[1]], v[[2]])
+
+  # get expressed genes form this cohort
+  E = geneExpr[isexpr, METADATA$Cohort == chrt]
 
   new("EList", list(E = E, weights = 1/geneExpr.se[rownames(E), colnames(E)]))
   })
@@ -1127,8 +1134,8 @@ df_repl %>% kable(caption="pi1 within dataset") %>% kable_styling(full_width=FAL
 # Sex by Disease interaction
 ```{r dream.sex.disease}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx*Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath ,
+  `NIMH-HBCC`       = ~ Dx*Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath )
 
 # drop chrY genes
 df_genes  = data.frame(ENSEMBL = rownames(vobj.lst[[1]])) %>% getGeneSymbol('ENSEMBL')
@@ -1339,8 +1346,8 @@ coef = 'DxSCZ:Reported_GenderMale'
 # Dx test separately in Males and then Females
 ```{r dream.sex.disease.separately}
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath ,
+  `NIMH-HBCC`       = ~ Dx + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
 
 # DE for males and females separately
 fit.separ = lapply( vobj.lst, function(vobj){
