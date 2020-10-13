@@ -64,7 +64,7 @@ parentId = 'syn23241817';
 activityName = paste('Analysis of read count data by cohort:', params$cellType)
 activityDescription = paste('Analysis of read count data by cohort:', params$cellType)
 
-thisFileName <- paste0(params$cellType, '.Rmd')
+thisFileName <- paste0(ifelse(params$cellType=='GLU', "Glu", "GLU") '.Rmd')
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
