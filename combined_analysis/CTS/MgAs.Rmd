@@ -322,6 +322,11 @@ vobj.lst = lapply( levels(METADATA$Cohort), function(chrt){
   new("EList", list(E = E, weights = 1/geneExpr.se[rownames(E), colnames(E)]))
   })
 names(vobj.lst) = levels(METADATA$Cohort)
+
+# only keep genes common to both cohorts
+isexpr = intersect(rownames(vobj.lst[[1]]), rownames(vobj.lst[[2]]))
+
+
 ```
 
 
@@ -1141,7 +1146,7 @@ fit_inter_sex.disease.lst = lapply( vobj.lst, function(vobj){
 
   form_use = form.lst[[info$Cohort[1]]]
 
-  fit = dream(vobj[keep.ensID,], form_use, info, BPPARAM = SnowParam(18))  
+  fit = dream(vobj[keep.ensID,], form_use, info, BPPARAM = SnowParam(4))  
   eBayes( fit )
   })
 names(fit_inter_sex.disease.lst) = names(vobj.lst)
