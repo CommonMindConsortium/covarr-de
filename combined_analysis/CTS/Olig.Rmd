@@ -61,10 +61,10 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_
 
 library(githubr)
 parentId = 'syn23241817';
-activityName = 'Analysis of read count data by cohort: Olig';
-activityDescription = 'Analysis of read count data by cohort: Olig';
+activityName = paste('Analysis of read count data by cohort:', params$cellType)
+activityDescription = paste('Analysis of read count data by cohort:', params$cellType)
 
-thisFileName <- 'Olig.Rmd'
+thisFileName <- paste0(params$cellType, '.Rmd')
 
 # Github link
 thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
