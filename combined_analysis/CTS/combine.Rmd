@@ -1,0 +1,112 @@
+---
+title: "Combine cell type specific analysis"
+subtitle: ""
+author:
+- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)"
+  affiliation: | 
+    Icahn School of Medicine at Mount Sinai, New York
+date: "Run on `r Sys.time()`"
+documentclass: article
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+<!---
+
+cd /hpc/users/hoffmg01/work/covarr-de
+# rm -rf combined_analysis/combine_all_DLPFC_cache
+ml git pandoc
+git pull
+R
+
+system("git pull")
+
+
+rmarkdown::render("combined_analysis/CTS/combine.Rmd")
+
+--->
+
+
+
+
+```{r synapse.parameters, include=FALSE, cache=TRUE, eval=FALSE}
+
+library(githubr)
+parentId = 'syn23241817';
+activityName = "Combine cell type specific analysis"
+activityDescription = "Combine cell type specific analysis"
+
+thisFileName <- 'combine.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/CTS/',thisFileName))
+```
+
+
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(synapser)
+
+synLogin()
+
+library(ggplot2)
+library(dplyr)
+library(ComplexHeatmap)
+library(readxl)
+library(gtools)
+library(corrplot)
+library(pvclust)
+library(metafor)
+library(data.table)
+library(cowplot)
+library(ggraph)
+library(tidygraph)
+library(kableExtra)
+library(ashr)
+library(githubr)
+library(ggrepel)
+library(corrplot)
+library(zenith)
+library(compositions)
+library(knitr)
+library(patchwork)
+library(plyr) 
+library(BiocParallel)
+
+library(limma)
+library(edgeR)
+library(variancePartition)
+
+}) 
+source("../../common_functions/common_functions.R")   
+# source("common_functions/common_functions.R")   
+  
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c('png', 'pdf'),
+  cache = TRUE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
