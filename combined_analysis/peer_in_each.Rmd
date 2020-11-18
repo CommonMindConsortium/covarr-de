@@ -35,7 +35,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/peer_in_each.Rmd",
-                                          parentId ="syn23565426",
+                                          parentId ="syn22012942",
                                           folderName = 'Run PEER in each dataset',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
@@ -66,6 +66,7 @@ library(ggrepel)
 library(knitr)
 library(patchwork)
 library(plyr)
+library(compositions)
 library(BiocParallel)
 
 library(limma)
@@ -87,6 +88,19 @@ knitr::opts_chunk$set(
 
 
 
+```{r synapse.parameters, include=FALSE, cache=TRUE}
+
+library(githubr)
+parentId = 'syn22012942';
+activityName = 'Run PEER in each dataset';
+activityDescription = 'Run PEER in each dataset';
+
+thisFileName <- 'peer_in_each.Rmd'
+
+# Github link
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_analysis/',thisFileName))
+```
 
 
 
@@ -264,15 +278,118 @@ rownames(METADATA) = METADATA$SampleID
 
 ## Summarize samples
 ```{r summary}
-METADATA %>% group_by(Dx, Institution) %>% dplyr::summarise(count = n()) %>% 
-  kable(caption="Diagnosis, Institution") %>% kable_styling(full_width=FALSE) 
+METADATA %>% group_by(Dx, Institution, Region) %>% dplyr::summarise(count = n()) %>% 
+  kable(caption="Diagnosis, Institution, Region") %>% kable_styling(full_width=FALSE) 
       
-METADATA %>% group_by( Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
-  kable(caption="Institution, Sex") %>% kable_styling(full_width=FALSE) 
+METADATA %>% group_by( Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% 
+  kable(caption="Institution, Sex, Region") %>% kable_styling(full_width=FALSE) 
 
-METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
-kable(caption="Diagnosis, Institution, Sex") %>% kable_styling(full_width=FALSE) 
+METADATA %>% group_by(Dx, Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% 
+kable(caption="Diagnosis, Institution, Sex, Region") %>% kable_styling(full_width=FALSE) 
 ```
+
+```{r}
+CODE <- Folder(name = "Run PEER in each dataset", parentId = "syn22012942")
+CODE <- synStore(CODE)
+
+# Store data 
+storeData = function( name, file, description){
+  saveRDS( eval(parse(text=name)), file=file)
+
+  nEXP_OBJ = File(file, 
+                  name = description, 
+                  parentId = CODE$properties$id)
+  synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+}
+```
+ 
+
+# Normalize and process
+Each region and chort separately
+```{r process.counts}
+# keep genes that are express in at least one combination of cohort and gender
+isexpr.lst = dlply(METADATA, .(Cohort, Region), .fun = function(mtd){
+  rowSums(cpm(geneCountsMerged[,mtd$SampleID])>.5) >= .3*ncol(geneCountsMerged[,mtd$SampleID])
+  })
+
+isexpr = do.call(rbind, isexpr.lst)
+isexpr = colSums(isexpr) > 0 # keep gene expressed in both cohorts 
+table(isexpr)
+   
+grid = expand.grid(levels(METADATA$Cohort), unique(METADATA$Region))
+
+# Normalize each cohort separately
+dge.lst = lapply( 1:nrow(grid), function(i){
+
+  Cohort = grid$Var1[i]
+  Region = grid$Var2[i]
+
+  idx = (METADATA$Cohort==Cohort)&(METADATA$Region == Region)
+
+  cat(i, sum(idx), '\n')
+  if( sum(idx) == 0){
+    res = NULL
+  }else{
+    # normalize counts
+    dge = DGEList( geneCountsMerged[isexpr,idx] )
+    res = calcNormFactors(dge, "none")
+  }
+  res
+})
+names(dge.lst) = apply(grid, 1, paste, collapse=' - ')
+dge.lst = dge.lst[!is.null(sapply(dge.lst, nrow))]
+
+
+# form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
+
+form.lst = list(
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+
+form = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3
+
+
+residMat.lst = lapply( names(dge.lst), function(datID){
+
+  # get log2 CPM gene expression
+  dge = dge.lst[[datID]]
+
+  # get metadata in the same order
+  i = match(colnames(dge), rownames(METADATA))
+  info = METADATA[i,]
+
+  # get formula
+  j = unlist(sapply(names(form.lst), function(x) grep(x, datID)))
+  form_use = form.lst[[names(j)]]
+
+  # apply voom
+  vobj = voomWithDreamWeights(dge[1:100,], form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+
+  # Compute residuals, but add back in Dx*Reported_Gender
+  # for form = ~ Dx*Reported_Gender
+  f = function(fit){
+    residuals(fit) + get_prediction( fit, ~ Dx + Reported_Gender + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  }
+
+  # Compute residuals while adding back biological variables
+  resid.lst = fitVarPartModel(vobj, form_use, info, fxn = f, BPPARAM = SnowParam(18))  
+  residMat = do.call(rbind, resid.lst)
+
+   # upload residuals
+  file = paste0('metadata_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  storeData( residMat, file, paste0(datID, " Residuals removing technical variables"))
+
+  # upload covariates
+  info.sub = info[,all.vars(form_use)]
+  file = paste0('metadata_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  storeData( info.sub, file, paste0(datID, " Meta data for variables relavant for QTL analysis"))
+
+  })
+names(residMat.lst) = names(dge.lst)
+```
+
+
+
 
 
 
