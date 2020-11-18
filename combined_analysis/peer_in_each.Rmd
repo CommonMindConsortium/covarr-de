@@ -28,8 +28,6 @@ rmarkdown::render("combined_analysis/peer_in_each.Rmd")
 
 --->
 
---->
-
 ```{r knit2synapse, eval=FALSE}
 library(synapser)
 library(knit2synapse)
@@ -40,8 +38,6 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/peer_in_each
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
 ```
-
-GSEA and dream from raw counts
 
 
 ```{r setup, include=FALSE}
@@ -332,21 +328,17 @@ dge.lst = lapply( 1:nrow(grid), function(i){
   }else{
     # normalize counts
     dge = DGEList( geneCountsMerged[isexpr,idx] )
-    res = calcNormFactors(dge, "none")
+    res = calcNormFactors(dge, "TMM")
   }
   res
 })
 names(dge.lst) = apply(grid, 1, paste, collapse=' - ')
-dge.lst = dge.lst[!is.null(sapply(dge.lst, nrow))]
+dge.lst = dge.lst[!sapply(dge.lst, is.null)]
 
-
-# form = ~ (1|Dx) + Reported_Gender + RIN + ageOfDeath + scale(IntronicRate)*Cohort + scale(IntragenicRate)*Cohort + scale(IntergenicRate)*Cohort + scale(rRNARate)*Cohort + (1|Institution:Cohort) + (1|Region:Cohort) + (1|Individual_ID)
 
 form.lst = list(
   `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
   `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
-
-form = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3
 
 
 residMat.lst = lapply( names(dge.lst), function(datID){
@@ -363,7 +355,7 @@ residMat.lst = lapply( names(dge.lst), function(datID){
   form_use = form.lst[[names(j)]]
 
   # apply voom
-  vobj = voomWithDreamWeights(dge[1:100,], form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+  vobj = voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
 
   # Compute residuals, but add back in Dx*Reported_Gender
   # for form = ~ Dx*Reported_Gender
