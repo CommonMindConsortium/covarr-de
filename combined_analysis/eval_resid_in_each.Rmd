@@ -55,6 +55,7 @@ library(corrplot)
 library(pvclust)
 library(metafor)
 library(data.table)
+library(peer)
 library(cowplot)
 library(kableExtra)
 library(githubr)
@@ -340,10 +341,7 @@ form.lst = list(
   `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
   `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
 
-
-asdfas
-
-residMat.lst = lapply( names(dge.lst), function(datID){
+for( datID in names(dge.lst) ){
 
   # get log2 CPM gene expression
   dge = dge.lst[[datID]]
@@ -355,14 +353,62 @@ residMat.lst = lapply( names(dge.lst), function(datID){
   # get formula
   j = unlist(sapply(names(form.lst), function(x) grep(x, datID)))
   form_use = form.lst[[names(j)]]
+  # apply voom
+  vobj = voomWithDreamWeights(dge[1:200,], form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+
+  # construct covariate matrix
+  cov_matrix = model.matrix(form_use, info)
+
+  # fit PEER
+  model = PEER()
+
+  PEER_setPhenoMean(model, t(vobj$E))
+
+  PEER_setCovariates(model, cov_matrix)
+
+  PEER_setNk(model,2)
+
+  PEER_update(model)
+
+  # extract PEER latent variables
+  # first ncol(cov_matrix) columns are the oringal covariates
+  latentVariables = PEER_getX(model)[,-c(1:ncol(cov_matrix))]
+  rownames(latentVariables) = rownames(cov_matrix)
+  colnames(latentVariables) = paste0("PEER_", 1:ncol(latentVariables))
+
+  # upload observed expression
+  file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  storeData( vobj$E, file, paste0(datID, " Observed expression as log2 CPM"))
+
+  # upload covariate matrix
+  file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis"))
+
+  # upload latent variables
+  file = paste0('metadata_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis"))
+}
+```
+
+For each cohort and each brain region, compute TMM normalization, log2 CPM with voomWithDreamWeights, and a set of covariates.  Then compute PEER components using the observed expression and the covariates
+
+    `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3
+
+
+
+
+
+<!---
 
   # add these terms back into the model
   form_add = ifelse(names(j) == "MSSM-Penn-Pitt",
-        ~ Dx + Reported_Gender + Institution*(cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-        ~ Dx + Reported_Gender + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+        '~ Dx + Reported_Gender + Institution*(cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)',
+       ' ~ Dx + Reported_Gender + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3')
+  form_add = as.formula(form_add)
 
-  # apply voom
-  vobj = voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+
 
   # Compute residuals, but add back in Dx*Reported_Gender
   # for form = ~ Dx*Reported_Gender
@@ -385,36 +431,7 @@ residMat.lst = lapply( names(dge.lst), function(datID){
 
   })
 names(residMat.lst) = names(dge.lst)
-```
-
-
-
-
-
-
-```{r run.peer}
-
-  model = PEER()
-
-  PEER_setPhenoMean(model,as.matrix(expr))
-
-  PEER_setCovariates(model, as.matrix(covs))
-
-  PEER_setNk(model,10)
-
-  PEER_update(model)
-
-  latentVariables = PEER_getX(model)
-
-
-```
-
-
-
-
-
-
-
+--->
 
 
 
