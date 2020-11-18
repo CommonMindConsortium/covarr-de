@@ -35,7 +35,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/peer_in_each.Rmd",
-                                          parentId ="syn22231629",
+                                          parentId ="syn23565426",
                                           folderName = 'Run PEER in each dataset',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
