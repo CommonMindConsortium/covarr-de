@@ -290,8 +290,8 @@ CODE <- Folder(name = "Evaluate PEER in each cohort and brain region", parentId 
 CODE <- synStore(CODE)
 
 # Store data 
-storeData = function( name, file, description){
-  saveRDS( eval(parse(text=name)), file=file)
+storeData = function( data, file, description){
+  saveRDS( data, file=file)
 
   nEXP_OBJ = File(file, 
                   name = description, 
@@ -366,7 +366,7 @@ for( datID in names(dge.lst) ){
 
   PEER_setCovariates(model, cov_matrix)
 
-  PEER_setNk(model,20)
+  PEER_setNk(model,30)
 
   PEER_update(model)
 
@@ -385,7 +385,7 @@ for( datID in names(dge.lst) ){
   storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis"))
 
   # upload latent variables
-  file = paste0('metadata_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+  file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
   storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis"))
 }
 ```
