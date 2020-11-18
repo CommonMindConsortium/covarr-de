@@ -1,5 +1,5 @@
 ---
-title: "Evaluate residuals in each cohort and brain region"
+title: "Evaluate PEER in each cohort and brain region"
 subtitle: ''
 author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
 date: "Run on `r Sys.time()`"
@@ -89,8 +89,8 @@ knitr::opts_chunk$set(
 
 library(githubr)
 parentId = 'syn22012942';
-activityName = 'Evaluate residuals in each cohort and brain region';
-activityDescription = 'Evaluate residuals in each cohort and brain region';
+activityName = 'Evaluate PEER in each cohort and brain region';
+activityDescription = 'Evaluate PEER in each cohort and brain region';
 
 thisFileName <- 'eval_resid_in_each.Rmd'
 
@@ -286,7 +286,7 @@ kable(caption="Diagnosis, Institution, Sex, Region") %>% kable_styling(full_widt
 ```
 
 ```{r}
-CODE <- Folder(name = "Evaluate residuals in each cohort and brain region", parentId = "syn22012942")
+CODE <- Folder(name = "Evaluate PEER in each cohort and brain region", parentId = "syn22012942")
 CODE <- synStore(CODE)
 
 # Store data 
@@ -354,7 +354,7 @@ for( datID in names(dge.lst) ){
   j = unlist(sapply(names(form.lst), function(x) grep(x, datID)))
   form_use = form.lst[[names(j)]]
   # apply voom
-  vobj = voomWithDreamWeights(dge[1:200,], form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+  vobj = voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
 
   # construct covariate matrix
   cov_matrix = model.matrix(form_use, info)
@@ -366,7 +366,7 @@ for( datID in names(dge.lst) ){
 
   PEER_setCovariates(model, cov_matrix)
 
-  PEER_setNk(model,2)
+  PEER_setNk(model,20)
 
   PEER_update(model)
 
