@@ -204,7 +204,7 @@ METADATA = metadata %>%
          dplyr::filter(ageOfDeath > 17) 
 
 # Set Control to baseline
-METADATA$Dx = factor(METADATA$Dx, c('Control', 'SCZ'))
+METADATA$Dx = factor(METADATA$Dx)#, c('Control', 'SCZ'))
 
 ind = METADATA$SampleID[which(METADATA$ReportExclude == 1 | METADATA$GenotypeExclude)]
 writeLines(paste('Following',length(ind),'samples are marked exclude'))
@@ -354,7 +354,7 @@ for( datID in names(dge.lst) ){
   j = unlist(sapply(names(form.lst), function(x) grep(x, datID)))
   form_use = form.lst[[names(j)]]
   # apply voom
-  vobj = voomWithDreamWeights(dge, form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
+  vobj = voomWithDreamWeights(dge[1:100,], form_use, info, save.plot=TRUE, BPPARAM = SnowParam(18))
 
   # construct covariate matrix
   cov_matrix = model.matrix(form_use, info)
@@ -366,7 +366,7 @@ for( datID in names(dge.lst) ){
 
   PEER_setCovariates(model, cov_matrix)
 
-  PEER_setNk(model,30)
+  PEER_setNk(model,2)
 
   PEER_update(model)
 
