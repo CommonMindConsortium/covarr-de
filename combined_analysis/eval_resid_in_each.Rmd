@@ -460,11 +460,11 @@ for( datID in names(dge.lst) ){
     # fit PEER
     model = PEER()
 
-    PEER_setPhenoMean(model, t(geneExpr[1:100,i,]))
+    PEER_setPhenoMean(model, t(geneExpr[,i,]))
 
     PEER_setCovariates(model, cov_matrix)
 
-    PEER_setNk(model,2)
+    PEER_setNk(model,30)
 
     PEER_update(model)
 
