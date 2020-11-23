@@ -473,15 +473,15 @@ for( datID in names(dge.lst) ){
 
     # upload observed expression
     file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), '_', CT,".RDS")
-    storeData( vobj$E, file, paste0(datID, " Observed expression", '_', CT,))
+    storeData( geneExpr, file, paste0(datID, " Observed expression", ' - ', CT))
 
     # upload covariate matrix
     file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
-    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", '_', CT,))
+    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", ' - ' , CT))
 
     # upload latent variables
     file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
-    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", '_', CT,))
+    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", ' - ', CT))
   }
 }
 ```
