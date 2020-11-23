@@ -449,6 +449,8 @@ for( datID in names(dge.lst) ){
   # for each cell type
   for( i in length(dimnames(geneExpr)[[2]]) ){
 
+    CT = dimnames(geneExpr)[[2]][i]
+
     # construct covariate matrix
     cov_matrix = model.matrix(form_use, info)
 
@@ -470,16 +472,16 @@ for( datID in names(dge.lst) ){
     colnames(latentVariables) = paste0("PEER_", 1:ncol(latentVariables))
 
     # upload observed expression
-    file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
-    storeData( vobj$E, file, paste0(datID, " Observed expression"))
+    file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), '_', CT,".RDS")
+    storeData( vobj$E, file, paste0(datID, " Observed expression", '_', CT,))
 
     # upload covariate matrix
-    file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
-    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis"))
+    file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
+    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", '_', CT,))
 
     # upload latent variables
-    file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
-    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis"))
+    file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
+    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", '_', CT,))
   }
 }
 ```
