@@ -450,7 +450,7 @@ for( datID in names(dge.lst) ){
   # identical(dimnames(geneExpr)[[3]], info$SampleID)
 
   # for each cell type
-  for( i in length(dimnames(geneExpr)[[2]]) ){
+  for( i in 1:length(dimnames(geneExpr)[[2]]) ){
 
     CT = dimnames(geneExpr)[[2]][i]
 
