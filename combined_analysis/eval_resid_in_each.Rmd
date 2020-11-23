@@ -400,14 +400,89 @@ For each cohort and each brain region, compute TMM normalization, log2 CPM with 
 
 
 # Cell Type Specific expression from bMIND
+
+```{r}
+# create new parent folder for these results
+CODE <- Folder(name = "CTS - Evaluate PEER in each cohort and brain region", parentId = "syn23567522")
+CODE <- synStore(CODE)
+
+# Store data 
+storeData = function( data, file, description){
+  saveRDS( data, file=file)
+
+  nEXP_OBJ = File(file, 
+                  name = description, 
+                  parentId = CODE$properties$id)
+  synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+}
+```
+ 
+
 ```{r CTS.download}
 geneExpr.CTS = readRDS( synGet('syn23234833')$path )
 
+# formula used to fit model
+form.lst = list(
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath,
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
+
+# for each dataset
+for( datID in names(dge.lst) ){
+
+  # get log2 CPM gene expression
+  dge = dge.lst[[datID]]
+
+  # get metadata in the same order
+  i = match(colnames(dge), rownames(METADATA))
+  info = METADATA[i,]
+
+  # get formula
+  j = unlist(sapply(names(form.lst), function(x) grep(x, datID)))
+  form_use = form.lst[[names(j)]]
+
+  # extract CTS data corresponding to info
+  idx = match(info$SampleID, dimnames(geneExpr.CTS)[[3]])
+  geneExpr = geneExpr.CTS[,,idx]
+
+  # identical(dimnames(geneExpr)[[3]], info$SampleID)
+
+  # for each cell type
+  for( i in length(dimnames(geneExpr)[[2]]) ){
+
+    # construct covariate matrix
+    cov_matrix = model.matrix(form_use, info)
+
+    # fit PEER
+    model = PEER()
+
+    PEER_setPhenoMean(model, t(geneExpr[1:100,i,]))
+
+    PEER_setCovariates(model, cov_matrix)
+
+    PEER_setNk(model,2)
+
+    PEER_update(model)
+
+    # extract PEER latent variables
+    # first ncol(cov_matrix) columns are the oringal covariates
+    latentVariables = PEER_getX(model)[,-c(1:ncol(cov_matrix))]
+    rownames(latentVariables) = rownames(cov_matrix)
+    colnames(latentVariables) = paste0("PEER_", 1:ncol(latentVariables))
+
+    # upload observed expression
+    file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+    storeData( vobj$E, file, paste0(datID, " Observed expression"))
+
+    # upload covariate matrix
+    file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis"))
+
+    # upload latent variables
+    file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), ".RDS")
+    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis"))
+  }
+}
 ```
-
-
-
-
 
 
 
