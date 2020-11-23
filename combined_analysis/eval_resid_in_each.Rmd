@@ -401,7 +401,7 @@ For each cohort and each brain region, compute TMM normalization, log2 CPM with 
 
 # Cell Type Specific expression from bMIND
 
-```{r}
+```{r create.folder.2}
 # create new parent folder for these results
 CODE <- Folder(name = "CTS - Evaluate PEER in each cohort and brain region", parentId = "syn23567522")
 CODE <- synStore(CODE)
