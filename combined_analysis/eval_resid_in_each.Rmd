@@ -420,6 +420,7 @@ storeData = function( data, file, description){
 
 ```{r CTS.download}
 geneExpr.CTS = readRDS( synGet('syn23234833')$path )
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn23234833')
 ```
 
 ```{r CTS.eval_peer}
