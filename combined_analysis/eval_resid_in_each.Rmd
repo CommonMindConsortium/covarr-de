@@ -420,7 +420,9 @@ storeData = function( data, file, description){
 
 ```{r CTS.download}
 geneExpr.CTS = readRDS( synGet('syn23234833')$path )
+```
 
+```{r CTS.eval_peer}
 # formula used to fit model
 form.lst = list(
   `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath,
