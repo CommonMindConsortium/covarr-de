@@ -32,7 +32,7 @@ rmarkdown::render("combined_analysis/combine_all_DLPFC.Rmd")
 
 
 --->
-
+ 
 
 
 ```{r knit2synapse, eval= FALSE}
@@ -98,7 +98,9 @@ library(ComplexHeatmap)
 library(readxl)
 library(gtools)
 library(corrplot)
+library(fdrtool)
 library(pvclust)
+library(RColorBrewer)
 library(metafor)
 library(data.table)
 library(cowplot)
@@ -107,6 +109,7 @@ library(tidygraph)
 library(kableExtra)
 library(githubr)
 library(ggrepel)
+library(corpcor)
 library(corrplot)
 library(zenith)
 library(compositions)
@@ -171,7 +174,7 @@ downloadFile_version <- function(id , version){
 METADATA_QC_DLPFC_ID = 'syn16816488' 
 ALL_USED_IDs = METADATA_QC_DLPFC_ID
 metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
-  dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 
+  dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 'pH',
                 Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
                                       'rnaSeq_dissection:Brain_Region', 
                                       'rnaSeq_isolation:RNA_Isolation_Batch',
@@ -208,7 +211,7 @@ GENOTYPE = downloadFile(GENOTYPE_ID) %>%
 
 ### Data preprocessing
 ```{r preprocess.data}
-# Merge metadata
+# Merge metadata 
 METADATA = metadata %>%
   dplyr::left_join(GENOTYPE) %>%      
   dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
@@ -227,7 +230,7 @@ METADATA = metadata %>%
                 ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
                 TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
   dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, Region,
-                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
+                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5, pH,
                 LibraryBatch, FlowcellBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
                 IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
   		 		 dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
@@ -291,7 +294,7 @@ df_cellFractions = read.table(synGet('syn22333694')$path, row.names=1)
 
 celFrac_ilr = ilr(df_cellFractions)
 colnames(celFrac_ilr) = paste0("cellFrac_ilr_", 1:3)
-
+ 
 METADATA = merge(METADATA, df_cellFractions, by.x = 'SampleID', by.y='row.names')
 METADATA = merge(METADATA, celFrac_ilr, by.x = 'SampleID', by.y='row.names')
 ```
@@ -302,7 +305,7 @@ METADATA = merge(METADATA, celFrac_ilr, by.x = 'SampleID', by.y='row.names')
 indToRetain = intersect(METADATA$SampleID, colnames(geneCountsMerged))
      
 geneCountsMerged = geneCountsMerged[,indToRetain]
-     
+      
 rownames(METADATA) = METADATA$SampleID
 ```
 
@@ -314,12 +317,51 @@ METADATA %>% group_by(Dx, Institution) %>% dplyr::summarise(count = n()) %>%
 METADATA %>% group_by( Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
   kable(caption="Institution, Sex") %>% kable_styling(full_width=FALSE) 
 
-METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% 
+METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>%  
 kable(caption="Diagnosis, Institution, Sex") %>% kable_styling(full_width=FALSE) 
 ```
 
+```{r summarize.plots}
+
+METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% dplyr::summarise(count = n()) %>% ggplot(aes(Institution, count, fill=Dx)) + geom_bar(stat="identity", position=position_dodge()) + facet_wrap(~ Reported_Gender) + theme_bw(16) + theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, hjust=1)) + scale_fill_manual("Diagnosis", values=c("grey", "darkred"))
+```
+
+```{r summarize.plots2, fig.height=12}
+variables = c( 'ageOfDeath',"RIN", "PMI", 'rRNARate', 'IntronicRate', 'IntragenicRate', 'IntergenicRate', "pH")
+
+METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% reshape2::melt(, id.vars=c('Dx', 'Institution', 'Reported_Gender'), measure.vars=variables ) %>% ggplot(aes(Institution, value, fill=Dx)) + geom_boxplot() + facet_grid( variable ~ Reported_Gender, scales='free_y') + theme_bw(16) + theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") + scale_fill_manual("Diagnosis", values=c("grey", "darkred"))
+```
+
+Wilcoxon test comparing Controls and SZ within each Institution and Sex
+```{r compare.case.control, fig.height=12}
+df = METADATA %>% group_by(Dx, Institution, Reported_Gender) %>% reshape2::melt(, id.vars=c('Dx', 'Institution', 'Reported_Gender'), measure.vars=variables ) %>% data.table
+
+# test difference bween CTL and SZ within each Institution, Sex
+df[,wilcox.test(value ~ Dx)$p.value, by=c("Institution", "Reported_Gender", "variable")] %>% ggplot(aes(Institution, -log10(V1))) + geom_bar(stat="identity", position=position_dodge()) + facet_grid(variable ~ Reported_Gender) + theme_bw(16) + theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, hjust=1)) + scale_fill_manual("Diagnosis", values=c("grey", "darkred")) + ylab(bquote(-log[10]~P))
+```
+
+ANCOVA evaluating heterogenity in values across cohorts for each sex
+```{r ancova, fig.height=12}
+df2 = df[,anova(lm(value ~ Institution))$`Pr(>F)`[1], by=c("Reported_Gender", "variable")] 
+df2[,p.adj := p.adjust(V1, "bonferroni")]
+
+ggplot(df2, aes(Reported_Gender, -log10(V1), fill=p.adj < 0.05)) + geom_bar(stat="identity", position=position_dodge()) + facet_wrap(~variable, ncol=1) + theme_bw(16) + theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, hjust=1)) + ylab(bquote(-log[10]~P)) + scale_fill_manual("Passes 5%\nBonferroni", values=c("grey", "navy"))
+
+df2[,p := format(V1, digits=2,scientific=TRUE)][,c('Reported_Gender', 'variable', 'p')] %>% kable(caption="ANCOVA p-values", scientific=TRUE) %>% kable_styling(full_width=FALSE)
+```
+
+
+
+
 ```{r joint.cca, fig.width=7, fig.height=7}
+
+# pH is not included because it is not available om many of the samples
+sum(!is.na(METADATA$pH))
+sum(is.na(METADATA$pH))
+
 variables = c('Reported_Gender', 'CellType', 'ageOfDeath', 'Institution', "Dx")
+variables2 = c("RIN", "PMI", 'rRNARate', 'IntronicRate', 'IntragenicRate', 'IntergenicRate')
+variables = c(variables, variables2)
 
 df_cca = lapply(variables, function(v1){
 
@@ -339,7 +381,11 @@ df_cca = lapply(variables, function(v1){
     }
     M2 = model.matrix(form2, METADATA)
 
-    fit = cancor(M1, M2)
+    # If some rows are dropped for including NA's, 
+    # only analyze rows present in both variables
+    rowids = intersect(rownames(M1), rownames(M2))
+
+    fit = cancor(M1[rowids,], M2[rowids,])
     V_sqrt = sqrt(mean(fit$cor^2)) # Cramer's sqrt V
 
     data.frame(v1, v2, V_sqrt)
@@ -355,27 +401,73 @@ colnames(C) = variables
 plotCorrMatrix(C, main='CCA')
 ```
 
+<!---
+Evaluate and perform hypothesis test for partial correlations
+```{r pcor}
+# Compute partial correlations
+pC = cor2pcor(C)
+colnames(pC) = colnames(C)
+rownames(pC) = rownames(C)
+
+res = lapply(colnames(C), function(v1){
+  res = lapply(colnames(C), function(v2){
+
+    r = pC[v1, v2]
+    n = nrow(METADATA)
+    k = ncol(C)
+    t = r * sqrt((n-2-k) / (1-r^2))
+
+    p = 2*pt( abs(t), n - 2 -k, lower.tail=FALSE)
+
+    a = sort(c(v1, v2))
+
+    data.frame(V1 = a[1], V2 = a[2], partial.corr = r, pvalue = p)
+  })
+  do.call(rbind, res)
+ })
+res = data.table(do.call(rbind, res))
+res = res[V1 != V2,]
+res[,title:=paste(V1, V2)]
+res = res[,.SD[1,], by='title']
+
+res$p.adj = p.adjust( res$pvalue, "BH")
+ 
+ggplot(res, aes(V1, V2, fill=partial.corr, label=ifelse(p.adj<0.05, '*', ''))) + geom_tile() + theme_bw() + scale_fill_gradient2(name = "Partial corr", low="blue", mid="white", high="red", limit=c(-1, 1)) + theme(aspect.ratio=1, panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), legend.position="bottom") + geom_text() + coord_flip() + xlab("Variable 1") + ylab("Variable 2")
+```
+--->
+
 ```{r explain.CellType}
 CTs = c('GABA', 'GLU', 'Olig', 'MgAs')
 
-form = ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution 
+form = ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution + RIN + rRNARate + PMI + IntronicRate + IntragenicRate + IntergenicRate
 
 Y = clr(METADATA[,CTs])
 
 df = lapply( colnames(Y), function(id){
 
-  fit = lm(Y[,id] ~ ageOfDeath:Institution + Reported_Gender + Dx + Institution, METADATA)
+  form2 = as.formula(paste0('Y[,id] ~ ', as.character(form)[2]))
+
+  fit = lm(form2, METADATA)
   
-  data.frame( Test     = rownames(anova(fit))[1:4],
+  vp = calcVarPart(fit)
+  n = length(vp) - 1 # omit residuals
+
+  data.frame( Test     = rownames(anova(fit))[1:n],
               CellType = id, 
-              p        = anova(fit)[,'Pr(>F)'][1:4], 
-              frac     =  calcVarPart(fit)[1:4])
+              p        = anova(fit)[,'Pr(>F)'][1:n], 
+              frac     =  calcVarPart(fit)[1:n])
 })
 df = data.table(do.call(rbind, df))
 
 df$Test[df$Test=='Reported_Gender'] = "Sex"
 df$Test[df$Test=='ageOfDeath:Institution'] = "Age of death"
 df$p.adj = p.adjust(df$p, "bonferroni")
+
+df2 = df[,sum(frac), by="Test"]
+setorder(df2, 'V1')
+
+df$Test = factor(df$Test, df2$Test)
 
 ymax = max(df[,sum(frac),by="CellType"]$V1)*105
 ggplot(df, aes(CellType, frac*100, fill=Test)) + geom_bar(stat="identity") + coord_flip() + theme_bw() + theme(aspect.ratio=1, panel.grid.major = element_blank(), 
@@ -384,50 +476,61 @@ ggplot(df, aes(CellType, frac*100, fill=Test)) + geom_bar(stat="identity") + coo
         panel.grid.minor = element_blank(), panel.border = element_blank(), 
         panel.background = element_blank(), axis.ticks.y = element_blank(), 
         legend.key = element_blank(), plot.margin = unit(c(0, 
-            0.3, 0, 0.8), "cm")) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + xlab('')
+            0.3, 0, 0.8), "cm")) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + xlab('') + scale_fill_manual(values = rev(brewer.pal( length(table(df$Test)), "Set3")))
 
+ratio = length(CTs) / nlevels(df$Test)
 
-ggplot(df, aes(CellType, Test, fill=-log10(pmax(1e-16,p)), label=ifelse(p.adj<0.05, '*', ''))) + geom_tile() + theme_bw() + scale_fill_gradient(name = bquote(-log[10]~P), low="white", high="red", limit=c(0, NA)) + theme(aspect.ratio=1, panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) + geom_text() + coord_flip()
+ggplot(df, aes(CellType, Test, fill=-log10(pmax(1e-16,p)), label=ifelse(p.adj<0.05, '*', ''))) + geom_tile() + theme_bw() + scale_fill_gradient(name = bquote(-log[10]~P), low="white", high="red", limit=c(0, NA)) + theme(aspect.ratio=ratio, panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), legend.position="bottom") + geom_text() + coord_flip()
 ```
 
 
 
 
 ```{r sex.graph, fig.width=7, fig.height=7, dev="png"}
-df_cca2 = df_cca[with(df_cca, v1!=v2),]
-df_cca2$key = apply(df_cca2, 1, function(x){
-  x = sort(c(x['v1'], x['v2']))
-  paste(x[1], x[2])
-  }) 
-df_cca2 = df_cca2[!duplicated(df_cca2$key),]
+plotStarCorr = function(df_cca, cutoff=1e-3){
 
+  df_cca2 = df_cca[with(df_cca, v1!=v2),]
+  df_cca2$key = apply(df_cca2, 1, function(x){
+    x = sort(c(x['v1'], x['v2']))
+    paste(x[1], x[2])
+    }) 
+  df_cca2 = df_cca2[!duplicated(df_cca2$key),]
 
-rstat_nodes <- data.frame(name = unique(c(df_cca2$v1, df_cca2$v2)))
+  df_cca2 = df_cca2[df_cca2$V_sqrt^2 > cutoff,]
 
-rstat_edges <- data.frame(from = match(df_cca2$v1, rstat_nodes$name),
-                         to = match(df_cca2$v2, rstat_nodes$name),
-                         Rsq = df_cca2$V_sqrt^2 )
+  rstat_nodes <- data.frame(name = unique(c(df_cca2$v1, df_cca2$v2)))
 
-net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
+  rstat_edges <- data.frame(from = match(df_cca2$v1, rstat_nodes$name),
+                           to = match(df_cca2$v2, rstat_nodes$name),
+                           Rsq = df_cca2$V_sqrt^2 )
 
-ggraph(net,  layout = 'igraph', algorithm = 'star') + 
-  geom_edge_link(aes(width = Rsq, color=Rsq), alpha = 1) +
-  geom_node_point(size=20, color="grey70") +
-  geom_node_text(aes(label = name), repel = FALSE) +
-  theme_graph() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) +
-  scale_edge_width(name=bquote(R^2)) +
-  scale_edge_color_gradient(name=bquote(R^2), low="white", high="red", lim=c(0, max(df_cca2$V_sqrt^2))) +  ggtitle("Pairwise squared correlation")
+  net = tbl_graph(nodes = rstat_nodes, edges = rstat_edges, directed=FALSE)
+
+  ggraph(net,  layout = 'igraph', algorithm = 'star') + 
+    geom_edge_link(aes(width = Rsq, color=Rsq), alpha = 1) +
+    geom_node_point(size=20, color="grey70") +
+    geom_node_text(aes(label = name), repel = FALSE) +
+    theme_graph() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) +
+    scale_edge_width(name=bquote(R^2)) +
+    scale_edge_color_gradient(name=bquote(R^2), low="cornsilk", high="red", lim=c(0, max(df_cca2$V_sqrt^2))) +  ggtitle("Pairwise squared correlation")
+}
+  
+plotStarCorr(df_cca, 0)
+```
+
+```{r sex.graph.sub, fig.width=7, fig.height=7, dev="png"}
+i1 = with(df_cca, v1 %in% setdiff(variables, variables2))
+i2 = with(df_cca, v2 %in% setdiff(variables, variables2))
+
+plotStarCorr(df_cca[i1 & i2,], 0)
 ```
 
 
 
 
-
-
-
 ```{r sex.confounding, fig.width=5, fig.height=5}
-form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath 
+form = ~ Reported_Gender + GABA + GLU + Olig + MgAs + ageOfDeath + PMI + rRNARate + RIN + IntronicRate + IntragenicRate + IntergenicRate
 par(mfrow=c(2,2))
 res = lapply( unique(METADATA$Institution), function(INST){
   i = METADATA$Institution == INST
@@ -435,6 +538,111 @@ res = lapply( unique(METADATA$Institution), function(INST){
   plotCorrMatrix(C, main=INST)
 })
 ```
+
+Despite the fact that the estimated GABA fraction is lower in females, this observation is not significant after accounting for other variables, notably age of death. 
+```{r sex.confounding.testing, fig.width=7, fig.height=4}
+
+res = lapply( unique(METADATA$Institution), function(INST){
+  res = lapply( c('GABA', 'GLU', 'Olig', 'MgAs'), function(CT){
+    i = METADATA$Institution == INST
+    y = factor(METADATA[i,]$Reported_Gender, c("Male", "Female"))
+
+    form = as.formula(paste0('y ~ ', CT, '+ ageOfDeath + PMI + rRNARate + RIN + IntronicRate + IntragenicRate + IntergenicRate'))
+
+    fit = glm(form,  METADATA[i,], family="binomial")
+
+    result = data.frame(coef(summary(fit))[-1,])
+    result$coef = rownames(result)
+    result$Institution = INST
+    result$CellType = CT
+    rownames(result) = NULL
+
+    result
+    })
+  do.call(rbind, res)
+})
+res = do.call(rbind, res)
+colnames(res)[colnames(res) == 'Pr...z..'] = 'pvalue'
+colnames(res)[colnames(res) == 'Std..Error'] = 'se'
+res$p.adj = p.adjust(res$pvalue, "BH")
+
+lim = max(abs(res$z.value))
+
+res2 = res[res$coef %in%  c('GABA', 'GLU', 'Olig', 'MgAs'),]
+res2$p.adj = p.adjust(res2$pvalue, "BH")
+
+ggplot(res2, aes(Institution, Estimate, color=coef)) + geom_point() + theme_bw() + ylab("Regression coefficient") + facet_wrap(~CellType, nrow=1) + theme(aspect.ratio=1) + geom_errorbar(aes(ymin = Estimate - se, ymax = Estimate + se), width=0.1) + geom_hline(yintercept=0, linetype="dashed")
+```
+
+
+```{r significance.CT.diff}
+colorCodes = c(
+  GABA = '#66A61E',
+  GLU = '#E6AB02',
+  Olig = '#E7298A',
+  MgAs = '#7570B3',
+  Bulk = "grey50")
+
+res2$color = colorCodes[match(res2$coef, names(colorCodes))]
+
+ggplot(res2, aes(Institution, -log10(pvalue))) + geom_point(color=res2$color) + theme_bw() + ylab("Regression coefficient") + facet_wrap(~CellType, nrow=1) + theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, hjust=1)) + geom_hline(yintercept=-log10(0.05/nrow(res2)), linetype="dashed") + ylab(bquote(-log[10]~P)) + ylim(0, 3)
+```
+
+Sow results for hypothesis testing for: `ageOfDeath + PMI + rRNARate + RIN`
+
+```{r sex.confounding.testing2, fig.width=7, fig.height=4}
+
+res = lapply( unique(METADATA$Institution), function(INST){
+  i = METADATA$Institution == INST
+  y = factor(METADATA[i,]$Reported_Gender, c("Male", "Female"))
+
+  form = y ~ ageOfDeath + PMI + rRNARate + RIN + IntronicRate + IntragenicRate + IntergenicRate
+
+  fit = glm(form,  METADATA[i,], family="binomial")
+
+  result = data.frame(coef(summary(fit))[-1,])
+  result$coef = rownames(result)
+  result$Institution = INST
+  rownames(result) = NULL
+
+  result
+})
+res = do.call(rbind, res)
+colnames(res)[colnames(res) == 'Pr...z..'] = 'pvalue'
+res$p.adj = p.adjust(res$pvalue, "BH")
+
+ggplot(res, aes(Institution, z.value, fill=coef)) + geom_bar(stat="identity", position = position_dodge())  + theme_bw() + ylab("Z-score from logistic regression") + theme(aspect.ratio=1)
+```
+
+Evaluating each term in the model: `Reported_Gender ~ Institution*(ageOfDeath + PMI + rRNARate + RIN + IntronicRate + IntragenicRate + IntergenicRate)` using logistic regression
+```{r anova.test}
+# run ANOVA LRT omitting each variable
+y = factor(METADATA$Reported_Gender, c("Male", "Female"))
+
+form = y ~ Institution*(ageOfDeath + PMI + rRNARate + RIN + IntronicRate + IntragenicRate + IntergenicRate)
+fit_full = glm(form,  METADATA, family="binomial")
+
+res = lapply(c('ageOfDeath', 'PMI', 'rRNARate','RIN', 'IntronicRate', 'IntragenicRate', 'IntergenicRate'), function(V){
+
+  form2 = gsub(V, "1", form)
+  form2 = as.formula(paste(form2[2], '~', form2[3]))
+
+  fit_null = glm(form2,  METADATA, family="binomial")
+
+  res = anova(fit_full, fit_null, test="Chisq")
+
+  data.frame(Variable = V, pvalue = res$`Pr(>Chi)`[2])
+})
+res = do.call(rbind, res)
+res$p.adj = p.adjust(res$pvalue, "bonferroni")
+
+res %>% kable(caption="Hypothesis test ", digits=8) %>% kable_styling(full_width=FALSE)
+```
+
+
+
+
+
 
 ```{r sex.by.age}
 ggplot(METADATA, aes(Reported_Gender, ageOfDeath, fill=Reported_Gender)) + geom_boxplot() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + facet_wrap(~Institution, nrow=1) + scale_fill_manual(values = c("red", "blue"))
@@ -709,7 +917,7 @@ figList.Scz = lapply( names(df_DE_results), function(key){
   main = paste(key, coef, sep = ': ' )
   plotVolcano( df, df$Symbol[1:10] ) + ggtitle( main ) #+ ylim(0, -log10(ymin))
 })
-
+ 
 # volcano plots
 plot_grid(plotlist=figList.Scz, nrow=1)
 ```
@@ -756,12 +964,10 @@ resConcord.SCZ$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(ca
 # volcano plot for meta-analysis
 main = paste('Meta-analysis', coef, sep = ': ' )
 plotVolcano( df_meta[[coef]], df_meta[[coef]]$Symbol[1:20] ) + ggtitle( main )
-   
 
 data.frame(pi1 = 1 - qvalue(df_meta[[coef]]$P)$pi0,
           `# DE` = sum(df_meta[[coef]]$adj.P.Val < 0.05),
           check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for SCZ meta-analysis") %>% kable_styling(full_width=FALSE)
-
 ```
 
 
@@ -860,10 +1066,11 @@ ROSMAP <- readr::read_tsv(synGet("syn8456721")$path) %>%
                 `AMP-AD ROSMAP DLPFC AD t-statistic` = t) %>% 
   dplyr::select(gene_id, `AMP-AD ROSMAP DLPFC AD t-statistic`)
   
-out_group <- inner_join(MSSM, MAYO) %>% 
-  inner_join(., ROSMAP) %>% 
-  inner_join(., gandal)
+# out_group <- inner_join(MSSM, MAYO) %>% 
+#   inner_join(., ROSMAP) %>% 
+#   inner_join(., gandal)
 
+out_group <- inner_join(gandal, ROSMAP)
 
 # merge with meta-analysis
 
@@ -903,7 +1110,7 @@ col2 <- colorRampPalette(rev(c("#67001F", "#B2182B", "#D6604D", "#F4A582",
                            "#FDDBC7", "#FFFFFF", "#D1E5F0", "#92C5DE",
                            "#4393C3", "#2166AC", "#053061")))
 
-cor <- cor(df_two)
+cor <- cor(df_two, method="spearman")
 # clustering based on distance
 hcl = hclust(as.dist(1-cor), method='ward.D2')
 
@@ -917,6 +1124,10 @@ plot(results, hang=-1)
 corrplot(reorder, col = col2(200))
 ```
 
+## t-statistics for CASKIN1
+```{r CASKIN1}
+ df_two['ENSG00000167971',]  %>% kable(caption="t-statistics for CASKIN1", row.names=FALSE) %>% kable_styling(full_width=FALSE)
+``` 
 
 
 
@@ -941,12 +1152,14 @@ show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
 
 
 ```{r plot.gene_set_test.marginal, eval=TRUE}
- plot_zenith_results = function( res, coef, Resource, FDR = 0.05){
+
+  plot_zenith_results = function( res, coef, Resource, FDR = 0.05, compare=NULL){
    
   i = which((res$Resource == Resource) & (res$Coef == coef))
   df = res[i,]
 
   # filter by FDR
+  df$FDR = pmax(1e-300, df$FDR)
   df = df[df$FDR <= FDR,]
   df$Coef = c()
   df$se = c()
@@ -955,14 +1168,22 @@ show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
   df = df[order(df$PValue, decreasing=TRUE),]
   df$Set = factor(df$Set, df$Set)
   ymax = max(-log10(df$FDR)) * 1.05
-  ggplot(df, aes(Set, -log10(FDR))) + geom_bar(stat="identity", fill="navy") + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
+
+  if( !is.null(compare) ){
+    df$Direction = compare[(sign(df$effect) + 1)/2 + 1]
+    fig = ggplot(df, aes(Set, -log10(FDR), fill = Direction )) + geom_bar(stat="identity") + scale_fill_manual(name = "Upregulated in", values = c('red', 'blue'))
+  }else{
+    fig = ggplot(df, aes(Set, -log10(FDR) )) + geom_bar(stat="identity", fill="navy")
+  }
+
+  fig + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="black", linetype="dashed") 
 }
-                 
- plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05)
+
+ plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05) 
 ```
 
 ```{r, fig.width=9}
- plot_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
+  plot_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)  
 ```
 
 # Sex Analysis
@@ -973,8 +1194,8 @@ coef = 'Reported_GenderMale'
 figList.Sex = lapply( names(df_DE_results), function(key){
   df = df_DE_results[[key]][[coef]]
   main = paste(key, coef, sep = ': ' )
-  plotVolcano( df, df$Symbol[1:20] ) + ggtitle( main )
-})
+  plotVolcanoSex( df, df$Symbol[1:20] ) + ggtitle( main )
+}) 
 
 # volcano plots
 plot_grid(plotlist=figList.Sex, nrow=1)
@@ -991,7 +1212,7 @@ figList.Sex = lapply( names(df_DE_results), function(key){
   df = df[df$Chrom %in% 1:22,]
   plotVolcano( df, df$Symbol[1:20] ) + ggtitle( main )
 })
-
+ 
 # volcano plots
 plot_grid(plotlist=figList.Sex, nrow=1)
 ```
@@ -1042,8 +1263,8 @@ resConcord.Sex$tab_corr  %>% mutate_if(is.numeric, format, digits=3) %>% kable(c
 ```{r plot.meta.analysis.Sex, fig.height=5, fig.width=10}
 # volcano plot for meta-analysis
 main = 'Meta-analysis: Sex'
-fig1 = plotVolcano( df_meta[[coef]], df_meta[[coef]]$Symbol[1:20] ) + ggtitle( main )
-   
+fig1 = plotVolcanoSex( df_meta[[coef]], df_meta[[coef]]$Symbol[1:15] ) + ggtitle( main )
+    
 df = df_meta[[coef]][df_meta[[coef]]$Chrom %in% 1:22,]
 fig2 = plotVolcano( df, df$Symbol[1:20] ) + ggtitle( paste(main, "autosome") )
 plot_grid(fig1, fig2, ncol=2)
@@ -1106,11 +1327,42 @@ show_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)
 show_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)        
 ```
 
-```{r plot.gene_set_test.marginal.Sex, eval=TRUE}
- plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05)               
- plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05)        
+Evaluate if GABA pathways are different between sexes
+```{r zenith.gaba}
+df = data.table(res_meta_zenith)
+df = df[Coef == 'Reported_GenderMale',] 
+df2 = df[grep("GABA", Set),]
+
+# correct only for number of tests that have GABA in the name
+df2[,FDR := p.adjust(PValue, "fdr")] 
+df2 %>% kable(caption="Test only gene sets with GABA in the name") %>% kable_styling(full_width=FALSE)
 ```
 
+
+
+```{r plot.gene_set_test.marginal.Sex, eval=TRUE, fig.width=12}
+  plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "GO", FDR=0.05, compare=c('Female', "Male"))               
+  plot_zenith_results( res_meta_zenith, "Reported_GenderMale", "MSigDB", FDR=0.05, compare=c('Female', "Male"))         
+```
+
+Show genes in neurexin gene set
+```{r neurexin}
+geneNames = gs.GO.collection[[grep('GO0042043', names(gs.GO.collection))]]
+
+df = df_meta[['Reported_GenderMale']]
+
+i = match( geneNames, trim_ensembl_ids(rownames(df)))
+
+df = df[i[!is.na(i)],]
+df$ischrY = df$Chrom == "Y"
+
+figList = lapply( unique(df$ischrY), function(TF){
+
+  df2 = df[df$ischrY == TF,]
+  ggplot(df2, aes(Symbol, logFC, color=adj.P.Val < 0.05)) + geom_point() + geom_errorbar(aes(ymin = logFC - se, ymax = logFC + se, width=.1)) + theme_bw(16) + theme(aspect.ratio=1) + geom_hline(yintercept=0, linetype="dashed") + coord_flip() + scale_color_manual(name="FDR < 5%", values=c("black", "red"))
+  })
+plot_grid(plotlist = figList, ncol=1)
+```
 
 ### Only autosomes
 ```{r show.gene_set_test.marginal.Sex.autosome, eval=TRUE}
@@ -1119,8 +1371,8 @@ show_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigD
 ```
 
 ```{r plot.gene_set_test.marginal.Sex.autosome, eval=TRUE}
- plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.1) 
- plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.1)   
+  plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "GO", FDR=0.1, compare=c('Female', "Male"))  
+  plot_zenith_results( res_meta_zenith.sex_autosome, "Reported_GenderMale", "MSigDB", FDR=0.1, compare=c('Female', "Male"))    
 ```
 
 
@@ -1134,7 +1386,7 @@ figList.Age = lapply( names(df_DE_results), function(key){
   main = paste(key, coef, sep = ': ' )
   plotVolcano( df, df$Symbol[1:20] ) + ggtitle( main )
 })
-
+ 
 # volcano plots
 plot_grid(plotlist=figList.Age, nrow=1)
 ```
@@ -1162,7 +1414,7 @@ resConcord.Age$tab_corr %>% mutate_if(is.numeric, format, digits=3) %>% kable(ca
 # volcano plot for meta-analysis
 main = 'Meta-analysis: Age'
 plotVolcano( df_meta[[coef]], df_meta[[coef]]$Symbol[1:20] ) + ggtitle( main )
-
+ 
 data.frame(pi1 = 1 - qvalue(df_meta[[coef]]$P)$pi0,
           `# DE` = sum(df_meta[[coef]]$adj.P.Val < 0.05),
           check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for Age meta-analysis") %>% kable_styling(full_width=FALSE)
@@ -1193,8 +1445,8 @@ show_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)
 ```
 
 ```{r plot.gene_set_test.marginal.Age, eval=TRUE}
- plot_zenith_results( res_meta_zenith, "ageOfDeath", "GO", FDR=0.01)   
- plot_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)    
+  plot_zenith_results( res_meta_zenith, "ageOfDeath", "GO", FDR=0.01)    
+  plot_zenith_results( res_meta_zenith, "ageOfDeath", "MSigDB", FDR=0.01)    
 ```
 
 # Comparison with GTEx
@@ -1452,7 +1704,7 @@ figList.Scz = lapply( names(df_DE_results), function(key){
   main = paste(key, coef, sep = ': ' )
   plotVolcano( df, df$Symbol[1:10] ) + ggtitle( main )
 })
- 
+  
 # volcano plots
 plot_grid(plotlist=figList.Scz, nrow=1)
 ```
@@ -1504,13 +1756,35 @@ resConcord.inter_sex.disease$tab_corr %>% mutate_if(is.numeric, format, digits=3
 ```{r plot.meta.analysis.SCZ.inter_sex.disease, fig.height=5, fig.width=10}
 # volcano plot for meta-analysis.  
 main = paste('Meta-analysis', coef, sep = ': ' )
-plotVolcano( df_meta.inter_sex.disease[[coef]], df_meta.inter_sex.disease[[coef]]$Symbol[1:20] ) + ggtitle( main )
-   
-data.frame(pi1 = 1 - qvalue(df_meta.inter_sex.disease[[coef]]$P)$pi0,
-          `# DE` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.05),
-          `# DE @ 10%` = sum(df_meta.inter_sex.disease[[coef]]$adj.P.Val < 0.1),
-          check.names=FALSE ) %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption="pi1 for SCZ:Sex meta-analysis") %>% kable_styling(full_width=FALSE)
+plotVolcano( df_meta.inter_sex.disease[[coef]], df_meta.inter_sex.disease[[coef]]$Symbol[1:20] ) + ggtitle( main )  
 ```
+
+Here we used multiple methods (BH, qvalue and FDRTool), to compute the local and global FDR and evalute the number of genes passing the 25% cutoff.
+```{r pv.hist.fdrtool}
+pv = df_meta.inter_sex.disease[[coef]]$P
+
+res_fdr = fdrtool( pv, "pvalue", plot=FALSE, verbose=FALSE)
+
+cutoff = .25
+df = data.frame(`BH` = sum(p.adjust(pv, "BH") < cutoff),
+          `qvalue (global)` = sum(qvalue(pv)$qvalue < cutoff),
+          `qvalue (local)` = sum(qvalue(pv)$lfdr < cutoff),
+          `FDRtool (global)` = sum(res_fdr$qval < cutoff),
+          `FDRtool (local)` = sum(res_fdr$lfdr < cutoff),
+          check.names=FALSE )  %>% t 
+colnames(df) = "Count DE genes"
+
+df %>% kable(caption="Number of DE genes by each multiple testing method at cutoff of 25%") %>% kable_styling(full_width=FALSE)
+```
+
+The pi1 value is `r 1 - qvalue(pv)$pi0`.
+
+Histogram of p-values from interaction testing is close to unifoirm
+
+```{r p.hist, fig.height=5, fig.width=5}
+hist( pv, xlab="p-value", main="Histogram of p-values")
+```
+
 
 
 
@@ -1544,11 +1818,11 @@ show_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB",
 
 ```{r plot.gene_set_test.marginal.inter_sex.disease, eval=TRUE}
 coef = 'DxSCZ:Reported_GenderMale'   
- plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "GO", FDR=0.1)  
- plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "MSigDB", FDR=0.1)  
+  plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "GO", FDR=0.1)  
+  plot_zenith_results( res_meta_zenith.inter_sex.disease, coef, "MSigDB", FDR=0.1)   
  
- plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "GO", FDR=0.1) 
- plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB", FDR=0.1)    
+  plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "GO", FDR=0.1) 
+  plot_zenith_results( res_meta_zenith.inter_sex.disease_autosome, coef, "MSigDB", FDR=0.1)    
 ```
 
 
@@ -1601,7 +1875,26 @@ df$tstat = with(df, (logFC.x - logFC.y) / sqrt(se.x^2 + se.y^2))
 df$p = 2*pnorm(abs(df$tstat), 0, 1, lower.tail=FALSE)
 df$FDR = p.adjust(df$p, "fdr")
 
+1 - qvalue(df$p)$pi0
+
 head(df[df$FDR < 0.1,])
+
+coef(lm(t.x ~ t.y, df))
+coef(lm(t.y ~ t.x, df))
+
+with(df, hist(t.y - t.x))
+
+
+with(df, wilcox.test(t.y, t.x, paired=TRUE))
+
+
+with(df, hist(logFC.y - logFC.x))
+
+
+
+
+
+
 
 ```
 

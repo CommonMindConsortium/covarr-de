@@ -9,6 +9,7 @@ library(Rfast)
 library(viridis)
 library(data.table)
 library(ggraph)
+library(ggrepel)
 library(ggplot2)
 library(tidygraph)
 library(irlba)
@@ -71,6 +72,8 @@ plot_concordance = function( resList, showGenes = NULL, idx=c(1,2), size=15){
 
   df = merge( resList[[idx[1]]], resList[[idx[2]]], by="row.names")
 
+  # see link for simpler code to generate scatter plot with density
+  # https://gist.github.com/GabrielHoffman/0369ce8fd875b3ea5b7a364473add323
   lab = "log2 fold change"
   lim = with(df, max(abs(c(logFC.x, logFC.y))))
   df$density <- get_density(df$logFC.x, df$logFC.y, n = 100)
@@ -259,13 +262,41 @@ plotVolcano = function(df, showGenes = NULL, size=15, minp=1e-310 ){
 
   lim = -log10(min(df$P.Value))
   limx = c(-max(abs(df$logFC)), max(abs(df$logFC)))
-  fig = ggplot(df, aes( logFC, -log10(P.Value), color=isSignif)) + geom_point() + theme_bw(size) + theme(aspect.ratio=1, legend.position="none", plot.title = element_text(hjust = 0.5)) + xlab(bquote(log[2]~fold~change)) + ylab(bquote(-log[10]~P)) + scale_color_manual(values=c("grey", "red")) + scale_y_continuous(limits=c(0, lim*1.02), expand=c(0,0)) + xlim(limx)
+  fig = ggplot(df, aes( logFC, -log10(P.Value), color=isSignif)) + geom_point() + theme_bw(size) + theme(aspect.ratio=1, legend.position="none", plot.title = element_text(hjust = 0.5)) + xlab(bquote(log[2]~fold~change)) + ylab(bquote(-log[10]~P)) + scale_color_manual(values=c("grey", "darkred")) + scale_y_continuous(limits=c(0, lim*1.02), expand=c(0,0)) + xlim(limx)
 
   if( !is.null(showGenes) ){
     # top significant genes
     df2 = df[df$Symbol %in% showGenes,]
 
     fig = fig + geom_text_repel(data=df2, aes(logFC, -log10(P.Value), label=Symbol), segment.size=.5,  segment.color="black", color="black", force=1, nudge_x=.005, nudge_y=.5)
+  }
+
+  fig
+}
+
+
+plotVolcanoSex = function(df, showGenes = NULL, size=15, minp=1e-310 ){
+
+  # indicate significant genes
+  df$SexChr = "autosome"
+  df$SexChr[df$Chrom =="X"] = 'X'
+  df$SexChr[df$Chrom =="Y"] = 'Y'
+  df$SexChr = factor(df$SexChr, c("autosome", "X", "Y"))
+  df$Chrom = factor( df$Chrom, sort(unique( df$Chrom)))
+  df$P.Value = pmax(minp, df$P.Value )
+
+  # get gene Symbol from rownames
+  df = getGeneSymbol(df)
+
+  lim = -log10(min(df$P.Value))
+  limx = c(-max(abs(df$logFC)), max(abs(df$logFC)))
+  fig = ggplot(df, aes( logFC, -log10(P.Value), color=SexChr)) + geom_point() + theme_bw(size) + theme(aspect.ratio=1, legend.position="none", plot.title = element_text(hjust = 0.5)) + xlab(bquote(log[2]~fold~change)) + ylab(bquote(-log[10]~P)) + scale_color_manual(values=c("grey", "red", "blue")) + scale_y_continuous(limits=c(0, lim*1.02), expand=c(0,0)) + xlim(limx)
+
+  if( !is.null(showGenes) ){
+    # top significant genes
+    df2 = df[df$Symbol %in% showGenes,]
+
+    fig = fig + geom_text_repel(data=df2, aes(logFC, -log10(P.Value), label=Symbol), segment.size=.5,  segment.color="black", color="black", force=1, nudge_x=.005, nudge_y=-5, max.overlaps=100)
   }
 
   fig
@@ -300,7 +331,7 @@ plot_forrest = function(resList, geneSymbol, plot2="p"){
   }
 
   # forrest plot
-  fig1 = ggplot(df_forrest, aes(Dataset, logFC)) + geom_point(color="navy") + geom_errorbar(aes(ymin = logFC - se, ymax=logFC + se), width=0.1) + theme_bw() + theme(aspect.ratio= .2, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylim(rng) + ggtitle(geneSymbol) + geom_hline(yintercept=0, color="red", linetype="dashed") + ylab(bquote(log[2]~fold~change)) + xlab('')
+  fig1 = ggplot(df_forrest, aes(Dataset, logFC)) + geom_point(color="navy") + geom_errorbar(aes(ymin = logFC - se, ymax=logFC + se), width=0.1) + theme_bw() + theme(aspect.ratio= 1, plot.title = element_text(hjust = 0.5)) + coord_flip() + ylim(rng) + ggtitle(geneSymbol) + geom_hline(yintercept=0, color="red", linetype="dashed") + ylab(bquote(log[2]~fold~change)) + xlab('')
 
   # Adjusted p-value
   if( plot2 == "adjusted" ){
@@ -315,7 +346,7 @@ plot_forrest = function(resList, geneSymbol, plot2="p"){
     fig2 = ggplot(df_forrest, aes(Dataset, -log10(P.Value))) + ylab(bquote(-log[10]~P)) 
   }
 
-  fig2 = fig2 + geom_bar(stat="identity", fill="navy") + theme_bw() + theme( aspect.ratio= .5, plot.margin = unit(c(0,0,0,0), "cm"),
+  fig2 = fig2 + geom_bar(stat="identity", fill="navy") + theme_bw() + theme( aspect.ratio= 1, plot.margin = unit(c(0,0,0,0), "cm"),
     axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank()) + coord_flip() + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="red", linetype="dashed")
@@ -545,7 +576,7 @@ run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=500
   # run zenith for each coefficient
   res = lapply( coefs, function(coef){
 
-    df = zenith(fit, coef, geneSets.index, squaredStats=TRUE)
+    df = zenith(fit, coef, geneSets.index, squaredStats=FALSE)
     df$Set = rownames(df)
     rownames(df) = c()
     df$Coef = coef
@@ -1279,10 +1310,6 @@ save_network_results = function(diff.net, hcl, dynamicColors, df_test, prefix){
                     parentId = CODE$properties$id)
     synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
 }
-
-
-
-
 
 
 
