@@ -22,6 +22,27 @@ downloadFile_version <- function(id , version){
   fread(synGet(id, version = version)$path, data.table = F)
 }
 
+# Get ancestry vector calculated using gemtools
+ANCESTRY_ID = 'syn9922992'
+ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
+ANCESTRY.HBCC = downloadFile(ANCESTRY_ID) %>% 
+  plyr::rename(c(ID = 'SNP_report:Genotyping_Sample_ID'))
+
+ANCESTRY_ID = 'syn2511399'
+ALL_USED_IDs[length(ALL_USED_IDs)+1] = ANCESTRY_ID
+ANCESTRY.MPP = downloadFile(ANCESTRY_ID) %>% 
+  plyr::rename(c('DNA_report..Genotyping.Sample_ID' = 'SNP_report:Genotyping_Sample_ID'))
+
+ANCESTRY = rbind(ANCESTRY.HBCC[,colnames(ANCESTRY.MPP)[-2]], ANCESTRY.MPP[,colnames(ANCESTRY.MPP)[-2]])
+
+# Get genotype ids from synapse. 
+GENOTYPE_ID = 'syn16816490'
+ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
+GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
+  dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
+  dplyr::inner_join(ANCESTRY) %>% 
+  dplyr::filter(is.na(`SNP_report:Exclude?`))
+  
 # Get RNASeq QCmetadata
 METADATA_QC_DLPFC_ID = 'syn16816488' 
 ALL_USED_IDs = METADATA_QC_DLPFC_ID
