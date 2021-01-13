@@ -7,6 +7,7 @@
 
 library(synapser)
 library(dplyr)
+library(githubr)
 
 synLogin()
 
@@ -66,7 +67,7 @@ countsFilter = counts.MPP[,c(1:6, idx)]
 # write result top file
 file = "MSSM.Penn.Pitt_DLPFC.featureCount.tsv"
 write.table(countsFilter, file = file,  sep="\t", row.names=FALSE, col.names=TRUE, quote=FALSE)
-system(paste("gzip", file))
+system(paste("gzip -f", file))
 
 
 # 
