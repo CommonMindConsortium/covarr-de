@@ -22,6 +22,8 @@ downloadFile_version <- function(id , version){
   fread(synGet(id, version = version)$path, data.table = F)
 }
 
+ALL_USED_IDs = c()
+
 # Get ancestry vector calculated using gemtools
 ANCESTRY_ID = 'syn9922992'
 ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
@@ -42,10 +44,10 @@ GENOTYPE = downloadFile(GENOTYPE_ID) %>%
   dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
   dplyr::inner_join(ANCESTRY) %>% 
   dplyr::filter(is.na(`SNP_report:Exclude?`))
-  
+
 # Get RNASeq QCmetadata
 METADATA_QC_DLPFC_ID = 'syn16816488' 
-ALL_USED_IDs = METADATA_QC_DLPFC_ID
+ALL_USED_IDs = c(ALL_USED_IDs, METADATA_QC_DLPFC_ID)
 metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
   dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 'pH',
                 Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
@@ -78,4 +80,6 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('createRele
 nEXP_OBJ = File(paste0(file, ".gz"), 
                 name = "Count files for DLFPC from MSSM, Penn, Pitt", 
                 parentId = 'syn24172721')
-synStore(nEXP_OBJ, used = c('syn21867938', 'syn16816488'), executed = thisFile)
+synStore(nEXP_OBJ, used = ALL_USED_IDs, executed = thisFile)
+
+
