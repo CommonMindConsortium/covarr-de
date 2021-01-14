@@ -1221,8 +1221,8 @@ show_zenith_results = function( res, coef, Resource, FDR = 0.05){
 	df %>% mutate_if(is.numeric, format, digits=3) %>% kable(caption=paste(Resource, coef), row.names=FALSE) %>% kable_styling(full_width=FALSE)
 }
                  
-show_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05)
-show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
+show_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.5)
+show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.5)
 ```
 
 
@@ -1254,11 +1254,11 @@ show_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)
   fig + theme_bw() + theme(aspect.ratio=1,plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(-log[10]~FDR)) + xlab('') + ggtitle(coef) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax)) + geom_hline(yintercept=-log10(0.05), color="black", linetype="dashed") 
 }
 
- plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.05) 
+ plot_zenith_results( res_meta_zenith, "DxSCZ", "GO", FDR=0.5) 
 ```
 
 ```{r, fig.width=9}
-  plot_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.05)  
+  plot_zenith_results( res_meta_zenith, "DxSCZ", "MSigDB", FDR=0.5)  
 ```
 
 # Sex Analysis
