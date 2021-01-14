@@ -50,7 +50,7 @@ knit2synapse::createAndKnitToFolderEntity(file = "combined_analysis/combine_all_
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
 
 library(githubr)
-parentId = 'syn22416298';
+parentId = 'syn24172641';
 activityName = 'Joint analysis of DLPFC count data';
 activityDescription = 'Joint analysis of DLPFC count data';
 
@@ -63,28 +63,6 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('combined_a
 
 
 
-<!---
-
-
-TODO
-
-zenith 1 sided
-
-zenith plots
-replication or correlation as a function of expression magnitude
-
-difference networks
--------------------
-
-DONE
-
-Effect of ilr should depend on Instaition
-suffix 1.
-zenith for Sex with autosomes
-check zenith squared test statistics
-
-
---->
 
 ```{r setup, include=FALSE}
 suppressPackageStartupMessages({
@@ -99,6 +77,7 @@ library(readxl)
 library(gtools)
 library(corrplot)
 library(fdrtool)
+library(ashr)
 library(pvclust)
 library(RColorBrewer)
 library(metafor)
@@ -142,100 +121,194 @@ colorArray = colors()[grep("grey|gray", colors(), invert=TRUE)]
 
 ```{r read.counts}
 # Read raw counts from MPP and HBCC
-counts.MPP = fread(synGet('syn21867938')$path, data.table=FALSE)
+# counts.MPP = fread(synGet('syn21867938')$path, data.table=FALSE)
+
+ALL_USED_IDs = c()
+
+# Just DLPFC counts
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn24172729')
+counts.MPP = fread(synGet('syn24172729')$path, data.table=FALSE)
 rownames(counts.MPP) = counts.MPP$Geneid
 counts.MPP = counts.MPP[,-c(1:6)]
 
 # HBCC - DLFPC
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn21886235')
 counts.HBCC = fread(synGet('syn21886235')$path, data.table=FALSE)
 rownames(counts.HBCC) = counts.HBCC$Geneid
 counts.HBCC = counts.HBCC[,-c(1:6)]
 
 # # HBCC - sgACC
-counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
-rownames(counts.HBCC4) = counts.HBCC4$Geneid
-counts.HBCC4 = counts.HBCC4[,-c(1:6)]
+# NOT INCLUDED in release
+# counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
+# rownames(counts.HBCC4) = counts.HBCC4$Geneid
+# counts.HBCC4 = counts.HBCC4[,-c(1:6)]
 
-geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
+# geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
+geneCountsMerged = cbind(counts.MPP, counts.HBCC)
 ```
 
 
 ### Data download
 #### Obtain effective count matrix and metadata from synapse.
 ```{r download.data, cache=TRUE}
-downloadFile <- function(id){
-  fread(synGet(id)$path, data.table = F)
-}
-downloadFile_version <- function(id , version){
+downloadFile <- function(id, version=NULL){
   fread(synGet(id, version = version)$path, data.table = F)
 }
+```
 
+```{r get.metadata, eval=FALSE}
 # Get RNASeq QCmetadata
-METADATA_QC_DLPFC_ID = 'syn16816488' 
-ALL_USED_IDs = METADATA_QC_DLPFC_ID
-metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
-  dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 'pH',
-                Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
-                                      'rnaSeq_dissection:Brain_Region', 
-                                      'rnaSeq_isolation:RNA_Isolation_Batch',
-                                      'rnaSeq_report:Ribozero_Batch', 'rnaSeq_report:Library_Batch', 
-                                      'rnaSeq_report:Flowcell_Batch', 'rnaSeq_report:Exclude?',
-                                      'rnaSeq_report:Mapped_Reads',
-                                      'rnaSeq_report:Intragenic_Rate','rnaSeq_report:Intronic_Rate',
-                                      'rnaSeq_report:Intergenic_Rate','rnaSeq_report:Genes_Detected',
-                                      'rnaSeq_report:Expression_Profiling_Efficiency',
-                                      'rnaSeq_report:rRNA_Rate',
-                                      'rnaSeq_report:Total_Reads', 'rnaSeq_report:Percent_Aligned','rnaSeq_report:Transcripts_Detected')) 
+# METADATA_QC_DLPFC_ID = 'syn16816488'; version = 19  # private version
+# # METADATA_QC_DLPFC_ID = 'syn18358379'; version = NULL  # public version
+# ALL_USED_IDs = METADATA_QC_DLPFC_ID
+# metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = version) %>%
+#   dplyr::select(`Individual_ID`, Institution, Cohort, `Reported_Gender`, Sex, Ethnicity, ageOfDeath, `PMI_(in_hours)`, Dx, 'pH',
+#                 Sample_RNA_ID, one_of('rnaSeq_isolation:RIN',
+#                                       'rnaSeq_dissection:Brain_Region', 
+#                                       'rnaSeq_isolation:RNA_Isolation_Batch',
+#                                       'rnaSeq_report:Ribozero_Batch', 'rnaSeq_report:Library_Batch', 
+#                                       'rnaSeq_report:Flowcell_Batch', 'rnaSeq_report:Exclude?',
+#                                       'rnaSeq_report:Mapped_Reads',
+#                                       'rnaSeq_report:Intragenic_Rate','rnaSeq_report:Intronic_Rate',
+#                                       'rnaSeq_report:Intergenic_Rate','rnaSeq_report:Genes_Detected',
+#                                       'rnaSeq_report:Expression_Profiling_Efficiency',
+#                                       'rnaSeq_report:rRNA_Rate',
+#                                       'rnaSeq_report:Total_Reads', 'rnaSeq_report:Percent_Aligned','rnaSeq_report:Transcripts_Detected')) 
 
+# # Get ancestry vector calculated using gemtools
+# ANCESTRY_ID = 'syn9922992'
+# ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
+# ANCESTRY.HBCC = downloadFile(ANCESTRY_ID) %>% 
+#   plyr::rename(c(ID = 'SNP_report:Genotyping_Sample_ID'))
+
+# ANCESTRY_ID = 'syn2511399'
+# ALL_USED_IDs[length(ALL_USED_IDs)+1] = ANCESTRY_ID
+# ANCESTRY.MPP = downloadFile(ANCESTRY_ID) %>% 
+#   plyr::rename(c('DNA_report..Genotyping.Sample_ID' = 'SNP_report:Genotyping_Sample_ID'))
+
+# ANCESTRY = rbind(ANCESTRY.HBCC[,colnames(ANCESTRY.MPP)[-2]], ANCESTRY.MPP[,colnames(ANCESTRY.MPP)[-2]])
+
+# # Get genotype ids from synapse. 
+# GENOTYPE_ID = 'syn16816490'
+# ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
+# GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
+#   dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
+#   dplyr::inner_join(ANCESTRY) %>% 
+#   dplyr::filter(is.na(`SNP_report:Exclude?`))
+
+# # Merge metadata   
+# METADATA = metadata %>%
+#   dplyr::left_join(GENOTYPE) %>%      
+#   dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
+#                 PMI = `PMI_(in_hours)`,
+#                 RIN = `rnaSeq_isolation:RIN`, 
+#                 ReportExclude = `rnaSeq_report:Exclude?`,
+#                 GenotypeExclude = `SNP_report:Exclude?`,
+#                 SampleID = Sample_RNA_ID,
+#                 LibraryBatch = `rnaSeq_report:Library_Batch`,
+#                 FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
+#                 IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`, #isolation batch to replace ribozero batch
+#                 RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
+#                 MappedReads = `rnaSeq_report:Mapped_Reads`,
+#                 IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
+#                 IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
+#                 ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
+#                 TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
+#   dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, Region,
+#                 RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5, pH,
+#                 LibraryBatch, FlowcellBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
+#                 IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) 
+```
+
+
+```{r get.metadata.2}
 # Get ancestry vector calculated using gemtools
-ANCESTRY_ID = 'syn9922992'
+ANCESTRY_ID = 'syn17894713'
 ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
 ANCESTRY.HBCC = downloadFile(ANCESTRY_ID) %>% 
-  plyr::rename(c(ID = 'SNP_report:Genotyping_Sample_ID'))
-
-ANCESTRY_ID = 'syn2511399'
-ALL_USED_IDs[length(ALL_USED_IDs)+1] = ANCESTRY_ID
+  dplyr::rename(ID = 'Genotyping_Sample_ID')
+ANCESTRY_ID = 'syn17346100'
+ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
 ANCESTRY.MPP = downloadFile(ANCESTRY_ID) %>% 
-  plyr::rename(c('DNA_report..Genotyping.Sample_ID' = 'SNP_report:Genotyping_Sample_ID'))
-
-ANCESTRY = rbind(ANCESTRY.HBCC[,colnames(ANCESTRY.MPP)[-2]], ANCESTRY.MPP[,colnames(ANCESTRY.MPP)[-2]])
-
+  dplyr::rename('DNA_report..Genotyping.Sample_ID' = 'Genotyping_Sample_ID')
+ANCESTRY = rbind(
+  ANCESTRY.HBCC[,colnames(ANCESTRY.MPP)[-2]], 
+  ANCESTRY.MPP[,colnames(ANCESTRY.MPP)[-2]]
+  )
 # Get genotype ids from synapse. 
-GENOTYPE_ID = 'syn16816490'
+GENOTYPE_ID = "syn18358480"
 ALL_USED_IDs = c(ALL_USED_IDs, GENOTYPE_ID)
 GENOTYPE = downloadFile(GENOTYPE_ID) %>% 
-  dplyr::select(Individual_ID, `SNP_report:Genotyping_Sample_ID`, `SNP_report:Exclude?`) %>% 
+  dplyr::select(Individual_ID, `Genotyping_Sample_ID`, `Exclude`) %>% 
   dplyr::inner_join(ANCESTRY) %>% 
-  dplyr::filter(is.na(`SNP_report:Exclude?`))
-```
+  dplyr::filter(is.na(`Exclude`))
+# Get RNASeq QCmetadata
+CLINICAL_ID = "syn3354385"
+clinical = downloadFile(CLINICAL_ID)
+ASSAY_ID = "syn24173489"
+rnaseq = downloadFile(ASSAY_ID)
+metadata <- right_join(
+  clinical, 
+  rnaseq,
+  )
+ALL_USED_IDs = c(ALL_USED_IDs,CLINICAL_ID, ASSAY_ID)
+metadata = metadata %>%
+  dplyr::select(
+    `Individual ID`, Institution, Cohort, `Reported Gender`, Sex, Ethnicity, 
+    `Age of Death`, `PMI (in hours)`, Dx, pH, SampleID, one_of(
+      'RIN','Brain_Region', 'Ribozero_Batch', 'Library_Batch', 
+      'Flowcell_Batch', 'Mapped_Reads', 'Intragenic_Rate','Intronic_Rate', 
+      'Intergenic_Rate','Genes_Detected', 'Expression_Profiling_Efficiency', 
+      'rRNA_Rate', 'Total_Reads', 'Percent_Aligned', 'Transcripts_Detected',
+      'Exclude?')
+    ) %>% 
+  dplyr::filter(`Brain_Region` %in% c("DLPFC"))
+metadata$`Age of Death`[metadata$`Age of Death`=="90+"] = 90
+metadata$`Age of Death` = as.numeric(metadata$`Age of Death`)
+
+# Merge metadata 
+METADATA = metadata %>%
+  dplyr::left_join(GENOTYPE, by = c("Individual ID" = "Individual_ID")) %>%  
+  dplyr::rename(
+    Region = `Brain_Region`,
+    PMI = `PMI (in hours)`,
+    RIN = `RIN`,
+    ReportExclude = `Exclude?`,
+    GenotypeExclude = Exclude,
+    LibraryBatch = `Library_Batch`,
+    FlowcellBatch = `Flowcell_Batch`,
+    RibozeroBatch = `Ribozero_Batch`,
+    MappedReads = `Mapped_Reads`,
+    IntragenicRate = `Intragenic_Rate`, 
+    IntronicRate = `Intronic_Rate`, 
+    IntergenicRate = `Intergenic_Rate`, 
+    GenesDetected = `Genes_Detected`,
+    ExpProfEfficiency = `Expression_Profiling_Efficiency`, 
+    rRNARate = `rRNA_Rate`,
+    TotalReads = `Total_Reads`, 
+    AlignmentRate = `Percent_Aligned`, 
+    TranscriptsDetected = `Transcripts_Detected`,    
+    TranscriptsDetected = `Transcripts_Detected`,    
+    Reported_Gender = `Reported Gender`,
+    ageOfDeath = `Age of Death`,
+    IndividualID = `Individual ID`) %>%
+  dplyr::select(
+    SampleID, IndividualID, Institution, Cohort,Reported_Gender, Sex, 
+    Ethnicity, ageOfDeath, PMI, Dx, RIN, EV.1, EV.2, EV.3, EV.4, EV.5, 
+    LibraryBatch, FlowcellBatch, RibozeroBatch, MappedReads, TotalReads, 
+    GenesDetected, AlignmentRate, IntragenicRate, IntergenicRate, IntronicRate, 
+    ExpProfEfficiency, rRNARate, TranscriptsDetected, ReportExclude, 
+    GenotypeExclude, pH)
+```  
+
 
 ### Data preprocessing
 ```{r preprocess.data}
-# Merge metadata 
-METADATA = metadata %>%
-  dplyr::left_join(GENOTYPE) %>%      
-  dplyr::rename(Region = `rnaSeq_dissection:Brain_Region`,
-                PMI = `PMI_(in_hours)`,
-                RIN = `rnaSeq_isolation:RIN`, 
-                ReportExclude = `rnaSeq_report:Exclude?`,
-                GenotypeExclude = `SNP_report:Exclude?`,
-                SampleID = Sample_RNA_ID,
-                LibraryBatch = `rnaSeq_report:Library_Batch`,
-                FlowcellBatch = `rnaSeq_report:Flowcell_Batch`,
-                IsolationBatch = `rnaSeq_isolation:RNA_Isolation_Batch`, #isolation batch to replace ribozero batch
-                RibozeroBatch = `rnaSeq_report:Ribozero_Batch`,
-                MappedReads = `rnaSeq_report:Mapped_Reads`,
-                IntragenicRate = `rnaSeq_report:Intragenic_Rate`, IntronicRate = `rnaSeq_report:Intronic_Rate`, 
-                IntergenicRate = `rnaSeq_report:Intergenic_Rate`, GenesDetected = `rnaSeq_report:Genes_Detected`,
-                ExpProfEfficiency = `rnaSeq_report:Expression_Profiling_Efficiency`, rRNARate = `rnaSeq_report:rRNA_Rate`,
-                TotalReads = `rnaSeq_report:Total_Reads`, AlignmentRate = `rnaSeq_report:Percent_Aligned`, TranscriptsDetected = `rnaSeq_report:Transcripts_Detected`) %>%
-  dplyr::select(SampleID, Individual_ID, Institution, Cohort, Reported_Gender,Sex, Ethnicity, ageOfDeath, PMI, Dx, Region,
-                RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5, pH,
-                LibraryBatch, FlowcellBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
-                IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
+
+METADATA = METADATA %>%
   		 		 dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
-  		 		 dplyr::filter(Region %in% c('DLPFC')) %>%
-			 	 dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC', `NIMH-HBCC`='NIMH-HBCC-4')) %>%
+  		 		 # dplyr::filter(Region %in% c('DLPFC')) %>%
+			 	 dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC')) %>% # , `NIMH-HBCC`='NIMH-HBCC-4'
 			 	 dplyr::filter(Dx %in% c('Control', "SCZ"))  %>%
          dplyr::filter(ageOfDeath > 17) 
 
@@ -286,6 +359,7 @@ dropSamples = sapply( names(tab[tab > 1]), function(id){
   } )
 METADATA = METADATA[!(rownames(METADATA) %in% dropSamples),]
 ```
+
 
 
 ```{r cellFractionEstimates}
@@ -1127,6 +1201,7 @@ corrplot(reorder, col = col2(200))
 ## t-statistics for CASKIN1
 ```{r CASKIN1}
  df_two['ENSG00000167971',]  %>% kable(caption="t-statistics for CASKIN1", row.names=FALSE) %>% kable_styling(full_width=FALSE)
+ df_two['ENSG00000163634',]  %>% kable(caption="t-statistics for CASKIN1", row.names=FALSE) %>% kable_styling(full_width=FALSE)
 ``` 
 
 
@@ -1934,11 +2009,11 @@ plot_grid(plotlist=figList, ncol=1)
 
 
 
-```{r store, eval=TRUE}
+```{r store, eval=FALSE}
 if( params$upload ){    
   # Code
   # Make sure these match the folder name and parent Id in the first chunk.
-  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn22416298")
+  CODE <- Folder(name = "Joint analysis of DLPFC count data", parentId = "syn24172641")
   CODE <- synStore(CODE)
 
   # Store data 
@@ -1973,10 +2048,6 @@ if( params$upload ){
   storeData( "df_DE_results.inter_sex.disease", "Differential expression result for each cohort for interaction analysis")
   storeData( "df_meta.inter_sex.disease", "Meta-analysis for differential expression for interaction analysis")
 }
-
-#   rmarkdown::render("combined_analysis/combine_all_DLPFC.Rmd")
-
-
 ```
 
 
