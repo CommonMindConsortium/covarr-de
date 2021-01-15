@@ -1201,7 +1201,6 @@ corrplot(reorder, col = col2(200))
 ## t-statistics for CASKIN1
 ```{r CASKIN1}
  df_two['ENSG00000167971',]  %>% kable(caption="t-statistics for CASKIN1", row.names=FALSE) %>% kable_styling(full_width=FALSE)
- df_two['ENSG00000163634',]  %>% kable(caption="t-statistics for CASKIN1", row.names=FALSE) %>% kable_styling(full_width=FALSE)
 ``` 
 
 
