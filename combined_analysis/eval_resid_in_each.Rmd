@@ -281,8 +281,11 @@ METADATA %>% group_by(Dx, Institution, Region) %>% dplyr::summarise(count = n())
 METADATA %>% group_by( Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% 
   kable(caption="Institution, Sex, Region") %>% kable_styling(full_width=FALSE) 
 
-METADATA %>% group_by(Dx, Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% 
-kable(caption="Diagnosis, Institution, Sex, Region") %>% kable_styling(full_width=FALSE) 
+METADATA %>% group_by(Dx, Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% kable(caption="Diagnosis, Institution, Sex, Region") %>% kable_styling(full_width=FALSE) 
+
+METADATA %>% group_by(Ethnicity, Institution, Region) %>% dplyr::summarise(count = n()) %>% kable(caption="Ethnicity, Institution, Region") %>% kable_styling(full_width=FALSE) 
+
+METADATA %>% group_by(Ethnicity, Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Ethnicity, Cohort, Region") %>% kable_styling(full_width=FALSE) 
 ```
 
 ```{r}
@@ -483,11 +486,20 @@ for( datID in names(dge.lst) ){
     storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", ' - ' , CT))
 
     # upload latent variables
-    file = paste0('PEER',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
+    file = paste0('PEER_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
     storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", ' - ', CT))
   }
 }
 ```
+
+for FILE in $(ls PEER*)
+do
+  mv $FILE $(echo $FILE | sed 's/PEER/PEER_/')
+done
+
+
+
+
 
 
 
