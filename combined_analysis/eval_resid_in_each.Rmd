@@ -288,6 +288,10 @@ METADATA %>% group_by(Ethnicity, Institution, Region) %>% dplyr::summarise(count
 METADATA %>% group_by(Ethnicity, Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Ethnicity, Cohort, Region") %>% kable_styling(full_width=FALSE) 
 ```
 
+```{r cache=FALSE}
+knitr::knit_exit()
+```
+
 ```{r}
 CODE <- Folder(name = "Evaluate PEER in each cohort and brain region", parentId = "syn22012942")
 CODE <- synStore(CODE)
