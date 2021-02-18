@@ -261,10 +261,6 @@ METADATA = merge(METADATA, celFrac_ilr, by.x = 'SampleID', by.y='row.names')
 ```
 
 
-```{r cache=FALSE}
-knitr::knit_exit()
-```
-
 ```{r preprocess.data1, results='asis'}
 # Match covariates to expression data
 indToRetain = intersect(METADATA$SampleID, colnames(geneCountsMerged))
@@ -289,11 +285,14 @@ METADATA %>% group_by(Ethnicity, Institution, Region) %>% dplyr::summarise(count
 METADATA %>% group_by(Ethnicity, Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Ethnicity, Cohort, Region") %>% kable_styling(full_width=FALSE) 
 
 METADATA %>% group_by(Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Cohort, Region") %>% kable_styling(full_width=FALSE) 
+
+METADATA %>% group_by(Cohort, Region, Ethnicity) %>% dplyr::summarise(count = n()) %>%  kable(caption="Cohort, Region") %>% kable_styling(full_width=FALSE) 
 ```
 
 ```{r cache=FALSE}
 knitr::knit_exit()
 ```
+
 
 ```{r}
 CODE <- Folder(name = "Evaluate PEER in each cohort and brain region", parentId = "syn22012942")
@@ -402,7 +401,7 @@ for( datID in names(dge.lst) ){
 
 For each cohort and each brain region, compute TMM normalization, log2 CPM with voomWithDreamWeights, and a set of covariates.  Then compute PEER components using the observed expression and the covariates
 
-    `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
 
   `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3
 
