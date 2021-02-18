@@ -289,9 +289,6 @@ METADATA %>% group_by(Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kab
 METADATA %>% group_by(Cohort, Region, Ethnicity) %>% dplyr::summarise(count = n()) %>%  kable(caption="Cohort, Region") %>% kable_styling(full_width=FALSE) 
 ```
 
-```{r cache=FALSE}
-knitr::knit_exit()
-```
 
 
 ```{r}
