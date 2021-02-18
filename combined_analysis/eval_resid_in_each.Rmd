@@ -264,6 +264,10 @@ METADATA = merge(METADATA, celFrac_ilr, by.x = 'SampleID', by.y='row.names')
 ```
 
 
+```{r cache=FALSE}
+knitr::knit_exit()
+```
+
 ```{r preprocess.data1, results='asis'}
 # Match covariates to expression data
 indToRetain = intersect(METADATA$SampleID, colnames(geneCountsMerged))
@@ -286,6 +290,8 @@ METADATA %>% group_by(Dx, Institution, Reported_Gender, Region) %>% dplyr::summa
 METADATA %>% group_by(Ethnicity, Institution, Region) %>% dplyr::summarise(count = n()) %>% kable(caption="Ethnicity, Institution, Region") %>% kable_styling(full_width=FALSE) 
 
 METADATA %>% group_by(Ethnicity, Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Ethnicity, Cohort, Region") %>% kable_styling(full_width=FALSE) 
+
+METADATA %>% group_by(Cohort, Region) %>% dplyr::summarise(count = n()) %>%  kable(caption="Cohort, Region") %>% kable_styling(full_width=FALSE) 
 ```
 
 ```{r cache=FALSE}
