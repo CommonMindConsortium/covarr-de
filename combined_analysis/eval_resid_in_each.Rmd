@@ -115,12 +115,17 @@ counts.HBCC = fread(synGet('syn21886235')$path, data.table=FALSE)
 rownames(counts.HBCC) = counts.HBCC$Geneid
 counts.HBCC = counts.HBCC[,-c(1:6)]
 
-# # HBCC - sgACC
+# HBCC - sgACC
 counts.HBCC4 = fread(synGet('syn21867866')$path, data.table=FALSE)
 rownames(counts.HBCC4) = counts.HBCC4$Geneid
 counts.HBCC4 = counts.HBCC4[,-c(1:6)]
 
-geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4)
+# NIMH-HBCC-5
+counts.HBCC5 = fread(synGet('syn21867762')$path, data.table=FALSE)
+rownames(counts.HBCC5) = counts.HBCC5$Geneid
+counts.HBCC5 = counts.HBCC5[,-c(1:6)]
+
+geneCountsMerged = cbind(counts.MPP, counts.HBCC, counts.HBCC4, counts.HBCC5)
 ```
 
 
@@ -197,11 +202,9 @@ METADATA = metadata %>%
                 RIN, ReportExclude, GenotypeExclude, EV.1, EV.2, EV.3, EV.4, EV.5,
                 LibraryBatch, FlowcellBatch, IsolationBatch, RibozeroBatch, MappedReads, TotalReads, GenesDetected, AlignmentRate,
                 IntragenicRate, IntergenicRate, IntronicRate, ExpProfEfficiency, rRNARate, TranscriptsDetected) %>%
-           dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
-           # dplyr::filter(Region %in% c('DLPFC')) %>%
-         dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC', `NIMH-HBCC`='NIMH-HBCC-4')) %>%
-         # dplyr::filter(Dx %in% c('Control', "SCZ"))  %>%
-         dplyr::filter(ageOfDeath > 17) 
+  dplyr::filter(SampleID %in% colnames(geneCountsMerged), !is.na(SampleID)) %>%
+  dplyr::mutate(Cohort = forcats::fct_recode(Cohort, `MSSM-Penn-Pitt` = 'MSSM-Penn-Pitt', `NIMH-HBCC`='NIMH-HBCC', `NIMH-HBCC`='NIMH-HBCC-4')) %>%
+  dplyr::filter(ageOfDeath > 17) 
 
 # Set Control to baseline
 METADATA$Dx = factor(METADATA$Dx)#, c('Control', 'SCZ'))
@@ -236,20 +239,14 @@ writeLines(paste('Following', length(ind), 'counts are missing ancestry informat
 writeLines(paste(ind, collapse = ', '))
 METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
 
-# drop individuals who where sequenced twice here
-tab = table(METADATA$Individual_ID)
-
-dropSamples = sapply( names(tab[tab > 1]), function(id){
-
-  idx = which(METADATA$Individual_ID == id)
-  df = METADATA[idx,]
-
-  # remove individuals that have less then max reads
-  i = which(df$MappedReads < max(df$MappedReads))
-  rownames(METADATA)[idx[i]]
-  } )
-METADATA = METADATA[!(rownames(METADATA) %in% dropSamples),]
+# When individuals were sequenced multiple times from the same brain region
+#   for technical replicates or QC failure,
+# Keep sample with most reads
+METADATA = METADATA %>%
+  group_by(Individual_ID, Region) %>% 
+  slice_max(MappedReads)
 ```
+
 
 
 ```{r cellFractionEstimates}
