@@ -14,7 +14,7 @@ output:
 <!---
 
 cd /hpc/users/hoffmg01/work/covarr-de
-# rm -rf molec_profiling_cache/
+# rm -rf combined_analysis/eval_resid_in_each_cache/
 ml git pandoc R/3.6.3 # to get peer
 git pull
 R
@@ -243,7 +243,7 @@ METADATA <- METADATA  %>% dplyr::filter(!(SampleID %in% ind))
 #   for technical replicates or QC failure,
 # Keep sample with most reads
 METADATA = METADATA %>%
-  group_by(Individual_ID, Region) %>% 
+  group_by(Individual_ID, Region, Cohort) %>% 
   slice_max(MappedReads)
 ```
 
