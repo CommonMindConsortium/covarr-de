@@ -182,7 +182,7 @@ GENOTYPE = downloadFile(GENOTYPE_ID) %>%
   dplyr::filter(is.na(`SNP_report:Exclude?`))
 ```
 
-```{r ancestry, fig.height=8}
+```{r ancestry, fig.height=6}
 ggplot(ANCESTRY.MPP, aes(EV.1, EV.2, color=Cluster)) + geom_point() + ggtitle("MPP ancestry")  + theme(aspect.ratio=1)
 ggplot(ANCESTRY.HBCC, aes(EV.1, EV.2, color=as.character(cluster))) + geom_point() + ggtitle("HBCC ancestry")  + theme(aspect.ratio=1)
 ggplot(ANCESTRY.HBCC, aes(EV.1, EV.2, color=Population)) + geom_point() + ggtitle("HBCC ancestry") + theme(aspect.ratio=1)
