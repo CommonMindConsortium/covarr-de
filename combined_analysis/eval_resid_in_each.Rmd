@@ -156,6 +156,10 @@ metadata = downloadFile_version(METADATA_QC_DLPFC_ID, version = 19) %>%
                                       'rnaSeq_report:rRNA_Rate',
                                       'rnaSeq_report:Total_Reads', 'rnaSeq_report:Percent_Aligned','rnaSeq_report:Transcripts_Detected')) 
 
+# Ethnicity
+# Genotype_Inferred_Ancestry
+# Race
+
 # Get ancestry vector calculated using gemtools
 ANCESTRY_ID = 'syn9922992'
 ALL_USED_IDs = c(ALL_USED_IDs, ANCESTRY_ID)
@@ -177,6 +181,15 @@ GENOTYPE = downloadFile(GENOTYPE_ID) %>%
   dplyr::inner_join(ANCESTRY) %>% 
   dplyr::filter(is.na(`SNP_report:Exclude?`))
 ```
+
+```{r ancestry}
+fig1 = ggplot(ANCESTRY.MPP, aes(EV.1, EV.2, color=Cluster)) + geom_point() + ggtitle("MPP ancestry")  + theme(aspect.ratio=1)
+fig2 = ggplot(ANCESTRY.HBCC, aes(EV.1, EV.2, color=as.character(cluster))) + geom_point() + ggtitle("HBCC ancestry")  + theme(aspect.ratio=1)
+fig3 = ggplot(ANCESTRY.HBCC, aes(EV.1, EV.2, color=Population)) + geom_point() + ggtitle("HBCC ancestry") + theme(aspect.ratio=1)
+plot_grid(fig1, fig2, fig3, nrow=1)
+```
+
+
 
 ### Data preprocessing
 ```{r preprocess.data}
@@ -246,7 +259,6 @@ METADATA = METADATA %>%
   group_by(Individual_ID, Region, Cohort) %>% 
   slice_max(MappedReads)
 ```
-
 
 
 ```{r cellFractionEstimates}
@@ -342,10 +354,11 @@ dge.lst = lapply( 1:nrow(grid), function(i){
 names(dge.lst) = apply(grid, 1, paste, collapse=' - ')
 dge.lst = dge.lst[!sapply(dge.lst, is.null)]
 
+
 # formula used to fit model
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3),
-  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3 + EV.1 + EV.2 + EV.3 + EV.4 + EV.5),
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3 + EV.1 + EV.2 + EV.3 + EV.4 + EV.5)
 
 for( datID in names(dge.lst) ){
 
@@ -398,11 +411,9 @@ for( datID in names(dge.lst) ){
 
 For each cohort and each brain region, compute TMM normalization, log2 CPM with voomWithDreamWeights, and a set of covariates.  Then compute PEER components using the observed expression and the covariates
 
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3)
+`MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*(ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3) + EV.1 + EV.2 + EV.3 + EV.4 + EV.5
 
-  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3
-
-
+`NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + cellFrac_ilr_1 + cellFrac_ilr_2 + cellFrac_ilr_3 + EV.1 + EV.2 + EV.3 + EV.4 + EV.5
 
 
 # Cell Type Specific expression from bMIND
