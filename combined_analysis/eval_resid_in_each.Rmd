@@ -283,6 +283,7 @@ rownames(METADATA) = METADATA$SampleID
 ```
 
 ## Summarize samples
+Note that these numbers are based on Ethnicity, rather then genetically determined ancestry used in the filtering for eQTL analysis.
 ```{r summary}
 METADATA %>% group_by(Dx, Institution, Region) %>% dplyr::summarise(count = n()) %>% 
   kable(caption="Diagnosis, Institution, Region") %>% kable_styling(full_width=FALSE) 
