@@ -385,7 +385,7 @@ for( datID in names(dge.lst) ){
 
   PEER_setCovariates(model, cov_matrix)
 
-  PEER_setNk(model,30)
+  PEER_setNk(model,60)
 
   PEER_update(model)
 
