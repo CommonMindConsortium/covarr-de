@@ -13,8 +13,10 @@ output:
 
 <!---
 
-cd /hpc/users/hoffmg01/work/covarr-de
+cd /hpc/users/hoffmg01/work/CMC/covarr-de
 # rm -rf combined_analysis/eval_resid_in_each_cache/
+export R_LIBS=/hpc/users/hoffmg01/.Rlib/R_403
+ml purge
 ml git pandoc R/3.6.3 # to get peer
 git pull
 R
@@ -385,7 +387,7 @@ for( datID in names(dge.lst) ){
 
   PEER_setCovariates(model, cov_matrix)
 
-  PEER_setNk(model,60)
+  PEER_setNk(model,50)
 
   PEER_update(model)
 
