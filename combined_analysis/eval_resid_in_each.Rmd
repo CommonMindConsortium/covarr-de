@@ -286,7 +286,7 @@ rownames(METADATA) = METADATA$SampleID
 ## Summarize samples
 Note that these numbers are based on Ethnicity, rather then genetically determined ancestry used in the filtering for eQTL analysis.
 ```{r summary}
-METADATA %>% group_by(Dx, Institution, Region) %>% dplyr::summarise(count = n()) %>% 
+METADATA %>% group_by(Dx, Institution, Region) %>% dplyr::summarise(count = n()) %>% ©
   kable(caption="Diagnosis, Institution, Region") %>% kable_styling(full_width=FALSE) 
       
 METADATA %>% group_by( Institution, Reported_Gender, Region) %>% dplyr::summarise(count = n()) %>% 
@@ -439,7 +439,7 @@ storeData = function( data, file, description){
 
 ```{r CTS.download}
 geneExpr.CTS = readRDS( synGet('syn23234833')$path )
-ALL_USED_IDs = c(ALL_USED_IDs, 'syn23234833')
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn23234833')       
 ```
 
 ```{r CTS.eval_peer}
@@ -453,7 +453,7 @@ for( datID in names(dge.lst) ){
 
   # get log2 CPM gene expression
   dge = dge.lst[[datID]]
-
+  
   # get metadata in the same order
   i = match(colnames(dge), rownames(METADATA))
   info = METADATA[i,]
@@ -483,7 +483,7 @@ for( datID in names(dge.lst) ){
 
     PEER_setCovariates(model, cov_matrix)
 
-    PEER_setNk(model,30)
+    PEER_setNk(model,2)
 
     PEER_update(model)
 
