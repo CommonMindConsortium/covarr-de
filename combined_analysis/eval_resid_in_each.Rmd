@@ -445,8 +445,8 @@ ALL_USED_IDs = c(ALL_USED_IDs, 'syn23234833')
 ```{r CTS.eval_peer}
 # formula used to fit model
 form.lst = list(
-  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath,
-  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath)
+  `MSSM-Penn-Pitt`  = ~ Dx + Reported_Gender + RIN +scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + Institution*ageOfDeath + EV.1 + EV.2 + EV.3 + EV.4 + EV.5,
+  `NIMH-HBCC`       = ~ Dx + Reported_Gender + RIN + scale(IntronicRate) + scale(IntragenicRate) + scale(IntergenicRate) + scale(rRNARate) + ageOfDeath + EV.1 + EV.2 + EV.3 + EV.4 + EV.5)
 
 # for each dataset
 for( datID in names(dge.lst) ){
