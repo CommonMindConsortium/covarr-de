@@ -477,34 +477,34 @@ for( datID in names(dge.lst) ){
     cov_matrix = model.matrix(form_use, info)
 
     # fit PEER
-    model = PEER()
+    # model = PEER()
 
-    PEER_setPhenoMean(model, t(geneExpr[,i,]))
+    # PEER_setPhenoMean(model, t(geneExpr[,i,]))
 
-    PEER_setCovariates(model, cov_matrix)
+    # PEER_setCovariates(model, cov_matrix)
 
-    # PEER_setNmax_iterations(model, 2)
-    PEER_setNk(model,50)
+    # # PEER_setNmax_iterations(model, 2)
+    # PEER_setNk(model,50)
 
-    PEER_update(model)
+    # PEER_update(model)
 
     # extract PEER latent variables
     # first ncol(cov_matrix) columns are the oringal covariates
-    latentVariables = PEER_getX(model)[,-c(1:ncol(cov_matrix))]
-    rownames(latentVariables) = rownames(cov_matrix)
-    colnames(latentVariables) = paste0("PEER_", 1:ncol(latentVariables))
+    # latentVariables = PEER_getX(model)[,-c(1:ncol(cov_matrix))]
+    # rownames(latentVariables) = rownames(cov_matrix)
+    # colnames(latentVariables) = paste0("PEER_", 1:ncol(latentVariables))
 
     # upload observed expression
     file = paste0('geneExpr_',gsub(" ", '', gsub("-", "_", datID)), '_', CT,".RDS")
-    storeData( geneExpr, file, paste0(datID, " Observed expression", ' - ', CT))
+    storeData( geneExpr[,i,], file, paste0(datID, " Observed expression", ' - ', CT))
 
-    # upload covariate matrix
-    file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
-    storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", ' - ' , CT))
+    # # upload covariate matrix
+    # file = paste0('covariateMatrix_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
+    # storeData( cov_matrix, file, paste0(datID, " Covariates for QTL analysis", ' - ' , CT))
 
-    # upload latent variables
-    file = paste0('PEER_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
-    storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", ' - ', CT))
+    # # upload latent variables
+    # file = paste0('PEER_',gsub(" ", '', gsub("-", "_", datID)), '_', CT, ".RDS")
+    # storeData( latentVariables, file, paste0(datID, " Latent variables for QTL analysis", ' - ', CT))
   }
 }
 ```
