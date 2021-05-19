@@ -92,7 +92,7 @@ fit = eBayes(fit)
 # get and combine signatures
 df_signatures = lapply( colnames(coef(fit))[-1], function(drug){
   tab = topTable(fit, coef=drug, sort.by="none", number=Inf)[,'logFC', drop=FALSE]
-  colnames(tab) = gsub("^Drug", '', drug)
+  colnames(tab) = gsub("^DrugExposure", '', drug)
   tab
 })
 df_signatures = do.call(cbind, df_signatures)
@@ -116,7 +116,7 @@ df_signatures = merge(df_signatures,
 
 
 ```{r compare, fig.width=5, fig.height=5}
-cols = c(gsub("^Drug", '',colnames(coef(fit))[-1]), 'CMCv4')
+cols = c(gsub("^DrugExposure", '',colnames(coef(fit))[-1]), 'CMCv4')
 
 C = cor(df_signatures[,cols], method="spearman")
 
