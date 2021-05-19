@@ -1,0 +1,150 @@
+---
+title: "Rhesus macaque drug study"
+author: "[Gabriel Hoffman](http://gabrielhoffman.github.io)"
+date: "Run on `r Sys.time()`"
+output: html_document
+---
+
+
+<!---
+
+cd /Users/gabrielhoffman/workspace/repos/CMC/covarr-de/macaque
+# rm -rf combined_analysis/combine_all_EPHA1_cache
+
+R
+
+rmarkdown::render("macaque_DE.Rmd")
+
+
+--->
+ 
+
+
+```{r setup, include=FALSE, echo=FALSE}
+library(data.table)
+library(synapser)
+library(limma)
+library(edgeR)
+library(corrplot)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library(biomaRt)
+
+synLogin()
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning=FALSE,
+  message=TRUE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c('png', 'pdf'),
+  cache = TRUE)
+```
+
+## Get data
+```{r get.data}
+# Rhesus data: https://www.synapse.org/#!Synapse:syn11617745
+
+# reads RNA-seq data
+geneCounts = data.frame(fread( synGet('syn11615855')$path))
+rownames(geneCounts) = geneCounts$GeneFeature
+geneCounts = geneCounts[,-1]
+
+# read sample metadata
+info = data.frame(fread( synGet('syn11638462')$path))
+rownames(info) = info$DLPFC_RNA_Sequencing_Sample_ID
+
+# sort info based on geneCounts
+idx = match(colnames(geneCounts), rownames(info))
+info = info[idx,]
+
+# Create drug and dosage variable
+info$treatmentType = factor(info$treatmentType, c('placebo', 'clozapine', 'haloperidol'))
+info$DrugExposure = with(info, paste0(treatmentType, ' (', dose..mg.kg.d., ' mg/kg)'))
+info$DrugExposure = gsub(" \\(NA mg/kg\\)", '', info$DrugExposure)
+info$DrugExposure = factor(info$DrugExposure, unique(info$DrugExposure))
+
+# get mapping between Rh mac and human genes
+#################
+
+# genome annotation
+rhmac = useMart("ensembl", dataset = "mmulatta_gene_ensembl")
+
+geneInfo <- getBM(attributes=c("ensembl_gene_id", "hsapiens_homolog_ensembl_gene","hsapiens_homolog_associated_gene_name"), mart=rhmac, values = rownames(geneCounts))
+```
+
+## Differential expession analysis
+```{r DE.analysis, fig.width=5, fig.height=5}
+# Differential analysis
+dsgn = model.matrix( ~ DrugExposure, info)
+
+# voom
+keep = filterByExpr(geneCounts, dsgn)
+vobj = voom(geneCounts[keep,], dsgn, plot=TRUE)
+
+# lmFit
+fit = lmFit(vobj, dsgn)
+fit = eBayes(fit)
+
+# get and combine signatures
+df_signatures = lapply( colnames(coef(fit))[-1], function(drug){
+  tab = topTable(fit, coef=drug, sort.by="none", number=Inf)[,'logFC', drop=FALSE]
+  colnames(tab) = gsub("^Drug", '', drug)
+  tab
+})
+df_signatures = do.call(cbind, df_signatures)
+df_signatures = merge(df_signatures, geneInfo, by.x="row.names", by.y="ensembl_gene_id")
+```
+
+## Compare with CommonMind
+```{r cmc}
+df_cmc = readRDS( synGet('syn22416508')$path)$DxSCZ
+
+trim_ensembl_ids = function(x){
+  gsub("(.*)\\.(.*)", "\\1", x) 
+}
+df_cmc$ENSEMBL = trim_ensembl_ids( rownames(df_cmc) )
+
+df_signatures = merge(df_signatures, 
+                      data.frame(CMCv4 = with(df_cmc, logFC), ENSEMBL=df_cmc$ENSEMBL),
+                       by.x="hsapiens_homolog_ensembl_gene", 
+                       by.y="ENSEMBL")
+```
+
+
+```{r compare, fig.width=5, fig.height=5}
+cols = c(gsub("^Drug", '',colnames(coef(fit))[-1]), 'CMCv4')
+
+C = cor(df_signatures[,cols], method="spearman")
+
+corrplot(C, col = colorRampPalette(c("blue", "red"))(100), main = "Spearman correlation")
+```
+
+
+```{r table}
+data.frame(`Fraction of variance` = C['CMCv4',-4]^2) %>%
+  kbl() %>%
+  kable_styling(full_width=FALSE)
+```
+
+```{r test, eval=FALSE}
+lapply(names(C['CMCv4',-4]), function(drug){
+  cor.test(df_signatures[,drug], df_signatures[,'CMCv4'], method="spearman")
+})
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
