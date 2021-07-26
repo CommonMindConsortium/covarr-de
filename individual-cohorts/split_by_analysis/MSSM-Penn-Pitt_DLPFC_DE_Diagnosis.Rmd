@@ -36,6 +36,7 @@ library(synapser)
 library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
 library(WGCNA)
+library(rctutils) # get the packages from BiocManager::install("DarwinAwardWinner/rctutils")
 
 synLogin()
 
@@ -64,11 +65,11 @@ parentId = 'syn22043922';
 activityName = 'Differential Expression';
 activityDescription = 'Differential Expression - Dx';
 
-thisFileName <- 'MSSM-Penn-Pitt_DLPFC_DE.Rmd'
+thisFileName <- 'MSSM-Penn-Pitt_DLPFC_DE_Diagnosis.Rmd'
 
 # Github link
-thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
-thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/',thisFileName))
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='modify-cqn-implementation')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
 ### Data download
@@ -82,8 +83,7 @@ downloadFile <- function(id){
 CQN_ID = "syn22045741"
 ALL_USED_IDs = c(CQN_ID)
 CQN.GENE_EXPRESSION = downloadFile(CQN_ID) %>% 
-  tibble::column_to_rownames(var = "ensembl_gene_id") %>% 
-  data.matrix()
+  tibble::column_to_rownames(var = "ensembl_gene_id")
   
 # Download filtered counts
 COUNTS_ID = "syn22045729"
@@ -104,6 +104,12 @@ METADATA = downloadFile(MD_ID) %>%
 
 COVARIATES = right_join(METADATA, COVARIATES, by = c("Sample_RNA_ID" = "SampleID")) %>% 
   tibble::column_to_rownames(var = "Sample_RNA_ID")
+
+# Remove ages under 17
+COVARIATES <- COVARIATES[COVARIATES$ageOfDeath >= 17,]
+NEW.COUNTS <- NEW.COUNTS[names(NEW.COUNTS) %in% rownames(COVARIATES)]
+CQN.GENE_EXPRESSION <- CQN.GENE_EXPRESSION[names(CQN.GENE_EXPRESSION) %in% rownames(COVARIATES)] %>% 
+  data.matrix()
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Institution", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
@@ -127,15 +133,33 @@ random_effect <- c("Institution", "Reported_Gender")
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
                  glue::glue_collapse(adjust.covars, sep = ", ", last = " and "),
-                 ' as fixed effects and',
-                 glue::glue_collapse(random_effect, sep = ", ", last = " and "),' chosen as random effects'))
+                 ' as fixed effects.'))
+
+col_type <- dplyr::select(COVARIATES, c(adjust.covars, random_effect)) %>%
+  dplyr::summarise_all(class) %>% 
+  tidyr::gather(variable, class)
+
+# Scale continuous variables
+covars = sapply(1:length(col_type$class), function(i){
+  switch(col_type$class[i], 
+    "factor" = paste0(col_type$variable[i]),
+    "numeric" = paste0('scale(', col_type$variable[i], ')')
+  )
+  })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "), " + ", glue::glue_collapse(glue::glue("(1|{random_effect})"), sep = " + "))    
+formula <- formula(glue::glue("~", glue::glue_collapse(covars, sep = " + ")))
+design <- model.matrix(formula, COVARIATES)
 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
-geneExpr = edgeR::calcNormFactors(geneExpr)
+
+# Extract default offset
+offset_default = edgeR::expandAsMatrix(edgeR::getOffset(geneExpr), dim(geneExpr))
+# Build custom offset from default offset and the CQN offset
+geneExpr$offset = offset_default - CQN.GENE_EXPRESSION
+# Run rctutils::voomWithOffset
+vobj_cqn_offset = rctutils::voomWithOffset(geneExpr, design)
 
 VOOM.GENE_EXPRESSION = variancePartition::voomWithDreamWeights(counts = geneExpr, 
                                                                formula = formula,
@@ -167,8 +191,7 @@ setMethod("plot", signature(x="EList", y="missing"),
 plot(VOOM.GENE_EXPRESSION)
 
 # Fit linear model using new weights and new design
-VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
-ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+ADJUSTED.FIT = variancePartition::dream(exprObj = vobj_cqn_offset,
                                         formula = formula,
                                         data = COVARIATES,
                                         computeResiduals = TRUE)
@@ -298,7 +321,7 @@ backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
 
 # Get gene lengths
 counts = 'syn21867938'
-ALL_USED_IDs = counts
+ALL_USED_IDs = c(ALL_USED_IDs, counts)
 counts = downloadFile(counts) %>% data.frame()
 gene_lengths = counts[,c("Geneid", "Length")] %>% 
   dplyr::rename(gene_id = Geneid)
@@ -306,7 +329,7 @@ rm(counts)
 
 # Define biomart object
 mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_ENSEMBL",
-                host = "uswest.ensembl.org", # Ensembl Release 99 (January 2020)
+                host = "ensembl.org", # Ensembl Release 99 (January 2020)
                 dataset = "hsapiens_gene_ensembl")
 
 # Query biomart
@@ -380,6 +403,8 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 
 multiplot(plotlist = pl, cols = 3)
 ```
+### Source Code
+[markdown file](`r thisFile`)
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}

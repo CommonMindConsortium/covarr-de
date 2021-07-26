@@ -6,9 +6,6 @@ output: html_document
 ---
 
 ```{r knit2synapse, eval=FALSE}
-ml git pandoc
-rmarkdown::render("individual-cohorts/split_by_analysis/HBCC_DLPFC_DE_Sex.Rmd")
-
 library(synapser)
 library(knit2synapse)
 
@@ -38,6 +35,7 @@ library(edgeR)
 library(synapser)
 library(knitr)
 library(githubr) # get the package from devtools::install_github('brian-bot/githubr')
+library(rctutils) # get the packages from BiocManager::install("DarwinAwardWinner/rctutils")
 
 synLogin()
 
@@ -69,7 +67,7 @@ activityDescription = 'Differential Expression - Sex';
 thisFileName <- 'HBCC_DLPFC_DE_Sex.Rmd'
 
 # Github link
-thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='master')
+thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch", refName='modify-cqn-implementation')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('individual-cohorts/split_by_analysis/',thisFileName))
 ```
 
@@ -84,8 +82,7 @@ downloadFile <- function(id){
 CQN_ID = "syn22082460"
 ALL_USED_IDs = c(CQN_ID)
 CQN.GENE_EXPRESSION = downloadFile(CQN_ID) %>% 
-  tibble::column_to_rownames(var = "ensembl_gene_id") %>% 
-  data.matrix()
+  tibble::column_to_rownames(var = "ensembl_gene_id")
   
 # Download filtered counts
 COUNTS_ID = "syn22082459"
@@ -98,6 +95,12 @@ COVAR_ID = "syn22082458"
 ALL_USED_IDs = c(ALL_USED_IDs, COVAR_ID)
 COVARIATES = downloadFile(COVAR_ID) %>% 
   tibble::column_to_rownames(var = "SampleID")
+
+# Remove ages under 17
+COVARIATES <- COVARIATES[COVARIATES$ageOfDeath >= 17,]
+NEW.COUNTS <- NEW.COUNTS[names(NEW.COUNTS) %in% rownames(COVARIATES)]
+CQN.GENE_EXPRESSION <- CQN.GENE_EXPRESSION[names(CQN.GENE_EXPRESSION) %in% rownames(COVARIATES)] %>% 
+  data.matrix()
 
 # Set variable class
 FactorCovariates <- c("Individual_ID", "Reported_Gender", "LibraryBatch", "Dx", "RibozeroBatch", "FlowcellBatch")
@@ -117,7 +120,7 @@ adjust.covars <- c("Sex", "Dx", "ageOfDeath", "RIN", "IntronicRate", "Intragenic
 ```
 
 ### Normalisation - Sex
-1. Sex is chosen as the primary variable of interest (i.e., covariate adjustments is conditioned on diagnosis)
+1. Sex is chosen as the primary variable of interest
 
 ```{r iterative.normalisation, results='asis'}
 writeLines(glue::glue('Using following covariates in the model:',
@@ -137,11 +140,18 @@ adjust.covars = sapply(1:length(col_type$class), function(i){
   })
 
 # Post adjusted formula
-formula <- glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + "))    
-
+formula <- formula(glue::glue("~ ", glue::glue_collapse(adjust.covars, sep = " + ")))    
+design <- model.matrix(formula, COVARIATES)
+ 
 # Estimate voom weights with DREAM
 geneExpr = DGEList(NEW.COUNTS)
-geneExpr = edgeR::calcNormFactors(geneExpr)
+
+# Extract default offset
+offset_default = edgeR::expandAsMatrix(edgeR::getOffset(geneExpr), dim(geneExpr))
+# Build custom offset from default offset and the CQN offset
+geneExpr$offset = offset_default - CQN.GENE_EXPRESSION
+# Run rctutils::voomWithOffset
+vobj_cqn_offset = rctutils::voomWithOffset(geneExpr, design)
 
 VOOM.GENE_EXPRESSION = variancePartition::voomWithDreamWeights(counts = geneExpr, 
                                                                formula = formula,
@@ -173,8 +183,7 @@ setMethod("plot", signature(x="EList", y="missing"),
 plot(VOOM.GENE_EXPRESSION)
 
 # Fit linear model using new weights and new design
-VOOM.GENE_EXPRESSION$E = CQN.GENE_EXPRESSION
-ADJUSTED.FIT = variancePartition::dream(exprObj = VOOM.GENE_EXPRESSION,
+ADJUSTED.FIT = variancePartition::dream(exprObj = vobj_cqn_offset,
                                         formula = formula,
                                         data = COVARIATES,
                                         computeResiduals = TRUE)
@@ -198,6 +207,8 @@ plotVarPart(sortCols(violin_plot))
 # Residuals after normalisation
 RESIDUAL.GENE_EXPRESSION = residuals(ADJUSTED.FIT, CQN.GENE_EXPRESSION)
 ```
+
+`r glue::glue_collapse(formula)`
 
 ### Residual calculation
 Calculate weighted residuals and add back "Sex" to the residuals
@@ -286,7 +297,7 @@ backgroundGenes = data.frame(gene_id = rownames(NEW.COUNTS)) %>%
 
 # Get gene lengths
 counts = 'syn21886235'
-ALL_USED_IDs = counts
+ALL_USED_IDs = c(ALL_USED_IDs, counts)
 counts = downloadFile(counts) %>% data.frame()
 gene_lengths = counts[,c("Geneid", "Length")] %>% 
   dplyr::rename(gene_id = Geneid)
@@ -370,6 +381,8 @@ pl[[3]] = pl[[3]] + theme(legend.position = 'top')
 
 multiplot(plotlist = pl, cols = 3)
 ```
+### Source Code
+[markdown file](`r thisFile`)
 
 ### Store files in synapse
 ```{r synapse.store, include=FALSE, eval=TRUE, cache=FALSE}
