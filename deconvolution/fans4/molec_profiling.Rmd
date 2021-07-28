@@ -80,13 +80,6 @@ detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
 library(EnsDb.Hsapiens.v86)
 })
 
-hush=function(code){
-  sink("NUL") # use /dev/null in UNIX
-  tmp = code
-  sink()
-  return(tmp)
-}
-
 source("../../common_functions/common_functions.R")
 
 knitr::opts_chunk$set(
