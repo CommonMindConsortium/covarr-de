@@ -406,7 +406,7 @@ kable(df[df$Gender == 'Female' & df$UTY > 5,], digits=2, row.names=FALSE) %>% ka
 ### Esimate precision weights
 ```{r voom}
 form = ~ (1|CellType) + (1|Individual.ID) + (1|Gender)
-vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(36, progressbar=TRUE))
 ```
 
 ### mvIC
@@ -432,7 +432,7 @@ mvSearch = mvForwardStepwise( vobj, ~ CellType, info, variables)
 ### variancePartition
 ```{r vp}
 form = ~ (1|CellType) + (1|Dx) + (1|CellType:Dx) + (1|Individual.ID) + (1|Gender) + (1|Batch)
-vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(6, progressbar=TRUE))
+vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(36, progressbar=TRUE))
 
 plotVarPart( sortCols(vp) )
 ```
@@ -465,7 +465,7 @@ L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
                     MgAs.Other = c(-1/3, -1/3, -1/3, 1),
                     Olig.Other = c(-1/3, -1/3, 1, -1/3) ))
 
-fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(6, progressbar=TRUE))
+fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(36, progressbar=TRUE))
 ```
 
 ```{r plotContrasts}
