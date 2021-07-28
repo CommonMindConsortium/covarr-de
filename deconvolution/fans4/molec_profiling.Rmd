@@ -437,6 +437,9 @@ plotVarPart( sortCols(vp) )
 ## Differential expression analysis
 ### Cell type
 ```{r DE_process}
+
+OpenMPController::omp_set_num_threads(1)
+
 form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
 
 # Prepare all pairwise contrasts
