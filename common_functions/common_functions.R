@@ -18,6 +18,13 @@ library(Rfast)
 library(GSEABase)
 })
 
+hush = function(code){
+  sink("/dev/null") # use /dev/null in UNIX
+  tmp = code
+  sink()
+  return(tmp)
+}
+
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
 trim_ensembl_ids = function(x){
   gsub("(.*)\\.(.*)", "\\1", x) 
