@@ -26,6 +26,14 @@ rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./'
 # http
 # https://hoffmg01.u.hpc.mssm.edu/molec_profiling.html
 
+cd /Users/gabrielhoffman/workspace/repos/CMC/covarr-de/deconvolution/fans4
+R
+
+
+rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
+
+
+
 --->
 
 --->
@@ -62,6 +70,7 @@ library(SummarizedExperiment)
 library(gridExtra)
 library(openxlsx)
 library(synapser)
+library(githubr)
 synLogin()
 library(EnsDb.Hsapiens.v86)
 detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
@@ -99,9 +108,34 @@ thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('deconvolut
 ### Reading RNA-seq data
 ```{r read.data, message=TRUE}
 Ids = c('syn22321012', 'syn22321013', 'syn22321014', 'syn22321016')
-# file = "/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/rnaseq/step1-merged/featureCount/featureCount.gene.tsv.gz"
+
+# Read in RNA-seq featureCounts
+###############################
+
+# Phase 1
 file = synGet('syn22321012')$path
 df_featureCounts_gene = fread( file )
+
+# Phase 2+3
+# syn26000845 is really phase2 again
+ids = c('syn26000845','syn25976117', 'syn25976127')[-1]
+df_read = lapply(ids, function(id){
+  df = fread(synGet(id)$path)
+  colnames(df) = gsub("^Sample_", '', colnames(df))
+  colnames(df) = gsub("-", '.', colnames(df))
+  df
+  })
+
+# save batch info
+df_batch = data.frame(Name = colnames(df_featureCounts_gene)[-c(1:6)], Batch=1)
+df_batch = rbind(df_batch, data.frame(Name = colnames(df_read[[1]][,-c(1:6)]), Batch=2))
+df_batch = rbind(df_batch, data.frame(Name = colnames(df_read[[2]][,-c(1:6)]), Batch=3))
+df_batch$Batch = as.character(df_batch$Batch)
+
+# sapply(df_read, ncol)
+df_featureCounts_gene = cbind(df_featureCounts_gene, 
+                          df_read[[1]][,-c(1:6)], 
+                          df_read[[2]][,-c(1:6)])
 
 geneInfo = df_featureCounts_gene[,1:6]
 geneInfo$EnsId = trim_ensembl_ids( geneInfo$Geneid )
@@ -148,6 +182,7 @@ metadataCMC = fread( file )
 
 ### RNA-seq QC metrics
 ```{r QC, fig.width=18, fig.height=74}
+# Phase 1 
 # file = '/sc/arion/projects/CommonMind/roussp01a/MOLECULAR_PROFILING/rnaseq/step1-merged/QCmetrics/qc_metrics.RDS'
 file = synGet('syn22321016')$path
 qc_metrics.in = t(readRDS( file ))
@@ -155,6 +190,19 @@ colnames(qc_metrics.in) = qc_metrics.in[1,]
 qc_metrics.in = as.data.frame(qc_metrics.in[-c(1:2),], stringsAsFactors=FALSE)
 qc_metrics = apply(qc_metrics.in, 2, as.numeric)
 rownames(qc_metrics) = gsub('-', '.', rownames(qc_metrics.in))
+
+# Phase 2+3
+ids = c('syn26000850', 'syn25976122', 'syn25976136')[-1]
+df_read = lapply(ids, function(id){
+  qc.in = read.table(synGet(id)$path)
+  rownames(qc.in) = gsub('-', '.', rownames(qc.in))
+  qc.in
+  })
+
+# # sapply(df_read, ncol)
+# df_featureCounts_gene = cbind(df_featureCounts_gene, 
+#                           df_read[[1]][,-c(1:6)], 
+#                           df_read[[2]][,-c(1:6)])
 
 # extract information from sample names
 info = data.frame( Name = colnames(geneCounts), stringsAsFactors=FALSE)
@@ -175,15 +223,21 @@ colorCodes = c(
 info$CellType = factor(info$CellType,names(colorCodes))
 
 # add information about each sample
-info = merge(info, metadata1, by.x="DissectionID", by.y='Dissection.ID')
-info = merge(info, qc_metrics, by.x="Name", by.y='row.names')
+info = merge(info, metadata1, by.x="DissectionID", by.y='Dissection.ID', all.x=TRUE)
+info = merge(info, qc_metrics, by.x="Name", by.y='row.names', all.x=TRUE)
 rownames(info) = info$Name
 
 # info = merge(info, metadataCMC, by.x='Individual.ID', by.y="Individual ID")
 #  info[1:4, 1:20]
 
+# Merge with batch info
+info = merge(info, df_batch, by="Name")
+rownames(info) = info$Name
+
 # set order to be the same as geneCounts
+# Must be last change to info
 info = info[match(colnames(geneCounts), info$Name),]
+
 
 # exclude columns with no variance
 index = apply(qc_metrics, 2, function(x) var(x, na.rm=TRUE)) > 0
@@ -225,8 +279,9 @@ ggplot(df, aes(CellType, norm.factors, fill=CellType)) + geom_boxplot() + theme_
 
 geneExpr = edgeR::cpm(dge, log=TRUE)
 
-df = reshape2::melt(geneExpr)
-df = merge(df, info[,'CellType',drop=FALSE], by.x = "Var2", by.y="row.names")
+df = data.table(reshape2::melt(geneExpr))
+setkey(df, "Var2")
+df = merge(df, info[,c("Name", 'CellType')], by.x = "Var2", by.y="Name")
 
 ggplot(df, aes(value, color=CellType)) + geom_density() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(bquote(log[2]~CPM))
 
@@ -235,12 +290,8 @@ ggplot(df, aes(value, color=Var2)) + geom_density() + theme_bw(15) + theme(aspec
 
 
 
-
 ### PCA
-```{r PCA}
-
-geneExpr = edgeR::cpm(dge, log=TRUE)
-
+```{r PCA, fig.width=10, fig.height=5}
 dcmp = prcomp( t(geneExpr), scale=TRUE)
 
 df_pca = data.frame(dcmp$x)
@@ -251,12 +302,83 @@ varFrac = dcmp$sdev^2 / sum(dcmp$sdev^2)
 
 xlab = paste0('PC1 (', format(varFrac[1]*100, digits=3), '%)')
 ylab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
-ggplot(df_pca, aes(PC1, PC2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+fig1 = ggplot(df_pca, aes(PC1, PC2, color=CellType, shape=Batch)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
 
 xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
 ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
-ggplot(df_pca, aes(PC2, PC3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+fig2 = ggplot(df_pca, aes(PC2, PC3, color=CellType, shape=Batch)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+
+plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
+
+
+#### Batch corrected
+```{r PCA.batch, fig.width=10, fig.height=5}
+fit = dream(geneExpr, ~ Batch, info)
+  
+dcmp = prcomp( t(residuals(fit)), scale=TRUE)
+
+df_pca = data.frame(dcmp$x)
+
+df_pca = merge(df_pca, info[,c("Name", "CellType", "Batch")], by.x="row.names", by.y="Name")
+
+varFrac = dcmp$sdev^2 / sum(dcmp$sdev^2)
+
+xlab = paste0('PC1 (', format(varFrac[1]*100, digits=3), '%)')
+ylab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+fig1 = ggplot(df_pca, aes(PC1, PC2, color=CellType, shape=Batch)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+
+xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
+fig2 = ggplot(df_pca, aes(PC2, PC3, color=CellType, shape=Batch)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=colorCodes) + xlab(xlab) + ylab(ylab)
+
+plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
+```      
+
+```{r predict.celltype}
+library(nnet)
+library(PRROC)
+   
+hush=function(code){
+  sink("NUL") # use /dev/null in UNIX
+  tmp = code
+  sink()
+  return(tmp)
+}
+
+df_class = lapply(1:10, function(k){
+
+  fit = hush(multinom(df_pca$CellType ~ X[,1:k,drop=FALSE]))
+
+  data.table(k =k, n_mismatch = sum(predict(fit) != df_pca$CellType))
+  })
+df_class = do.call(rbind, df_class)
+
+fig1 = ggplot(df_class, aes(factor(k), n_mismatch)) + geom_bar(stat="identity") + theme_classic() + scale_y_continuous(expand=c(0,0)) + ggtitle("Ability to predict each cell type") + theme(aspect.ratio=1)
+
+df_class = lapply(1:10, function(k){
+
+  fit = hush(multinom(df_pca$CellType ~ X[,1:k,drop=FALSE]))
+
+  Y_pred = predict(fit, type="probs")
+
+  df_class = lapply( levels(df_pca$CellType), function(CT){
+
+    y0 = Y_pred[df_pca$CellType == CT,CT]
+    y1 = Y_pred[df_pca$CellType != CT,CT]
+
+    pr = pr.curve(scores.class0 = y0, scores.class1 = y1, curve=TRUE, rand.compute=TRUE)
+
+    data.table(k = k, CellType = CT, AUPR = pr$auc.integral, AUPR.rand = pr$rand$auc.integral)
+    })
+  do.call(rbind, df_class)
+  })
+df_class = do.call(rbind, df_class)
+
+fig2 = ggplot(df_class, aes(k, AUPR, color=CellType)) + geom_point() + geom_line() + theme_classic() + scale_color_manual(values = colorCodes) + scale_x_continuous(breaks = 1:10) + ggtitle("Ability to predict each cell type") + theme(aspect.ratio=1)
+
+plot_grid(fig1, fig2, axis="tbr", align="v")
+```
 
 ### Sex check
 ```{r sex.check}
@@ -277,6 +399,7 @@ Samples with wrong sex
 ```{r sex.off}
 kable(df[df$Gender == 'Female' & df$UTY > 5,], digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)  
 ```
+
 
 
 
@@ -308,16 +431,18 @@ mvSearch = mvForwardStepwise( vobj, ~ CellType, info, variables)
 
 ### variancePartition
 ```{r vp}
-form = ~ (1|CellType) + (1|Dx) + (1|CellType:Dx) + (1|Individual.ID) + (1|Gender)
+form = ~ (1|CellType) + (1|Dx) + (1|CellType:Dx) + (1|Individual.ID) + (1|Gender) + (1|Batch)
 vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(6, progressbar=TRUE))
 
 plotVarPart( sortCols(vp) )
 ```
 
+
+
 ## Differential expression analysis
 ### Cell type
 ```{r DE_process}
-form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender)
+form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
 
 # Prepare all pairwise contrasts
 index = combn(nlevels(info$CellType),2)
@@ -368,6 +493,14 @@ ggplot(df_deCount, aes(CT1, CT2, fill=count)) + geom_tile() + theme_bw(15) + the
 
 ggplot(df_deCount, aes(CT1, CT2, fill=pi1)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(pi1, digits=3))) + xlab('') + ylab('') + ggtitle(bquote(pi[1]))
 ```
+
+
+
+```{r cache=FALSE}
+knitr::knit_exit()
+```
+
+
 
 ```{r DE2}
 
