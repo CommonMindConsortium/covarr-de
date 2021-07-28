@@ -38,7 +38,6 @@ rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./'
 
 --->
 
---->
 
 ```{r knit2synapse, eval=FALSE}
 library(synapser)
@@ -464,18 +463,16 @@ L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
 fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
-idx = as.integer(seq(1, 2000, length.out=100))
-lapply(2:length(idx), function(i){
-  message(i, '     ')
-fitBasic = dream( vobj[idx[i-1]:idx[i],], form, info, L=L, BPPARAM=SerialParam())
+# idx = as.integer(seq(1, 2000, length.out=100))
+# lapply(2:length(idx), function(i){
+#   message(i, '     ')
+# fitBasic = dream( vobj[idx[i-1]:idx[i],], form, info, L=L, BPPARAM=SerialParam())
 
-})
+# })
 
-i = 173:173
-fitBasic = dream( vobj[i,,drop=FALSE], form, info, L=L, BPPARAM=SerialParam())
-
-
-
+# i = 445
+# form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
+# fitBasic = dream( vobj[i,,drop=FALSE], form, info, BPPARAM=SerialParam())
 
 
 ```{r plotContrasts}
