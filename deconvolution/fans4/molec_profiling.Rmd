@@ -402,7 +402,7 @@ kable(df[df$Gender == 'Female' & df$UTY > 5,], digits=2, row.names=FALSE) %>% ka
 ### Esimate precision weights
 ```{r voom}
 form = ~ (1|CellType) + (1|Individual.ID) + (1|Gender) + (1|Batch)
-vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(36, progressbar=TRUE))
+vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
 ### mvIC
@@ -428,7 +428,7 @@ mvSearch = mvForwardStepwise( vobj, ~ CellType, info, variables)
 ### variancePartition
 ```{r vp}
 form = ~ (1|CellType) + (1|Dx) + (1|CellType:Dx) + (1|Individual.ID) + (1|Gender) + (1|Batch)
-vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(36, progressbar=TRUE))
+vp = fitExtractVarPartModel( geneExpr, form, info, BPPARAM=SnowParam(12, progressbar=TRUE))
 
 plotVarPart( sortCols(vp) )
 ```
@@ -463,6 +463,7 @@ L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
 
 fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
+
 
 ```{r plotContrasts}
 plotContrasts(round(L,2)) + theme(axis.text.x=element_text(angle=45, hjust=1))   
@@ -571,10 +572,10 @@ tabList = lapply( 1:ncol(index), function(j){
   dge = calcNormFactors(dge)
 
   form = ~ CellType + Gender
-  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(12, progressbar=TRUE))
 
   form = ~ CellType + Gender
-  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(6, progressbar=TRUE))
+  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(12, progressbar=TRUE))
   fit = eBayes(fit)
 
   coef = paste0('CellType',levels(infoSub$CellType)[2])
@@ -622,10 +623,10 @@ tabList = lapply( 1:ncol(index), function(j){
   dge = calcNormFactors(dge)
 
   form = ~ CellType + Gender
-  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
+  vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(12, progressbar=TRUE))
 
   form = ~ CellType + Gender
-  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(6, progressbar=TRUE))
+  fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(12, progressbar=TRUE))
   fit = eBayes(fit)
 
   coef = paste0('CellType',levels(infoSub$CellType)[2])
