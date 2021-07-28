@@ -13,7 +13,8 @@ output:
 
 <!---
 
-cd /hpc/users/hoffmg01/work/cmc_analysis/src
+# cd /hpc/users/hoffmg01/work/cmc_analysis/src
+cd /hpc/users/hoffmg01/work/CMC/covarr-de/deconvolution/fans4
 # rm -rf molec_profiling_cache/
 ml git pandoc
 git pull
@@ -70,13 +71,22 @@ library(SummarizedExperiment)
 library(gridExtra)
 library(openxlsx)
 library(synapser)
+library(nnet)
+library(PRROC)
 library(githubr)
 synLogin()
 library(EnsDb.Hsapiens.v86)
 detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
 library(EnsDb.Hsapiens.v86)
-ensdb = EnsDb.Hsapiens.v86
 })
+
+
+hush=function(code){
+  sink("NUL") # use /dev/null in UNIX
+  tmp = code
+  sink()
+  return(tmp)
+}
 
 source("../../common_functions/common_functions.R")
 
@@ -336,16 +346,6 @@ plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
 
 ```{r predict.celltype}
-library(nnet)
-library(PRROC)
-   
-hush=function(code){
-  sink("NUL") # use /dev/null in UNIX
-  tmp = code
-  sink()
-  return(tmp)
-}
-
 df_class = lapply(1:10, function(k){
 
   fit = hush(multinom(df_pca$CellType ~ X[,1:k,drop=FALSE]))
