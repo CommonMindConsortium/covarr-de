@@ -80,7 +80,6 @@ detach("package:EnsDb.Hsapiens.v86", unload=TRUE)
 library(EnsDb.Hsapiens.v86)
 })
 
-
 hush=function(code){
   sink("NUL") # use /dev/null in UNIX
   tmp = code
@@ -346,6 +345,9 @@ plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
 
 ```{r predict.celltype}
+
+X = as.matrix(df_pca[,2:200])
+
 df_class = lapply(1:10, function(k){
 
   fit = hush(multinom(df_pca$CellType ~ X[,1:k,drop=FALSE]))
