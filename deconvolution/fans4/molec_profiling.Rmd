@@ -400,7 +400,7 @@ kable(df[df$Gender == 'Female' & df$UTY > 5,], digits=2, row.names=FALSE) %>% ka
 
 ### Esimate precision weights
 ```{r voom}
-form = ~ (1|CellType) + (1|Individual.ID) + (1|Gender)
+form = ~ (1|CellType) + (1|Individual.ID) + (1|Gender) + (1|Batch)
 vobj = voomWithDreamWeights(dge, form, info, plot=TRUE, save.plot=TRUE, BPPARAM=SnowParam(36, progressbar=TRUE))
 ```
 
