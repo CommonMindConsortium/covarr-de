@@ -436,7 +436,7 @@ plotVarPart( sortCols(vp) )
 
 ## Differential expression analysis
 ### Cell type
-```{r DE_process, eval=FALSE}
+```{r DE_process}
 form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
 
 # Prepare all pairwise contrasts
@@ -463,20 +463,8 @@ L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
 fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
-# idx = as.integer(seq(1, 2000, length.out=100))
-# lapply(2:length(idx), function(i){
-#   message(i, '     ')
-# fitBasic = dream( vobj[idx[i-1]:idx[i],], form, info, L=L, BPPARAM=SerialParam())
-
-# })
-
-# i = 445
-# form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
-# fitBasic = dream( vobj[i,,drop=FALSE], form, info, BPPARAM=SerialParam())
-
-
 ```{r plotContrasts}
-plotContrasts(round(L,2)) + theme(axis.text.x=element_text(angle=45, hjust=1))   
+plotContrasts(round(L,2))   
 ```
 
 ```{r DE.analysis}
