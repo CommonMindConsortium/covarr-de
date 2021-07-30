@@ -855,7 +855,7 @@ res_cv_FANS = lapply(CTarray, function(CT){
   res = modelGeneCV2( se ) # returns CV^2
   fit = metadata(res)
 
-  geneTab = AnnotationDbi::select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+  geneTab = AnnotationDbi::select(EnsDb.Hsapiens.v86, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
   
   list(df = data.frame( key = paste0(CT, collapse="."), res ),
        f = fit$trend,
@@ -900,7 +900,7 @@ res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tiss
   res = modelGeneCV2( se )
   fit = metadata(res)
 
-  geneTab = AnnotationDbi::select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")  
+  geneTab = AnnotationDbi::select(EnsDb.Hsapiens.v86, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")  
 
   list(df = data.frame( key = Tissue, res ),
        f = fit$trend,
@@ -1219,7 +1219,7 @@ df_de_summary = lapply( 1:length(tabRampList), function(j){
   df_de_summary = lapply( names(tabList), function(key){
     tab = tabList[[key]]
 
-    geneTab = AnnotationDbi::select(ensdb, keys=rownames(tab), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+    geneTab = AnnotationDbi::select(EnsDb.Hsapiens.v86, keys=rownames(tab), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
 
     tab = merge(tab, geneTab, by.x="row.names", by.y="GENEID")
 
