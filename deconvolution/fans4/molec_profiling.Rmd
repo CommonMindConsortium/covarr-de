@@ -558,10 +558,10 @@ tabList = lapply( 1:ncol(index), function(j){
   dge = DGEList( geneCounts[isexpr,idx] )
   dge = calcNormFactors(dge)
 
-  form = ~ CellType + Gender
+  form = ~ CellType + Gender + Batch
   vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(12, progressbar=TRUE))
 
-  form = ~ CellType + Gender
+  form = ~ CellType + Gender + Batch
   fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(12, progressbar=TRUE))
   fit = eBayes(fit)
 
@@ -609,10 +609,10 @@ tabList = lapply( 1:ncol(index), function(j){
   dge = DGEList( geneCounts[isexpr,idx] )
   dge = calcNormFactors(dge)
 
-  form = ~ CellType + Gender
+  form = ~ CellType + Gender + Batch
   vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(12, progressbar=TRUE))
 
-  form = ~ CellType + Gender
+  form = ~ CellType + Gender + Batch
   fit = dream( vobj, form, infoSub, BPPARAM=SnowParam(12, progressbar=TRUE))
   fit = eBayes(fit)
 
@@ -646,7 +646,7 @@ df_voomTrend = lapply( 1:ncol(index), function(j){
   dge = DGEList( geneCounts[isexpr,idx] )
   dge = calcNormFactors(dge)
 
-  form = ~ CellType + Gender
+  form = ~ CellType + Gender + Batch
   vobj = voomWithDreamWeights(dge, form, infoSub, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE))
 
   data.frame( key, x = vobj$voom.line[['x']], y = vobj$voom.line[['y']])
@@ -1191,10 +1191,10 @@ tabRampList = lapply( sampleRamp, function(sampleSet){
     dge = DGEList( geneCountSub[isexpr,idx] )
     dge = calcNormFactors(dge)
 
-    form = ~ CellType
+    form = ~ CellType + Batch
     vobj = voomWithDreamWeights(dge, form, infoSub2, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
 
-    form = ~ CellType
+    form = ~ CellType + Batch
     fit = dream( vobj, form, infoSub2, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
     fit = eBayes(fit)
 
@@ -1246,18 +1246,25 @@ ggplot(df_de_summary, aes(N, nDE_gt_1, color=Comparison)) + geom_point() + geom_
 
 # Disease
 ```{r DE.disease}
+info$I = with(info, paste0(CellType, ".", Dx))
+
 # Disease
-fitDisease = dream( vobj, ~ 0 + CellType*Dx + (1|Individual.ID) + (1|Gender), info, BPPARAM=SnowParam(6, progressbar=TRUE))
+form = ~ 0 + I + (1|Individual.ID) + (1|Gender) + (1|Batch)
+
+# contrasts
+L = makeContrastsDream(form, info, contrasts=c(
+              GABA.Dx = "IGABA.SCZ - IGABA.Control",
+              GLU.Dx = "IGLU.SCZ - IGLU.Control",
+              MgAs.Dx = "IMgAs.SCZ - IMgAs.Control",
+              Olig.Dx = "IOlig.SCZ - IOlig.Control"))
+
+fitDisease = dream( vobj[1:10,], form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
 ```{r Disease.analysis}
 df_disease = lapply(levels(info$CellType), function(CT){
 
-  key = paste0('CellType', CT, ':DxSCZ')
-
-  if( CT == levels(info$CellType)[1]){
-    key = 'DxSCZ'
-  } 
+  key = paste0( CT, '.Dx')
 
   tabl = topTable( fitDisease, coef = key, number=Inf)
 
@@ -1281,6 +1288,10 @@ Compare cell types
 Homogeneity of variance for each cell type
 
 For next week: deconvolution of GTEx, PEC, CMC, BrainSpan, BrainVar
+
+```{r, eval=FALSE}
+knitr::knit_exit()
+```
 
 
 
@@ -1313,7 +1324,7 @@ exclude = grep("\\.se$", colnames(df_RefPanel))
 ```
 
 
-```{r store, eval=TRUE}
+```{r store, eval=FALSE}
 # Code
 CODE <- Folder(name = "FANS4 processing and testing", parentId = "syn22231629") # Make sure these match the folder name and parent Id in the first chunk.
 CODE <- synStore(CODE)
