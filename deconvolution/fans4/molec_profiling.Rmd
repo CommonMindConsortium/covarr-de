@@ -478,7 +478,10 @@ df_deCount = lapply( 1:ncol(index), function(j){
 })
 df_deCount = do.call(rbind, df_deCount)
 
-ggplot(df_deCount, aes(CT1, CT2, fill=count)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(low="white", high="red", limits=c(0, 30000)) + geom_text(aes(label=format(count, big.mark=','))) + xlab('') + ylab('') + ggtitle("Count differentiall expression genes")
+df_deCount$CT1 = factor(df_deCount$CT1, levels(info$CellType))
+df_deCount$CT2 = factor(df_deCount$CT2, levels(info$CellType))
+
+ggplot(df_deCount, aes(CT1, CT2, fill=count)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(low="white", high="red", limits=c(0, 30000)) + geom_text(aes(label=format(count, big.mark=','))) + xlab('') + ylab('') + ggtitle("Count differential expression genes")
 
 ggplot(df_deCount, aes(CT1, CT2, fill=pi1)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(pi1, digits=3))) + xlab('') + ylab('') + ggtitle(bquote(pi[1]))
 ```
@@ -531,7 +534,7 @@ df_hugo = AnnotationDbi::select(org.Hs.eg.db, unique(as.character(df$Var1)), "SY
 df = merge(df, df_hugo, by.x="Var1", by.y="ENSEMBL")
 df = df[!is.na(df$SYMBOL),]
 
-ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "none") + scale_fill_manual("Cell Type", values=colorCodes) + facet_wrap(~SYMBOL, ncol=5) + ylab(bquote(log[2]~CPM))
+ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) + scale_fill_manual("Cell Type", values=colorCodes) + facet_wrap(~SYMBOL, ncol=5) + ylab(bquote(log[2]~CPM)) 
 ```
 
 ## Analysis using just pairs of samples
