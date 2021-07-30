@@ -95,8 +95,6 @@ knitr::opts_chunk$set(
 options(markdown.HTML.stylesheet = 'css/custom.css')
 ```
 
-
-
 ```{r synapse.parameters, include=FALSE, cache=TRUE, eval=TRUE}
 thisFileName <- 'molec_profiling.Rmd'
 # thisFile = thisFileName
@@ -529,7 +527,7 @@ ensIDs = unique(c(ensIDs, 'ENSG00000110693', 'ENSG00000167281'))
 df = reshape2::melt(geneExpr[ensIDs,])
 df = merge(df, info[,1:3], by.x="Var2", by.y="row.names")
 
-df_hugo = select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
+df_hugo = AnnotationDbi::select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
 df = merge(df, df_hugo, by.x="Var1", by.y="ENSEMBL")
 df = df[!is.na(df$SYMBOL),]
 
@@ -687,7 +685,7 @@ boxplot_gene = function(ensIDs, tab, ngenes=5){
   df = reshape2::melt(geneExpr[ensIDs,,drop=FALSE])
   df = merge(df, info[,1:3], by.x="Var2", by.y="row.names")
 
-  df_hugo = select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
+  df_hugo = AnnotationDbi::select(org.Hs.eg.db, unique(as.character(df$Var1)), "SYMBOL", "ENSEMBL")
   df = merge(df, df_hugo, by.x="Var1", by.y="ENSEMBL")
   df = df[!is.na(df$SYMBOL),]
 
@@ -859,7 +857,7 @@ res_cv_FANS = lapply(CTarray, function(CT){
   res = modelGeneCV2( se ) # returns CV^2
   fit = metadata(res)
 
-  geneTab = select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+  geneTab = AnnotationDbi::select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
   
   list(df = data.frame( key = paste0(CT, collapse="."), res ),
        f = fit$trend,
@@ -904,7 +902,7 @@ res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tiss
   res = modelGeneCV2( se )
   fit = metadata(res)
 
-  geneTab = select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")  
+  geneTab = AnnotationDbi::select(ensdb, keys=names(isexpr[isexpr]), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")  
 
   list(df = data.frame( key = Tissue, res ),
        f = fit$trend,
@@ -1223,7 +1221,7 @@ df_de_summary = lapply( 1:length(tabRampList), function(j){
   df_de_summary = lapply( names(tabList), function(key){
     tab = tabList[[key]]
 
-    geneTab = select(ensdb, keys=rownames(tab), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
+    geneTab = AnnotationDbi::select(ensdb, keys=rownames(tab), columns=c("GENEID", "GENEBIOTYPE"), keytype="GENEID")
 
     tab = merge(tab, geneTab, by.x="row.names", by.y="GENEID")
 
