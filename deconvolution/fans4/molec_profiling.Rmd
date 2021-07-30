@@ -24,6 +24,9 @@ R
 system("git pull")
 rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
 
+# TODO 
+replace with FilterExpr()
+
 
 # http
 # https://hoffmg01.u.hpc.mssm.edu/molec_profiling.html
@@ -1191,10 +1194,10 @@ tabRampList = lapply( sampleRamp, function(sampleSet){
     dge = DGEList( geneCountSub[isexpr,idx] )
     dge = calcNormFactors(dge)
 
-    form = ~ CellType + Batch
+    form = ~ CellType #+ (1|Batch)
     vobj = voomWithDreamWeights(dge, form, infoSub2, plot=FALSE, save.plot=TRUE, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
 
-    form = ~ CellType + Batch
+    form = ~ CellType #+ Batch
     fit = dream( vobj, form, infoSub2, BPPARAM=SnowParam(6, progressbar=TRUE), quiet=TRUE)
     fit = eBayes(fit)
 
