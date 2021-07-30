@@ -439,28 +439,24 @@ plotVarPart( sortCols(vp) )
 ```{r DE_process}
 form = ~ 0 + CellType + (1|Individual.ID) + (1|Gender) + (1|Batch)
 
-# Prepare all pairwise contrasts
 index = combn(nlevels(info$CellType),2)
 
-L = lapply( 1:ncol(index), function(j){
-
-  CT1 = levels(info$CellType)[index[1,j]]
-  CT2 = levels(info$CellType)[index[2,j]]
-
-  L = getContrast( vobj, form, info, paste0('CellType', c(CT1, CT2)))
-
-  L = as.matrix(L)
-  colnames(L) = paste0(CT1, '.', CT2)
-
-  L
+lvl = rbind(levels(info$CellType)[index[1,]], levels(info$CellType)[index[2,]])
+contrasts = apply(lvl, 2, function(x){
+  paste0('CellType', x[1], " - CellType", x[2])
 })
-L = do.call(cbind, L)
+names(contrasts) = apply(lvl, 2, function(x){
+  paste0(x[1], "_vs_", x[2])
+})
 
-L = cbind(L, data.frame(GABAGLU.Other = c(1, 1, -1, -1),
-                    MgAs.Other = c(-1/3, -1/3, -1/3, 1),
-                    Olig.Other = c(-1/3, -1/3, 1, -1/3) ))
+contrasts['GABAGLU_vs_Other'] = "(CellTypeGABA + CellTypeGLU)/2 - (CellTypeMgAs + CellTypeOlig)/2"
+contrasts['MgAs_vs_Other'] = "CellTypeMgAs - (CellTypeGABA + CellTypeGLU + CellTypeOlig)/3"
+contrasts['Olig_vs_Other'] = "CellTypeOlig - (CellTypeGABA + CellTypeGLU + CellTypeMgAs)/3"
 
-fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
+# combined contrast matrix
+L = makeContrastsDream( form, info, contrasts = contrasts)
+
+fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(36, progressbar=TRUE))
 ```
 
 ```{r plotContrasts}
@@ -476,7 +472,7 @@ df_deCount = lapply( 1:ncol(index), function(j){
     CT1 = levels(info$CellType)[index[1,j]]
     CT2 = levels(info$CellType)[index[2,j]]
 
-    key = paste0(CT1, '.', CT2)
+    key = paste0(CT1, '_vs_', CT2)
 
     tabl = topTable(fitBasic, coef=key, number=Inf)
 
@@ -489,14 +485,6 @@ ggplot(df_deCount, aes(CT1, CT2, fill=count)) + geom_tile() + theme_bw(15) + the
 ggplot(df_deCount, aes(CT1, CT2, fill=pi1)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(pi1, digits=3))) + xlab('') + ylab('') + ggtitle(bquote(pi[1]))
 ```
 
-
-
-```{r cache=FALSE}
-knitr::knit_exit()
-```
-
-
-
 ```{r DE2}
 
 index = combn(nlevels(info$CellType),2)
@@ -506,7 +494,7 @@ df = lapply( 1:ncol(index), function(j){
     CT1 = levels(info$CellType)[index[1,j]]
     CT2 = levels(info$CellType)[index[2,j]]
 
-    key = paste0(CT1, '.', CT2)
+    key = paste0(CT1, '_vs_', CT2)
 
     tabl = topTable(fitBasic, coef=key, number=Inf)
 
@@ -527,7 +515,7 @@ ensIDs = sapply( 1:ncol(index), function(j){
     CT1 = levels(info$CellType)[index[1,j]]
     CT2 = levels(info$CellType)[index[2,j]]
 
-    key = paste0(CT1, '.', CT2)
+    key = paste0(CT1, '_vs_', CT2)
 
     tabl = topTable(fitBasic, coef=key, number=Inf)
 
@@ -558,7 +546,7 @@ tabList = lapply( 1:ncol(index), function(j){
 
   CT1 = levels(info$CellType)[index[1,j]]
   CT2 = levels(info$CellType)[index[2,j]]
-  key = paste0(CT1, '.', CT2)
+  key = paste0(CT1, '_vs_', CT2)
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
@@ -609,7 +597,7 @@ tabList = lapply( 1:ncol(index), function(j){
 
   CT1 = levels(info$CellType)[index[1,j]]
   CT2 = levels(info$CellType)[index[2,j]]
-  key = paste0(CT1, '.', CT2)
+  key = paste0(CT1, '_vs_', CT2)
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
@@ -646,7 +634,7 @@ df_voomTrend = lapply( 1:ncol(index), function(j){
 
   CT1 = levels(info$CellType)[index[1,j]]
   CT2 = levels(info$CellType)[index[2,j]]
-  key = paste0(CT1, '.', CT2)
+  key = paste0(CT1, '_vs_', CT2)
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
@@ -681,6 +669,13 @@ saveRDS(tabList, file='./Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS')
 
 # system("ml python; synapse add --parentid syn22243354 Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS")
 ```
+
+
+
+```{r cache=FALSE}
+knitr::knit_exit()
+```
+
 
 
 ## Plots of top differentially expressed genes
