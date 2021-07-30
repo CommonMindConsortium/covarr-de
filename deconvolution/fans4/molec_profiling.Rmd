@@ -673,11 +673,6 @@ saveRDS(tabList, file='./Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS')
 
 
 
-```{r cache=FALSE}
-knitr::knit_exit()
-```
-
-
 
 ## Plots of top differentially expressed genes
 ```{r markerGenes, fig.width=15, fig.height=30}
