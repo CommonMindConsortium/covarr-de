@@ -26,6 +26,11 @@ rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./'
 
 # TODO 
 replace with FilterExpr()
+add single cell
+Add CMC bulk RNA-seq
+
+
+
 
 
 # http
@@ -1261,7 +1266,7 @@ L = makeContrastsDream(form, info, contrasts=c(
               MgAs.Dx = "IMgAs.SCZ - IMgAs.Control",
               Olig.Dx = "IOlig.SCZ - IOlig.Control"))
 
-fitDisease = dream( vobj[1:10,], form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
+fitDisease = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
 ```{r Disease.analysis}
