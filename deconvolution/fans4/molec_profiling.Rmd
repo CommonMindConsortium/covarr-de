@@ -900,14 +900,14 @@ ggplot(df_cv_FANS, aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + t
 ```
 
 ```{r include.gtex}
-
 #  GTEX
 res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tissue){
 
   id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == Tissue)]
+  rownames(gtex_sample) = gtex_sample$SAMPID
 
   # isexpr = rowSums(edgeR::cpm(gtex_count[,id])>1) >= 0.1*ncol(gtex_count[,id])
-  isexpr = filterByExpr(gtex_count[,id], model.matrix(~SMTSD, gtex_sample[id,]))
+  isexpr = filterByExpr( gtex_count[,id] )
 
   se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,id]), colData = gtex_sample[id,])
   res = modelGeneCV2( se )
