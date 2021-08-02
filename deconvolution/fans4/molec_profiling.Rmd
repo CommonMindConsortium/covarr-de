@@ -80,6 +80,7 @@ library(SummarizedExperiment)
 library(gridExtra)
 library(openxlsx)
 library(synapser)
+library(zenith)
 library(nnet)
 library(PRROC)
 library(githubr)
@@ -545,6 +546,19 @@ df = df[!is.na(df$SYMBOL),]
 
 ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "none", axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) + scale_fill_manual("Cell Type", values=colorCodes) + facet_wrap(~SYMBOL, ncol=5) + ylab(bquote(log[2]~CPM)) 
 ```
+
+# Gene set analysis
+```{r zenith.celltype, cache=FALSE}
+knitr::knit_exit()
+
+
+
+```
+
+
+
+
+
 
 ## Analysis using just pairs of samples
 ```{r pairwise.analysis}
@@ -1321,6 +1335,12 @@ plot(hclust(as.dist(1-C)))
 ```
 
 
+Gene-by-gene correlation
+fix PCA/MDS
+mvIC
+splicing
+add bulk, imputed, single cell
+zenith
 
 
 
