@@ -1269,19 +1269,66 @@ L = makeContrastsDream(form, info, contrasts=c(
 fitDisease = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRUE))
 ```
 
-```{r Disease.analysis}
-df_disease = lapply(levels(info$CellType), function(CT){
+
+
+```{r Disease.analysis.corr}
+df_disease_de = lapply(levels(info$CellType), function(CT){
 
   key = paste0( CT, '.Dx')
 
   tabl = topTable( fitDisease, coef = key, number=Inf)
-
-  data.frame(CellType = CT, key, count = sum(tabl$adj.P.Val < 0.05), pi1 = 1 - qvalue(tabl$P.Value)$pi0)
+  tabl$CellType = CT
+  tabl$ensID = rownames(tabl)
+  tabl
   })
-df_disease = do.call(rbind, df_disease)
+df_disease_de = data.table(do.call(rbind, df_disease_de))
 
-kable(df_disease, digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+df_disease_de[,data.frame(count = sum(adj.P.Val < 0.05), pi1 = 1 - qvalue(P.Value)$pi0), by="CellType"] %>% kable(digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+index = combn(nlevels(info$CellType),2)
+
+# for all pairs of cell types
+tabList = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+  
+  df_tstat = merge(df_disease_de[CellType==CT1,], df_disease_de[CellType==CT2,], by="ensID")
+
+  r = with(df_tstat, cor(z.std.x, z.std.y, method="spearman"))
+
+  data.frame(CT1, CT2, corr = r)
+})
+tabList = do.call(rbind, tabList)
+
+tabList %>% kable(digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+ggplot(tabList, aes(CT1, CT2, fill=corr)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(corr, digits=3))) + xlab('') + ylab('') + ggtitle("Correlation between t-statistics")
+
+C = matrix(1, 4,4)
+rownames(C) = levels(info$CellType)
+colnames(C) = levels(info$CellType)
+tabList$CT1 = factor(tabList$CT1, levels(info$CellType))
+tabList$CT2 = factor(tabList$CT2, levels(info$CellType))
+
+for(i in 1:nrow(tabList)){
+  C[tabList$CT1[i],tabList$CT2[i]] = tabList$corr[i]
+  C[tabList$CT2[i],tabList$CT1[i]] = tabList$corr[i]
+}
+
+plot(hclust(as.dist(1-C)))
 ```
+
+
+
+
+
+
+
+
+
+
 
 
 Volcano plot colored by cell type
