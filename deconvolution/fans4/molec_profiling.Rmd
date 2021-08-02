@@ -821,7 +821,7 @@ ggplot(df_fans4, aes(log2(mean), log2(trend), color=key)) + geom_line() + theme_
 idx = which(gtex_sample$SMTSD %in% names(which(table(gtex_sample$SMTSD) > 30)))
 
 # isexpr = rowSums(edgeR::cpm(gtex_count[,idx])>1) >= 0.3*ncol(gtex_count[,idx])
-isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
+isexpr = filterByExpr(gtex_count[,idx], model.matrix(~SMTSD, gtex_sample[idx,]))
 
 se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,idx]), colData = gtex_sample[idx,])
 res = modelGeneCV2( se, block=gtex_sample$SMTSD[idx] )
@@ -841,11 +841,9 @@ df_gtex = df_gtex[df_gtex$mean > 0,]
 
 ggplot(df_gtex, aes(log2(mean), log2(trend), color=key)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend))+ scale_color_manual(values=colsGTEx) + xlim(0, 20) + ylim(-5, 5)
 
-
 df_gtex$dataset = 'GTEx'
 df_fans4$dataset = "FANS4"
 df_combined = rbind(df_gtex, df_fans4)
-
 
 ggplot(df_combined, aes(log2(mean), log2(trend), color=key, size=dataset)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_size_manual(values=c(2, .1)) + scale_color_manual(values=c(rep("black", length(colsGTEx)), colorCodes)) + xlim(-8, 20) + ylim(-5, 3) 
 ```
