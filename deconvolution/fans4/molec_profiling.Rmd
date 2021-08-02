@@ -752,6 +752,7 @@ gtex_sample = read.delim(file_SampleAttributesDS, header = TRUE, stringsAsFactor
 
 rnaseq_sample_id = fread(file_counts, header = TRUE, skip = 2, nrows = 1)
 gtex_sample = gtex_sample[gtex_sample$SAMPID %in% colnames(rnaseq_sample_id),]
+rownames(gtex_sample) = gtex_sample$SAMPID
 
 # read count
 gtex_count <- fread(file_counts, header = TRUE, skip = 2, select = c('Name', unique(gtex_sample$SAMPID)))
@@ -1101,14 +1102,15 @@ ggplot(df[,sum(FDR < .05),by='key'], aes(key, V1, fill=key))  + geom_bar(stat="i
 Computed on residuals
 
 ```{r PCA.gtex}
-
 id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == 'Brain - Frontal Cortex (BA9)')]
 countsCombined = merge(geneCounts, gtex_count[,id], by="row.names")
 rownames(countsCombined) = countsCombined$Row.names
 countsCombined$Row.names = NULL
 
+df_info = data.frame(CT = c(as.character(info$CellType), gtex_sample[id,]$SMTSD))
+
 # isexpr = rowSums(edgeR::cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
-isexpr = filterByExpr(countsCombined, model.matrix(~CellType, countsCombined))
+isexpr = filterByExpr(countsCombined, model.matrix(~CT, df_info))
 
 dge = DGEList(countsCombined[isexpr,])
 dge = calcNormFactors(dge)
