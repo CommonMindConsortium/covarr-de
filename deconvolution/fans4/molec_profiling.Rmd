@@ -270,7 +270,8 @@ kable(table(info$Individual.ID)) %>% kable_styling(bootstrap_options = "striped"
 ```
 
 ```{r preprocess}
-isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.1*ncol(geneCounts)
+# isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.1*ncol(geneCounts)
+isexpr = filterByExpr(geneCounts, model.matrix(~CellType, info))
 table(isexpr)
 
 dge = DGEList( geneCounts[isexpr,] )
@@ -515,7 +516,7 @@ ggplot(df, aes(logFC, ..count..)) + geom_density(alpha = .2) + facet_wrap(~key) 
 ```
 
 ## Plots of top differentially expressed genes
-```{r DE.marker_genes, fig.width=15, fig.height=30}
+```{r DE.marker_genes, fig.width=15, fig.height=40}
 
 index = combn(nlevels(info$CellType),2)
 
@@ -559,7 +560,8 @@ tabList = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  # isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -610,7 +612,8 @@ tabList = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  # isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -647,7 +650,8 @@ df_voomTrend = lapply( 1:ncol(index), function(j){
 
   idx = which(info$CellType %in% c(CT1, CT2))
 
-  isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  # isexpr = rowSums(edgeR::cpm(geneCounts[,idx])>1) >= 0.3*ncol(geneCounts[,idx])
+  isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
   table(isexpr)
   infoSub = droplevels(info[idx,])
 
@@ -797,7 +801,8 @@ gtexColors = read.csv( file, header=TRUE)
 ```{r CV.all.in.one, eval=TRUE}
 library(scran)
 # FANS4
-isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.3*ncol(geneCounts)
+# isexpr = rowSums(edgeR::cpm(geneCounts)>1) >= 0.3*ncol(geneCounts)
+isexpr = filterByExpr(geneCounts, model.matrix(~CellType, info))
 
 se <- SummarizedExperiment( assays=list(counts = as.matrix(geneCounts[isexpr,])), colData = info)
 res = modelGeneCV2( se, block=info$CellType )
@@ -816,7 +821,8 @@ ggplot(df_fans4, aes(log2(mean), log2(trend), color=key)) + geom_line() + theme_
 # GTEX
 idx = which(gtex_sample$SMTSD %in% names(which(table(gtex_sample$SMTSD) > 30)))
 
-isexpr = rowSums(edgeR::cpm(gtex_count[,idx])>1) >= 0.3*ncol(gtex_count[,idx])
+# isexpr = rowSums(edgeR::cpm(gtex_count[,idx])>1) >= 0.3*ncol(gtex_count[,idx])
+isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
 
 se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,idx]), colData = gtex_sample[idx,])
 res = modelGeneCV2( se, block=gtex_sample$SMTSD[idx] )
@@ -857,7 +863,8 @@ res_cv_FANS = lapply(CTarray, function(CT){
    
   id = info$Name[which(info$CellType %in% CT)]
 
-  isexpr = rowSums(edgeR::cpm(geneCounts[,id])>1) >= 0.1*ncol(geneCounts[,id])
+  # isexpr = rowSums(edgeR::cpm(geneCounts[,id])>1) >= 0.1*ncol(geneCounts[,id])
+  isexpr = filterByExpr(geneCounts[,id], model.matrix(~CellType, info[id,]))
 
   se <- SummarizedExperiment( assays=list(counts = as.matrix(geneCounts[isexpr,id])), colData = info[id,])
   res = modelGeneCV2( se ) # returns CV^2
@@ -902,7 +909,8 @@ res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tiss
 
   id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == Tissue)]
 
-  isexpr = rowSums(edgeR::cpm(gtex_count[,id])>1) >= 0.1*ncol(gtex_count[,id])
+  # isexpr = rowSums(edgeR::cpm(gtex_count[,id])>1) >= 0.1*ncol(gtex_count[,id])
+  isexpr = filterByExpr(geneCounts[,id], model.matrix(~CellType, info[id,]))
 
   se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,id]), colData = gtex_sample[id,])
   res = modelGeneCV2( se )
@@ -1111,7 +1119,8 @@ countsCombined = merge(geneCounts, gtex_count[,id], by="row.names")
 rownames(countsCombined) = countsCombined$Row.names
 countsCombined$Row.names = NULL
 
-isexpr = rowSums(edgeR::cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
+# isexpr = rowSums(edgeR::cpm(countsCombined)>1) >= 0.3*ncol(countsCombined)
+isexpr = filterByExpr(countsCombined, model.matrix(~CellType, countsCombined))
 
 dge = DGEList(countsCombined[isexpr,])
 dge = calcNormFactors(dge)
@@ -1193,7 +1202,8 @@ tabRampList = lapply( sampleRamp, function(sampleSet){
     message(key, " ", nrow(sampleSet) )
     infoSub2 = droplevels(infoSub[idx,])
 
-    isexpr = rowSums(edgeR::cpm(geneCountSub[,idx])>1) >= 0.3*ncol(geneCountSub[,idx])
+    # isexpr = rowSums(edgeR::cpm(geneCountSub[,idx])>1) >= 0.3*ncol(geneCountSub[,idx])
+    isexpr = filterByExpr(geneCountSub[,idx], model.matrix(~CellType, info[idx,]))
     table(isexpr)
 
     dge = DGEList( geneCountSub[isexpr,idx] )
