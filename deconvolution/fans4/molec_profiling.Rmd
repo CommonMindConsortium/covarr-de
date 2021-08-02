@@ -857,7 +857,7 @@ CTarray = as.list(levels(info$CellType))
 # CTarray[[6]] = levels(info$CellType)
 
 # different because only genes expressed in given cell type are used
-res_cv_FANS = lapply(CTarray, function(CT){
+res_cv_FANS = lapply( unlist(CTarray), function(CT){
    
   id = info$Name[which(info$CellType %in% CT)]
 
@@ -1059,13 +1059,6 @@ v = df2[Dataset=="GTEx", median(Count)]
 
 
 ggplot(df[,sum(FDR < .05),by='key'], aes(key, V1, fill=key))  + geom_bar(stat="identity") + theme_bw(8) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_fill_manual("Cell Type", values=cols) + coord_flip() + xlab('') + ylab('# genes passing cutoff') + geom_hline(yintercept=v, linetype="dashed", color="grey70")
-
-
- 
-
-
-
-
 
 ```
 
