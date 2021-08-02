@@ -549,10 +549,31 @@ ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) 
 
 # Gene set analysis
 ```{r zenith.celltype, cache=FALSE}
+
+geneSets_GO = get_GeneOntology()
+
+# Map from Ensembl genes in geneSets_GO to 
+# Ensembl names from RNA-seq data 
+index = ids2indices( recodeToList(geneSets_GO), rownames(fitBasic))
+
+idxGO = index[sapply(index, length) > 20]
+
+df_CT_zenith = lapply( colnames(coef(fitBasic))[1:2], function(key){
+  res = zenith( fitBasic, coef = key, index = idxGO)
+  data.table(Geneset = rownames(res), res, coef = key)
+})
+df_CT_zenith = do.call(rbind, df_CT_zenith)
+
+df_CT_zenith[coef == 'GABA_vs_Olig',]
+
+
+
+```
+
+
+
+```{r exit, cache=FALSE}
 knitr::knit_exit()
-
-
-
 ```
 
 
