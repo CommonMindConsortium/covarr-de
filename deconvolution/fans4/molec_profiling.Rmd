@@ -323,7 +323,7 @@ plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 
 #### Batch corrected
 ```{r PCA.batch, fig.width=10, fig.height=5}
-fit = dream(geneExpr, ~ Batch, info)
+fit = dream(geneExpr, ~ (1|Batch), info)
   
 dcmp = prcomp( t(residuals(fit)), scale=TRUE)
 
@@ -345,7 +345,6 @@ plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
 
 ```{r predict.celltype}
-
 X = as.matrix(df_pca[,2:200])
 
 df_class = lapply(1:10, function(k){
