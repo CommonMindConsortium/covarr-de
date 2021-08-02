@@ -894,13 +894,12 @@ colorCodes['GABA.GLU.Olig.MgAs'] = "dodgerblue"
 # Take sqrt(CV^2)
 ggplot(df_trend_FANS, aes(log2(mean), log2(sqrt(trend)), color=key, size=Dataset)) + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position=c(.7, .9)) + xlab(bquote(log[2]~Mean~expression)) + ylab(bquote(log[2]~CV~trend)) + scale_size_manual(values=c(2, .1)) + scale_color_manual(values=colorCodes) + scale_x_continuous(expand=c(0.01, 0))
 
-
 ggplot(df_cv_FANS[df_cv_FANS$key %in% names(colorCodes)[1:4],], aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="right")  + scale_color_manual(values=colorCodes) + xlab(bquote(log[2]~CV))
 
-
-
 ggplot(df_cv_FANS, aes(log2(sqrt(total)), color=key)) + geom_density(size=2) + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="right")  + scale_color_manual(values=colorCodes) + xlab(bquote(log[2]~CV))
+```
 
+```{r include.gtex}
 
 #  GTEX
 res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tissue){
@@ -908,7 +907,7 @@ res_cv_GTEx = lapply( names(which(table(gtex_sample$SMTSD) > 30)), function(Tiss
   id = gtex_sample$SAMPID[which( gtex_sample$SMTSD == Tissue)]
 
   # isexpr = rowSums(edgeR::cpm(gtex_count[,id])>1) >= 0.1*ncol(gtex_count[,id])
-  isexpr = filterByExpr(geneCounts[,id], model.matrix(~CellType, info[id,]))
+  isexpr = filterByExpr(gtex_count[,id], model.matrix(~SMTSD, gtex_sample[id,]))
 
   se <- SummarizedExperiment( assays=list(counts = gtex_count[isexpr,id]), colData = gtex_sample[id,])
   res = modelGeneCV2( se )
@@ -1017,8 +1016,6 @@ names(colsGTEx) = gtexColors$description[i[!is.na(i)]]
 df_melt = reshape2::melt(df_count, id.vars=c("Dataset", "key"))
 
 ggplot( df_melt, aes(key, value, fill=key)) + geom_bar(stat='identity') + theme_bw(10) + theme(aspect.ratio=5, plot.title = element_text(hjust = 0.5), legend.position="none")  + scale_fill_manual(values=c(colsGTEx, colorCodes)[levels(df3$key)]) + coord_flip() + ylab("# genes expressed") + scale_y_continuous(expand=c(0,0)) + xlab('') + facet_wrap(~variable)
-
-
 ```
 
 ```{r plot.coef.variation, fig.width=12, fig.height=12, eval=FALSE}
