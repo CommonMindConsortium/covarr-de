@@ -24,6 +24,7 @@ R
 system("git pull")
 rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
 
+
 # TODO 
 replace with FilterExpr()
 add single cell
@@ -323,7 +324,7 @@ plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 
 #### Batch corrected
 ```{r PCA.batch, fig.width=10, fig.height=5}
-fit = dream(geneExpr, ~ (1|Batch), info)
+fit = dream(geneExpr, ~ (1|Batch), info, BPPARAM=SnowParam(12, progressbar=TRUE))
   
 dcmp = prcomp( t(residuals(fit)), scale=TRUE)
 
