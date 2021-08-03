@@ -18,7 +18,7 @@ cd /hpc/users/hoffmg01/work/CMC/covarr-de/deconvolution/fans4
 # rm -rf molec_profiling_cache/
 ml git pandoc
 git pull
-export OMP_NUM_THREADS=1
+# export OMP_NUM_THREADS=1
 R
 
 system("git pull")
@@ -42,7 +42,6 @@ R
 
 
 rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
-
 
 
 --->
@@ -550,21 +549,60 @@ ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) 
 # Gene set analysis
 ```{r zenith.celltype, cache=FALSE}
 
-geneSets_GO = get_GeneOntology()
+geneSets_GO = get_GeneOntology("MF")
 
 # Map from Ensembl genes in geneSets_GO to 
 # Ensembl names from RNA-seq data 
 index = ids2indices( recodeToList(geneSets_GO), rownames(fitBasic))
 
-idxGO = index[sapply(index, length) > 20]
+# filter by size of gene set
+n_genes_in = 30
+setSize = sapply(index, length)
+idxGO = index[(setSize > n_genes_in) & (setSize < 500)]
 
-df_CT_zenith = lapply( colnames(coef(fitBasic))[1:2], function(key){
+df_CT_zenith = lapply( colnames(coef(fitBasic)), function(key){
   res = zenith( fitBasic, coef = key, index = idxGO)
   data.table(Geneset = rownames(res), res, coef = key)
 })
 df_CT_zenith = do.call(rbind, df_CT_zenith)
 
-df_CT_zenith[coef == 'GABA_vs_Olig',]
+df_gs = lapply( df_CT_zenith[,unique(coef)], function(key){
+
+  df_CT_zenith[(coef == key),][order(p.greater),][1:4,]
+  })
+df_gs = do.call(rbind, df_gs)
+```
+
+
+
+  res = zenith( fitBasic, coef = 'CellTypeGLU', index = idxGO)
+
+
+
+```{r eval=FALSE}
+# form = ~ CellType + Gender + Batch
+
+# idx = info$CellType %in% c("Olig", "GABA")
+# isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
+# dge = DGEList(geneCounts[isexpr,idx])
+# dge = calcNormFactors(dge)
+# vobj = voom(dge, model.matrix(~CellType, droplevels(info[idx,])))
+
+# fit = lmFit( vobj, model.matrix(form, droplevels(info[idx,])))
+# fit = eBayes(fit)
+# fit = dream(vobj, form, info[idx,])
+# fit = eBayes(fit)
+# res2 = zenith(fit, coef='CellTypeOlig',idxGO )
+
+# # Map from Ensembl genes in geneSets_GO to 
+# # Ensembl names from RNA-seq data 
+# index = ids2indices( recodeToList(geneSets_GO), rownames(fit))
+
+# n_genes_in = 20
+# idxGO = index[sapply(index, length) > n_genes_in]
+
+# res = camera( vobj, idxGO, model.matrix(form, droplevels(info[idx,])), inter.gene.cor=NA, contrast='CellTypeOlig')
+
 
 
 
