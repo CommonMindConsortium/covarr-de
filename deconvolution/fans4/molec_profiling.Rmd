@@ -18,7 +18,7 @@ cd /hpc/users/hoffmg01/work/CMC/covarr-de/deconvolution/fans4
 # rm -rf molec_profiling_cache/
 ml git pandoc
 git pull
-# export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=2
 R
 
 system("git pull")
@@ -225,7 +225,9 @@ colorCodes = c(
   GABA = '#66A61E',
   GLU = '#E6AB02',
   Olig = '#E7298A',
-  MgAs = '#7570B3')
+  MgAs = '#7570B3',
+  GABAGLU_vs_Other = '#A6A910',
+  GABA_vs_GLU = "grey")
 
 # set factor levels to be the same as the order of the colors
 # this makes plotting easier
@@ -457,6 +459,8 @@ names(contrasts) = apply(lvl, 2, function(x){
 })
 
 contrasts['GABAGLU_vs_Other'] = "(CellTypeGABA + CellTypeGLU)/2 - (CellTypeMgAs + CellTypeOlig)/2"
+contrasts['GLU_vs_Other'] = "CellTypeGLU - (CellTypeGABA + CellTypeMgAs + CellTypeOlig)/3"
+contrasts['GABA_vs_Other'] = "CellTypeGABA - (CellTypeGLU + CellTypeMgAs + CellTypeOlig)/3"
 contrasts['MgAs_vs_Other'] = "CellTypeMgAs - (CellTypeGABA + CellTypeGLU + CellTypeOlig)/3"
 contrasts['Olig_vs_Other'] = "CellTypeOlig - (CellTypeGABA + CellTypeGLU + CellTypeMgAs)/3"
 
@@ -547,35 +551,108 @@ ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) 
 ```
 
 # Gene set analysis
-```{r zenith.celltype, cache=FALSE}
+```{r zenith.celltype, cache=FALSE, eval=FALSE}
 
-geneSets_GO = get_GeneOntology("BP")
+geneSets_GO = get_GeneOntology()
 
-# Map from Ensembl genes in geneSets_GO to 
-# Ensembl names from RNA-seq data 
-index = ids2indices( recodeToList(geneSets_GO), rownames(fitBasic))
+filter_gs = function(fit, gs){
+  # Map from Ensembl genes in geneSets_GO to 
+  # Ensembl names from RNA-seq data 
+  index = ids2indices( recodeToList(gs), rownames(fit))
 
-# filter by size of gene set
-n_genes_in = 30
-setSize = sapply(index, length)
-idxGO = index[(setSize > n_genes_in) & (setSize < 500)]
+  # filter by size of gene set
+  n_genes_in = 15
+  setSize = sapply(index, length)
+  idxGO = index[(setSize > n_genes_in) & (setSize < 500)]
+  idxGO
+}
+
+fit = fitBasic[fitBasic$Amean > -Inf,]
+idxGO = filter_gs( fit, geneSets_GO)
 
 df_CT_zenith = lapply( colnames(coef(fitBasic)), function(key){
-  res = zenith( fitBasic, coef = key, index = idxGO)
+  res = zenith( fit, coef = key, index = idxGO, inter.gene.cor=0.01)
   data.table(Geneset = rownames(res), res, coef = key)
 })
 df_CT_zenith = do.call(rbind, df_CT_zenith)
 
 df_gs = lapply( df_CT_zenith[,unique(coef)], function(key){
 
-  df_CT_zenith[(coef == key),][order(p.greater),][1:4,]
+  # results for this coef
+  df_sub = df_CT_zenith[(coef == key),][order(p.greater),]
+
+  # remove gene sets with small p-values from other tests
+  df_sub2 = df_CT_zenith[(coef != key),][order(p.greater),]
+  df_sub2 = df_sub2[,.SD[which.min(p.greater),], by="Geneset"]
+  df_sub2 = df_sub2[p.greater > 1e-3,]
+
+  df_sub[!(df_sub$Geneset %in% df_sub2$Geneset),][1:4,]
   })
 df_gs = do.call(rbind, df_gs)
+
+df_gs %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+df = df_gs[grep("CellType", coef),]
+# df = rbind(df, df_gs[grep('GABAGLU_vs_Other|GABA_vs_GLU', coef)])
+df[,coef := gsub("CellType", '',coef)]
+df$coef = factor(df$coef, names(colorCodes))
+
+ggplot(df, aes(Geneset,coef, -log10(p.greater))) + geom_tile() + coord_flip() + scale_y_continuous(expand=c(0,0)) + theme_classic() + ylab(bquote(-log[10]~p)) + scale_fill_manual(values = c(colorCodes, GABAGLU_vs_Other = "green"), name="Cell type") 
 ```
 
-```{r df_gs.out}
-df_gs %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+
+```{r compare.celltypes}
+zenith_gsa = function (fit, coefs, geneSets, n_genes_min = 10, n_genes_max=1000,...){
+     
+    # from GeneSetCollection to list 
+    geneSets = recodeToList(geneSets)
+     
+    index = ids2indices(geneSets, rownames(fit))
+    index = index[sapply(index, length) >= n_genes_min]
+    index = index[sapply(index, length) < n_genes_max]
+
+    df_res = lapply(coefs, function(coef) {
+        df_res = zenith(fit, coef, index,...)
+        data.table(coef = coef, Geneset = rownames(df_res), df_res)
+    })
+    df_zenith = do.call(rbind, df_res)
+    rownames(df_zenith) = c()
+
+    df_zenith$FDR = p.adjust(df_zenith$PValue, "BH")
+    df_zenith
+}
+
+geneSets_GO = get_GeneOntology("BP")
+
+coefTests = colnames(coef(fitBasic))[c(1, 7:9)]
+df_zenith = zenith_gsa(fitBasic[fitBasic$Amean > 0,], coefTests, geneSets_GO, inter.gene.cor=0.01)
+
+df_zenith$FDR = p.adjust(df_zenith$p.greater, "BH")
+
+df = df_zenith[,.SD[order(p.greater)[1:3],],by=c("coef")]
+cls = unique(df$Geneset)
+df = df_zenith[Geneset %in% df$Geneset,]
+
+nrow = length(unique(df$coef))
+ncol = length(unique(df$Geneset))
+
+M = matrix(-log10(df$p.greater), nrow=nrow, ncol=ncol,dimnames=list(unique(df$coef), unique(df$Geneset)), byrow=TRUE)
+
+hcl_col = hclust(dist(M), method="ward.D")
+df$coef = factor(df$coef, rownames(M)[hcl_col$order])
+
+hcl_row = hclust(dist(t(M)), method="ward.D")
+# df$Geneset = factor(df$Geneset, colnames(M)[hcl_row$order])
+df$Geneset = factor(df$Geneset, cls)
+df$label = ifelse(df$FDR < 0.05, '*', '')
+
+ggplot(df, aes(coef, Geneset, fill=-log10(p.greater), label=label)) + geom_tile() + theme_classic() + scale_fill_gradient(limits=c(0, NA), low="white", high="red", name=bquote(-log[10]~P)) + theme(aspect.ratio = ncol/nrow, axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + xlab('') + ylab('') + geom_text(vjust=1, hjust=0.5)
 ```
+
+
+
+
+
 
 
 
