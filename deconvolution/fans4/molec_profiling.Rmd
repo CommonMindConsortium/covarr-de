@@ -225,9 +225,9 @@ colorCodes = c(
   GABA = '#66A61E',
   GLU = '#E6AB02',
   Olig = '#E7298A',
-  MgAs = '#7570B3',
-  GABAGLU_vs_Other = '#A6A910',
-  GABA_vs_GLU = "grey")
+  MgAs = '#7570B3')
+  # GABAGLU_vs_Other = '#A6A910',
+  # GABA_vs_GLU = "grey")
 
 # set factor levels to be the same as the order of the colors
 # this makes plotting easier
