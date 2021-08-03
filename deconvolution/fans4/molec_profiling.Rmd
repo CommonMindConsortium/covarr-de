@@ -549,7 +549,7 @@ ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) 
 # Gene set analysis
 ```{r zenith.celltype, cache=FALSE}
 
-geneSets_GO = get_GeneOntology("MF")
+geneSets_GO = get_GeneOntology("BP")
 
 # Map from Ensembl genes in geneSets_GO to 
 # Ensembl names from RNA-seq data 
@@ -573,9 +573,17 @@ df_gs = lapply( df_CT_zenith[,unique(coef)], function(key){
 df_gs = do.call(rbind, df_gs)
 ```
 
+```{r df_gs.out}
+df_gs %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
 
 
-  res = zenith( fitBasic, coef = 'CellTypeGLU', index = idxGO)
+
+
+
+
+
+
 
 
 
