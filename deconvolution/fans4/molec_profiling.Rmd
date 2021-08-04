@@ -471,11 +471,10 @@ fitBasic = dream( vobj, form, info, L=L, BPPARAM=SnowParam(36, progressbar=TRUE)
 ```
 
 ```{r plotContrasts}
-plotContrasts(round(L,2))   
+plotContrasts(round(L,2)) 
 ```
 
 ```{r DE.analysis}
-
 index = combn(nlevels(info$CellType),2)
 
 df_deCount = lapply( 1:ncol(index), function(j){
@@ -500,7 +499,6 @@ ggplot(df_deCount, aes(CT1, CT2, fill=pi1)) + geom_tile() + theme_bw(15) + theme
 ```
 
 ```{r DE2}
-
 index = combn(nlevels(info$CellType),2)
 
 df = lapply( 1:ncol(index), function(j){
@@ -521,7 +519,6 @@ ggplot(df, aes(logFC, ..count..)) + geom_density(alpha = .2) + facet_wrap(~key) 
 
 ## Plots of top differentially expressed genes
 ```{r DE.marker_genes, fig.width=15, fig.height=40}
-
 index = combn(nlevels(info$CellType),2)
 
 ensIDs = sapply( 1:ncol(index), function(j){
@@ -601,7 +598,7 @@ ggplot(df, aes(Geneset,coef, -log10(p.greater))) + geom_tile() + coord_flip() + 
 ```
 
 
-```{r compare.celltypes}
+```{r compare.celltypes, fig.width=8, fig.height=12}
 zenith_gsa = function (fit, coefs, geneSets, n_genes_min = 10, n_genes_max=1000,...){
      
     # from GeneSetCollection to list 
@@ -624,8 +621,9 @@ zenith_gsa = function (fit, coefs, geneSets, n_genes_min = 10, n_genes_max=1000,
 
 geneSets_GO = get_GeneOntology("BP")
 
-coefTests = colnames(coef(fitBasic))[c(1, 7:9)]
-df_zenith = zenith_gsa(fitBasic[fitBasic$Amean > 0,], coefTests, geneSets_GO, inter.gene.cor=0.01)
+coefTests = c('GABA_vs_GLU', 'GABAGLU_vs_Other', 'GLU_vs_Other', 'GABA_vs_Other', 'MgAs_vs_Other', 'Olig_vs_Other')
+df_zenith = zenith_gsa(fitBasic[fitBasic$Amean > 0,], coefTests, geneSets_GO)
+#, inter.gene.cor=0.01)
 
 df_zenith$FDR = p.adjust(df_zenith$p.greater, "BH")
 
@@ -636,12 +634,18 @@ df = df_zenith[Geneset %in% df$Geneset,]
 nrow = length(unique(df$coef))
 ncol = length(unique(df$Geneset))
 
-M = matrix(-log10(df$p.greater), nrow=nrow, ncol=ncol,dimnames=list(unique(df$coef), unique(df$Geneset)), byrow=TRUE)
+# M = matrix(-log10(df$p.greater), nrow=nrow, ncol=ncol,dimnames=list(unique(df$coef), unique(df$Geneset)), byrow=TRUE)
 
-hcl_col = hclust(dist(M), method="ward.D")
-df$coef = factor(df$coef, rownames(M)[hcl_col$order])
+# M = matrix(-log10(df$p.greater), nrow=nrow, ncol=ncol, byrow=TRUE)
+# rownames(M) = unique(df$coef)
+# colnames(M) = unique(df$Geneset)
 
-hcl_row = hclust(dist(t(M)), method="ward.D")
+# Heatmap(t(M), col = colorRampPalette(c("white", "red"))(100))
+
+# hcl_col = hclust(dist(M), method="ward.D2")
+# df$coef = factor(df$coef, rownames(M)[hcl_col$order])
+
+# hcl_row = hclust(dist(t(M)), method="ward.D2")
 # df$Geneset = factor(df$Geneset, colnames(M)[hcl_row$order])
 df$Geneset = factor(df$Geneset, cls)
 df$label = ifelse(df$FDR < 0.05, '*', '')
