@@ -1529,15 +1529,10 @@ df = df_zenith[,.SD[order(PValue)[1:10],],by=c("coef")]
 cls = unique(df$Geneset)
 df = df_zenith[Geneset %in% df$Geneset,]
 
-pdf("test.pdf")
 plotZenith(df)
-dev.off()
-
-
-
 ```
 
-```{r zenith.disease.mSigDB}
+```{r zenith.disease.mSigDB, fig.width=12}
 geneSets_MSigDB = get_MSigDB(c('H', "C1", "C2", "C3", "C5", "C7"))
 
 df_zenith = zenith_gsa(fitDisease[fitDisease$Amean > 0,], colnames(coef(fitDisease))[1:4], geneSets_MSigDB, inter.gene.cor=0.01)
@@ -1563,12 +1558,8 @@ zenith
 
 # Integrate CommonMind Consortium
 ```{r load.cmc}
-
 geneCounts_CMC = readRDS(synGet('syn22416410')$path)
 info_CMC = readRDS(synGet('syn22416411')$path)
-
-
-
 ```
 
 
