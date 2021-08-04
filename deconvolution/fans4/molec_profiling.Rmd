@@ -518,7 +518,7 @@ ggplot(df, aes(logFC, ..count..)) + geom_density(alpha = .2) + facet_wrap(~key) 
 ```
 
 ## Plots of top differentially expressed genes
-```{r DE.marker_genes, fig.width=15, fig.height=40}
+```{r DE.marker_genes, fig.width=15, fig.height=60}
 index = combn(nlevels(info$CellType),2)
 
 ensIDs = sapply( 1:ncol(index), function(j){
@@ -601,24 +601,6 @@ df$label = ifelse(df$FDR < 0.05, '*', '')
 
 ggplot(df, aes(coef, Geneset, fill=-log10(p.greater), label=label)) + geom_tile() + theme_classic() + scale_fill_gradient(limits=c(0, NA), low="white", high="red", name=bquote(-log[10]~P)) + theme(aspect.ratio = ncol/nrow, axis.text.x = element_text(angle = 90, vjust = 1, hjust=1), plot.title = element_text(hjust = 0.5)) + xlab('') + ylab('') + geom_text(vjust=1, hjust=0.5) + ggtitle("Compare cell types")
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
