@@ -785,18 +785,6 @@ boxplot_gene(ensIDs, tab) + ggtitle("FANS markers")
 
 
 
-```{r exit, cache=FALSE}
-knitr::knit_exit()
-```
-
-
-
-
-
-
-
-
-
 
 # Compare to GTEx
 ```{r GTEX.voom}
@@ -1125,6 +1113,12 @@ ggplot(df[,sum(FDR < .05),by='key'], aes(key, V1, fill=key))  + geom_bar(stat="i
 
 
 
+
+
+
+
+
+
 ```{r cv.old}
 
 # cv = function(x){
@@ -1313,6 +1307,15 @@ df_de_summary = do.call(rbind, df_de_summary)
 
 ggplot(df_de_summary, aes(N, nDE_gt_1, color=Comparison)) + geom_point() + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "right") + ylab("# DE and |logFC| > 1") + xlab("Sample size") + ylim(0,NA)
 ```
+
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
+
+
+
+
 
 
 # Disease
