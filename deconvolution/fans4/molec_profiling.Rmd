@@ -1393,6 +1393,7 @@ fitDisease = dream( vobj, form, info, L=L, BPPARAM=SnowParam(12, progressbar=TRU
 
 
 
+
 ```{r Disease.analysis.corr}
 df_disease_de = lapply(levels(info$CellType), function(CT){
 
@@ -1426,21 +1427,130 @@ tabList = do.call(rbind, tabList)
 
 tabList %>% kable(digits=2, row.names=FALSE) %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
 
-ggplot(tabList, aes(CT1, CT2, fill=corr)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = quote(pi[1]), low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(corr, digits=3))) + xlab('') + ylab('') + ggtitle("Correlation between t-statistics")
+tabList$CT1 = factor(tabList$CT1, names(colorCodes)[1:4])
+tabList$CT2 = factor(tabList$CT2, names(colorCodes)[1:4])
 
-C = matrix(1, 4,4)
-rownames(C) = levels(info$CellType)
-colnames(C) = levels(info$CellType)
-tabList$CT1 = factor(tabList$CT1, levels(info$CellType))
-tabList$CT2 = factor(tabList$CT2, levels(info$CellType))
+ggplot(tabList, aes(CT1, CT2, fill=corr)) + geom_tile() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_fill_gradient(name = "Correlation", low="white", high="red", limits=c(0, 1)) + geom_text(aes(label=format(corr, digits=3))) + xlab('') + ylab('') + ggtitle("Correlation between t-statistics")
 
-for(i in 1:nrow(tabList)){
-  C[tabList$CT1[i],tabList$CT2[i]] = tabList$corr[i]
-  C[tabList$CT2[i],tabList$CT1[i]] = tabList$corr[i]
+# C = matrix(1, 4,4)
+# rownames(C) = levels(info$CellType)
+# colnames(C) = levels(info$CellType)
+# tabList$CT1 = factor(tabList$CT1, levels(info$CellType))
+# tabList$CT2 = factor(tabList$CT2, levels(info$CellType))
+
+# for(i in 1:nrow(tabList)){
+#   C[tabList$CT1[i],tabList$CT2[i]] = tabList$corr[i]
+#   C[tabList$CT2[i],tabList$CT1[i]] = tabList$corr[i]
+# }
+
+# plot(hclust(as.dist(1-C)))
+```
+
+
+```{r scatterPlots, dev="png"}
+library(viridis)
+
+# Compute two dimensional density
+get_density <- function(x, y, n = 250) {
+  dens <- MASS::kde2d(x = x, y = y, n = n)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
 }
 
-plot(hclust(as.dist(1-C)))
+# make scatter plot with 2D density using viridis colors
+plotScatterDensity = function(value1, value2){
+
+  # convert two vectors to a data frame
+  df = data.frame(cbind(value1, value2))
+
+  # determine limits of the plot
+  lim = with(df, max(abs(c(value1, value2))))
+  
+  # Compute 2D density
+  df$density <- get_density(df$value1, df$value2, n = 100)
+  
+  # Scatter plot colored by density
+  ggplot(df, aes(value1, value2, color=density)) + geom_point(size=.4) + theme_bw(16) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
+}
+
+index = combn(nlevels(info$CellType),2)
+
+# for all pairs of cell types
+figList = lapply( 1:ncol(index), function(j){
+
+  CT1 = levels(info$CellType)[index[1,j]]
+  CT2 = levels(info$CellType)[index[2,j]]
+  
+  df_tstat = merge(df_disease_de[CellType==CT1,], df_disease_de[CellType==CT2,], by="ensID")
+
+  fig = with(df_tstat, plotScatterDensity(t.x, t.y))
+  fig + theme(legend.position="none") + xlab(CT1) + ylab(CT2)
+})
+
+plot_grid(plotlist = figList, ncol=3, nrow=3)
 ```
+
+```{r mashr}
+library(mashr)
+
+
+
+```
+
+```{r zenith.disease}
+plotZenith = function(df){
+
+  nrow = length(unique(df$coef))
+  ncol = length(unique(df$Geneset))
+
+  df$Geneset = factor(df$Geneset, cls)
+  df$label = ifelse(df$FDR < 0.05, '*', '')
+
+  M = reshape2::dcast(df, coef ~ Geneset, value.var="delta")
+  annot = M[,1:2]
+  M = as.matrix(M[,-1])
+  rownames(M) = annot$coef
+
+  hcl2 <- hclust(dist(t(M)))
+  df$Geneset = factor(df$Geneset, colnames(M)[hcl2$order])
+
+  statMax = with(df, max(abs(delta/se)))
+
+  ggplot(df, aes(coef, Geneset, fill=delta/se, label=label)) + geom_tile() + theme_classic() + scale_fill_gradient2(limits=c(-statMax, statMax), low="blue", mid="white", high="red", name="t-statistic") + theme(aspect.ratio = ncol/nrow, axis.text.x = element_text(angle = 90, vjust = 1, hjust=1), plot.title = element_text(hjust = 0.5)) + xlab('') + ylab('') + geom_text(vjust=1, hjust=0.5) + ggtitle("Compare cell types")
+}
+
+geneSets_GO = get_GeneOntology()
+
+df_zenith = zenith_gsa(fitDisease[fitDisease$Amean > 0,], colnames(coef(fitDisease))[1:4], geneSets_GO, inter.gene.cor=0.01)
+
+df = df_zenith[,.SD[order(PValue)[1:10],],by=c("coef")]
+cls = unique(df$Geneset)
+df = df_zenith[Geneset %in% df$Geneset,]
+
+pdf("test.pdf")
+plotZenith(df)
+dev.off()
+
+
+
+```
+
+```{r zenith.disease.mSigDB}
+geneSets_MSigDB = get_MSigDB(c('H', "C1", "C2", "C3", "C5", "C7"))
+
+df_zenith = zenith_gsa(fitDisease[fitDisease$Amean > 0,], colnames(coef(fitDisease))[1:4], geneSets_MSigDB, inter.gene.cor=0.01)
+
+df = df_zenith[,.SD[order(PValue)[1:10],],by=c("coef")]
+cls = unique(df$Geneset)
+df = df_zenith[Geneset %in% df$Geneset,]
+
+plotZenith(df)
+```
+
+
+
 
 
 Gene-by-gene correlation
@@ -1454,7 +1564,8 @@ zenith
 # Integrate CommonMind Consortium
 ```{r load.cmc}
 
-
+geneCounts_CMC = readRDS(synGet('syn22416410')$path)
+info_CMC = readRDS(synGet('syn22416411')$path)
 
 
 
