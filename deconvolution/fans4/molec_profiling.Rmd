@@ -518,7 +518,7 @@ ggplot(df, aes(logFC, ..count..)) + geom_density(alpha = .2) + facet_wrap(~key) 
 ```
 
 ## Plots of top differentially expressed genes
-```{r DE.marker_genes, fig.width=15, fig.height=60}
+```{r DE.marker_genes, fig.width=15, fig.height=40}
 index = combn(nlevels(info$CellType),2)
 
 ensIDs = sapply( 1:ncol(index), function(j){
@@ -746,7 +746,7 @@ saveRDS(tabList, file='./Roussos_MSSM_MolProf_FANS_4_diffExpression.RDS')
 
 
 ## Plots of top differentially expressed genes
-```{r markerGenes, fig.width=15, fig.height=30}
+```{r markerGenes, fig.width=15, fig.height=40}
 
 lapply( names(tabList), function(key){tab = tabList[[key]]; nrow(tab[tab$logFC > 6,]) })
 
