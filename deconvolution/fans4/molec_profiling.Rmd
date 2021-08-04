@@ -1560,6 +1560,16 @@ a = upset(lst, keep.order = FALSE, order.by="freq" )
 upset(lst, keep.order = FALSE, order.by="freq", sets.bar.color=colorCodes[a$Set_names] )
 ```
 
+Correlation between cell types
+```{r corr.celltype}
+C = get_pairwise_sharing( resMash ) 
+
+corrplot( C, addCoef.col = "black", title = "Pairwise sharing",
+  col=colorRampPalette(c("blue","white","red"))(200),  cl.lim=c(-1,1) )
+```
+
+
+
 ```{r zenith.disease}
 plotZenith = function(df){
 
