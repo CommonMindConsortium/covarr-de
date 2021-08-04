@@ -80,6 +80,7 @@ library(gridExtra)
 library(openxlsx)
 library(synapser)
 library(zenith)
+library(UpSetR)
 library(nnet)
 library(PRROC)
 library(githubr)
@@ -1445,6 +1446,24 @@ ggplot(tabList, aes(CT1, CT2, fill=corr)) + geom_tile() + theme_bw(15) + theme(a
 
 # plot(hclust(as.dist(1-C)))
 ```
+
+```{r disease.upsetr}
+de_genes = lapply(levels(info$CellType), function(CT){
+
+  key = paste0( CT, '.Dx')
+
+  tabl = topTable( fitDisease, coef = key, number=Inf)
+  tabl$ensID = rownames(tabl)
+  rownames(tabl[tabl$adj.P.Val < 0.05,])
+  })
+names(de_genes) = levels(info$CellType)
+
+lst = fromList(de_genes)
+a = upset(lst, keep.order = FALSE, order.by="freq" )
+
+upset(lst, keep.order = FALSE, order.by="freq", sets.bar.color=colorCodes[a$Set_names] )
+```
+
 
 
 ```{r scatterPlots, dev="png"}
