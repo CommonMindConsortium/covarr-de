@@ -650,7 +650,7 @@ ncol = length(unique(df$Geneset))
 df$Geneset = factor(df$Geneset, cls)
 df$label = ifelse(df$FDR < 0.05, '*', '')
 
-ggplot(df, aes(coef, Geneset, fill=-log10(p.greater), label=label)) + geom_tile() + theme_classic() + scale_fill_gradient(limits=c(0, NA), low="white", high="red", name=bquote(-log[10]~P)) + theme(aspect.ratio = ncol/nrow, axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) + xlab('') + ylab('') + geom_text(vjust=1, hjust=0.5)
+ggplot(df, aes(coef, Geneset, fill=-log10(p.greater), label=label)) + geom_tile() + theme_classic() + scale_fill_gradient(limits=c(0, NA), low="white", high="red", name=bquote(-log[10]~P)) + theme(aspect.ratio = ncol/nrow, axis.text.x = element_text(angle = 90, vjust = 1, hjust=1), plot.title = element_text(hjust = 0.5)) + xlab('') + ylab('') + geom_text(vjust=1, hjust=0.5) + ggtitle("Compare cell types")
 ```
 
 
