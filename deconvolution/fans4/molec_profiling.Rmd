@@ -79,6 +79,8 @@ library(SummarizedExperiment)
 library(gridExtra)
 library(openxlsx)
 library(synapser)
+library(metafor)
+library(qqman)
 library(zenith)
 library(UpSetR)
 library(nnet)
@@ -1573,10 +1575,7 @@ corrplot( C, addCoef.col = "black", title = "Pairwise sharing",
 
 
 
-```{r r heterogeneity}
-library(metafor)
-library(qqman)
-
+```{r heterogeneity}
 df_het = mclapply( 1:nrow(B.hat), function(j){
 
   fit = rma( B.hat[j,], sei = se.hat[j,])
