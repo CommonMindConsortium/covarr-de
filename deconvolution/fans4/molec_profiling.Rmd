@@ -1514,8 +1514,50 @@ plot_grid(plotlist = figList, ncol=3, nrow=3)
 ```{r mashr}
 library(mashr)
 
+df_disease_de = lapply(levels(info$CellType), function(CT){
+
+  key = paste0( CT, '.Dx')
+
+  tab = topTable( fitDisease, coef = key, number=Inf)
+  tab$ensID = rownames(tab)
+  tab$CellType = CT
+  tab$se = with(tab, logFC / t)
+  tab
+  })
+names(df_disease_de) = levels(info$CellType)
+df_disease_de = do.call(rbind, df_disease_de)
+
+B.hat = reshape2::dcast( df_disease_de, ensID ~ CellType, value.var='logFC')
+rownames(B.hat) = B.hat$ensID
+B.hat = as.matrix(B.hat[,-1])
+
+se.hat = reshape2::dcast( df_disease_de, ensID ~ CellType, value.var='se')
+rownames(se.hat) = se.hat$ensID
+se.hat = as.matrix(se.hat[,-1])
+
+mashObj = mash_set_data( B.hat, se.hat)
+
+m.1by1 = mash_1by1(mashObj)
+strong = get_significant_results(m.1by1, 0.05)
+
+U.pca = cov_pca(mashObj,3,subset=strong)
+print(names(U.pca))
+
+U.ed = cov_ed(mashObj, U.pca, subset=strong)
+
+U.c = cov_canonical(mashObj)  
+resMash = mash(mashObj, c(U.c,U.ed))
+
+plotCorrMatrix(cor(resMash$result$PosteriorMean))
+```
 
 
+```{r upset.mashr}
+lst = fromList(apply(resMash$result$lfsr, 2, function(x) names(x[x < 0.05])))
+
+a = upset(lst, keep.order = FALSE, order.by="freq" )
+
+upset(lst, keep.order = FALSE, order.by="freq", sets.bar.color=colorCodes[a$Set_names] )
 ```
 
 ```{r zenith.disease}
