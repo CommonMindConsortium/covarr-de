@@ -548,56 +548,6 @@ ggplot(df, aes(CellType, value, fill=CellType)) + geom_boxplot() + theme_bw(15) 
 ```
 
 # Gene set analysis
-```{r zenith.celltype, cache=FALSE, eval=FALSE}
-
-geneSets_GO = get_GeneOntology()
-
-filter_gs = function(fit, gs){
-  # Map from Ensembl genes in geneSets_GO to 
-  # Ensembl names from RNA-seq data 
-  index = ids2indices( recodeToList(gs), rownames(fit))
-
-  # filter by size of gene set
-  n_genes_in = 15
-  setSize = sapply(index, length)
-  idxGO = index[(setSize > n_genes_in) & (setSize < 500)]
-  idxGO
-}
-
-fit = fitBasic[fitBasic$Amean > -Inf,]
-idxGO = filter_gs( fit, geneSets_GO)
-
-df_CT_zenith = lapply( colnames(coef(fitBasic)), function(key){
-  res = zenith( fit, coef = key, index = idxGO, inter.gene.cor=0.01)
-  data.table(Geneset = rownames(res), res, coef = key)
-})
-df_CT_zenith = do.call(rbind, df_CT_zenith)
-
-df_gs = lapply( df_CT_zenith[,unique(coef)], function(key){
-
-  # results for this coef
-  df_sub = df_CT_zenith[(coef == key),][order(p.greater),]
-
-  # remove gene sets with small p-values from other tests
-  df_sub2 = df_CT_zenith[(coef != key),][order(p.greater),]
-  df_sub2 = df_sub2[,.SD[which.min(p.greater),], by="Geneset"]
-  df_sub2 = df_sub2[p.greater > 1e-3,]
-
-  df_sub[!(df_sub$Geneset %in% df_sub2$Geneset),][1:4,]
-  })
-df_gs = do.call(rbind, df_gs)
-
-df_gs %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
-
-df = df_gs[grep("CellType", coef),]
-# df = rbind(df, df_gs[grep('GABAGLU_vs_Other|GABA_vs_GLU', coef)])
-df[,coef := gsub("CellType", '',coef)]
-df$coef = factor(df$coef, names(colorCodes))
-
-ggplot(df, aes(Geneset,coef, -log10(p.greater))) + geom_tile() + coord_flip() + scale_y_continuous(expand=c(0,0)) + theme_classic() + ylab(bquote(-log[10]~p)) + scale_fill_manual(values = c(colorCodes, GABAGLU_vs_Other = "green"), name="Cell type") 
-```
-
-
 ```{r compare.celltypes, fig.width=8, fig.height=12}
 zenith_gsa = function (fit, coefs, geneSets, n_genes_min = 10, n_genes_max=1000,...){
      
@@ -622,8 +572,7 @@ zenith_gsa = function (fit, coefs, geneSets, n_genes_min = 10, n_genes_max=1000,
 geneSets_GO = get_GeneOntology("BP")
 
 coefTests = c('GABA_vs_GLU', 'GABAGLU_vs_Other', 'GLU_vs_Other', 'GABA_vs_Other', 'MgAs_vs_Other', 'Olig_vs_Other')
-df_zenith = zenith_gsa(fitBasic[fitBasic$Amean > 0,], coefTests, geneSets_GO)
-#, inter.gene.cor=0.01)
+df_zenith = zenith_gsa(fitBasic[fitBasic$Amean > 0,], coefTests, geneSets_GO, inter.gene.cor=0.01)
 
 df_zenith$FDR = p.adjust(df_zenith$p.greater, "BH")
 
@@ -668,40 +617,6 @@ ggplot(df, aes(coef, Geneset, fill=-log10(p.greater), label=label)) + geom_tile(
 
 
 
-```{r eval=FALSE}
-# form = ~ CellType + Gender + Batch
-
-# idx = info$CellType %in% c("Olig", "GABA")
-# isexpr = filterByExpr(geneCounts[,idx], model.matrix(~CellType, info[idx,]))
-# dge = DGEList(geneCounts[isexpr,idx])
-# dge = calcNormFactors(dge)
-# vobj = voom(dge, model.matrix(~CellType, droplevels(info[idx,])))
-
-# fit = lmFit( vobj, model.matrix(form, droplevels(info[idx,])))
-# fit = eBayes(fit)
-# fit = dream(vobj, form, info[idx,])
-# fit = eBayes(fit)
-# res2 = zenith(fit, coef='CellTypeOlig',idxGO )
-
-# # Map from Ensembl genes in geneSets_GO to 
-# # Ensembl names from RNA-seq data 
-# index = ids2indices( recodeToList(geneSets_GO), rownames(fit))
-
-# n_genes_in = 20
-# idxGO = index[sapply(index, length) > n_genes_in]
-
-# res = camera( vobj, idxGO, model.matrix(form, droplevels(info[idx,])), inter.gene.cor=NA, contrast='CellTypeOlig')
-
-
-
-
-```
-
-
-
-```{r exit, cache=FALSE}
-knitr::knit_exit()
-```
 
 
 
@@ -887,6 +802,10 @@ boxplot_gene(ensIDs, tab) + ggtitle("FANS markers")
 ```
 
 
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
 
 
 
