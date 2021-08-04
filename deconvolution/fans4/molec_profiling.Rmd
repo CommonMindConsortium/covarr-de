@@ -1511,6 +1511,9 @@ figList = lapply( 1:ncol(index), function(j){
 plot_grid(plotlist = figList, ncol=3, nrow=3)
 ```
 
+
+
+
 ```{r mashr}
 library(mashr)
 
@@ -1567,6 +1570,53 @@ C = get_pairwise_sharing( resMash )
 corrplot( C, addCoef.col = "black", title = "Pairwise sharing",
   col=colorRampPalette(c("blue","white","red"))(200),  cl.lim=c(-1,1) )
 ```
+
+
+
+```{r r heterogeneity}
+library(metafor)
+library(qqman)
+
+df_het = mclapply( 1:nrow(B.hat), function(j){
+
+  fit = rma( B.hat[j,], sei = se.hat[j,])
+
+  data.frame( EnsID = rownames(B.hat)[j], 
+    Isq = fit$I2, 
+    Hsq = fit$H2, 
+    p.het = fit$QEp)
+  },mc.cores = 12)
+df_het = do.call(rbind, df_het)
+
+# resMash$result$PosteriorMean[j,]
+
+par(mfrow=c(1,2))
+hist(df_het$p.het)
+qq(df_het$p.het)
+
+nDE = sum(p.adjust(df_het$p.het, "fdr") < 0.05)
+pi1 = 1 - qvalue(df_het$p.het)$pi0
+
+# Gene set analysis of heterogeneity
+stat = qchisq(df_het$p.het, 1, lower.tail=FALSE)
+names(stat) = df_het$EnsID
+
+geneSets_GO = get_GeneOntology()
+geneSets = recodeToList(geneSets_GO)
+   
+index = ids2indices(geneSets, names(stat))
+index = index[sapply(index, length) >= 15]
+index = index[sapply(index, length) < 500]
+
+res_het = cameraPR( stat, index, use.ranks=TRUE)
+
+res_het[res_het$FDR < 0.05] %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+Number of DE genes: `r nDE`. pi1 = `r pi1`
+
+
+
 
 
 
