@@ -1585,7 +1585,11 @@ df_het = mclapply( 1:nrow(B.hat), function(j){
     Hsq = fit$H2, 
     p.het = fit$QEp)
   },mc.cores = 12)
-df_het = do.call(rbind, df_het)
+df_het = data.table(do.call(rbind, df_het))
+
+df_hugo = AnnotationDbi::select(org.Hs.eg.db, df_het$EnsID, "SYMBOL", "ENSEMBL")
+df_het = merge(df_het, df_hugo, by.x="EnsID", by.y = "ENSEMBL")
+df_het$SYMBOL[is.na(df_het$SYMBOL)] = df_het$EnsID[is.na(df_het$SYMBOL)]
 
 # resMash$result$PosteriorMean[j,]
 
@@ -1609,10 +1613,46 @@ index = index[sapply(index, length) < 500]
 
 res_het = cameraPR( stat, index, use.ranks=TRUE)
 
-res_het[res_het$FDR < 0.05] %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
+res_het[res_het$FDR < 0.05,] %>% kable() %>% kable_styling(bootstrap_options = "striped", full_width = FALSE)
 ```
 
 Number of DE genes: `r nDE`. pi1 = `r pi1`
+
+
+```{r plot.hetero, fig.height=30}
+
+plotEffectSize = function(CellType, beta, se, main=''){
+
+  df = data.frame(CellType, beta, se)
+
+  ggplot(df, aes(CellType, beta, ymin = beta - 1.96*se, ymax = beta + 1.96*se, color=CellType)) + geom_point() + geom_errorbar(width=.1) + theme_classic() + theme(aspect.ratio=1, legend.position="none", plot.title = element_text(hjust = 0.5)) + coord_flip() + ylab(bquote(log[2]~FC)) + scale_color_manual(values = colorCodes[df$CellType]) + geom_hline(yintercept=0, linetype="dashed") + ggtitle(main)
+}
+
+
+figList = lapply( 1:10, function(k){
+
+  j = order(df_het$p.het)[k]
+  ensID = df_het$EnsID[j]
+  geneID = df_het$SYMBOL[j]
+
+  main = paste0(geneID, ' (', ensID, ")\nHeterogeneity (p=", format(df_het$p.het[j], digits=2), ')')
+
+  fig1 = plotEffectSize( colnames(B.hat),
+    B.hat[ensID,],
+    se.hat[ensID,],
+    main)
+
+  main = paste0(geneID, ' (', ensID, ")\nHeterogeneity (p=", format(df_het$p.het[j], digits=2), ')')
+
+  fig2 = plotEffectSize( colnames(resMash$result$PosteriorMean),
+    resMash$result$PosteriorMean[ensID,],
+    resMash$result$PosteriorSD[ensID,],
+    main)
+
+  plot_grid(fig1, fig2)
+})
+plot_grid(plotlist = figList, ncol=1)
+```
 
 
 
