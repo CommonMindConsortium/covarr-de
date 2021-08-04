@@ -359,7 +359,7 @@ residCompare = residuals(fit.simple)
 
 
 
-```{r exit, cache=FALSE}
+```{r exit1, cache=FALSE}
 knitr::knit_exit()
 ```
 
