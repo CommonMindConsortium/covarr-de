@@ -347,6 +347,26 @@ fig2 = ggplot(df_pca, aes(PC2, PC3, color=CellType, shape=Batch)) + geom_point()
 plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
 
+
+#### Correlation between individuals
+```{r corr.btw.indivs}
+form = ~ (1|CellType) + (1|Batch)
+vobj.simple = voomWithDreamWeights(dge, form, info, BPPARAM=SnowParam(12, progressbar=TRUE))
+
+fit.simple = dream(vobj.simple, form, info, BPPARAM=SnowParam(12, progressbar=TRUE))
+residCompare = residuals(fit.simple) 
+```
+
+
+
+```{r exit, cache=FALSE}
+knitr::knit_exit()
+```
+
+
+
+
+
 ```{r predict.celltype}
 X = as.matrix(df_pca[,2:200])
 
@@ -1307,6 +1327,11 @@ df_de_summary = do.call(rbind, df_de_summary)
 
 ggplot(df_de_summary, aes(N, nDE_gt_1, color=Comparison)) + geom_point() + geom_line() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position = "right") + ylab("# DE and |logFC| > 1") + xlab("Sample size") + ylim(0,NA)
 ```
+
+
+
+
+
 
 
 ```{r exit, cache=FALSE}
