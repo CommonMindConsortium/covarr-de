@@ -1231,12 +1231,13 @@ dge = calcNormFactors(dge)
 
 geneExprCombined = edgeR::cpm(dge, log=TRUE)
 
-infoExpand = rbind(data.frame(info[,c(1,3)], dataset="FANS4", stringsAsFactors=FALSE), 
-  data.frame(Name=colnames(gtex_count[,id]), CellType = "GTEx BA9", dataset="GTEx", stringsAsFactors=FALSE))
+infoExpand = rbind(data.frame(info[,c("Name", "CellType", "Batch")], 
+  dataset="FANS4", stringsAsFactors=FALSE), 
+  data.frame(Name=colnames(gtex_count[,id]), CellType = "GTEx BA9", dataset="GTEx", Batch = "GTEx", stringsAsFactors=FALSE))
 rownames(infoExpand) = infoExpand$Name
 
 # the first PC separates FANS from bulk, so subtract that and use residuals
-fit = dream(geneExprCombined, ~ dataset, infoExpand)
+fit = dream(geneExprCombined, ~ Batch, infoExpand)
 resid = residuals(fit, geneExprCombined)
 
 dcmp = prcomp( t(resid), scale=TRUE)
@@ -1249,29 +1250,27 @@ varFrac = dcmp$sdev^2 / sum(dcmp$sdev^2)
 
 xlab = paste0('PC1 (', format(varFrac[1]*100, digits=3), '%)')
 ylab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
-ggplot(df_pca, aes(PC1, PC2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab(xlab) + ylab(ylab)
+ggplot(df_pca, aes(PC1, PC2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, 'GTEx BA9' = "grey")) + xlab(xlab) + ylab(ylab)
 
-# xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
-# ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
-# ggplot(df_pca, aes(PC2, PC3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab(xlab) + ylab(ylab)
-
+xlab = paste0('PC2 (', format(varFrac[2]*100, digits=3), '%)')
+ylab = paste0('PC3 (', format(varFrac[3]*100, digits=3), '%)')
+ggplot(df_pca, aes(PC2, PC3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, 'GTEx BA9' = "grey")) + xlab(xlab) + ylab(ylab)
 ```
 
 ### MDS
 computed on log cpm
 
 ```{r GTEX.MDS}
-
-d = as.dist(1 - cor(geneExprCombined)^2)
+d = as.dist(1 - cor(resid, method="spearman")^2)
 # d = as.dist(1 - cor(apply(geneExprCombined, 2, RNOmni::rankNorm), method="sp")^2)
 
-df_mds = data.frame(cmdscale( d, k=3))
+df_mds = data.frame(cmdscale( d, k=2))
 
 df_mds = merge(df_mds, infoExpand, by.x="row.names", by.y="Name")
 
-ggplot(df_mds, aes(X1, X2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab('Coordinate 1') + ylab('Coordinate 2')
+ggplot(df_mds, aes(X1, X2, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, 'GTEx BA9' = "grey")) + xlab('Coordinate 1') + ylab('Coordinate 2')
 
-ggplot(df_mds, aes(X2, X3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, "grey")) + xlab('Coordinate 2') + ylab('Coordinate 3')
+# ggplot(df_mds, aes(X2, X3, color=CellType)) + geom_point() + theme_bw(15) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_manual("Cell Type", values=c(colorCodes, , 'GTEx BA9' = "grey")) + xlab('Coordinate 2') + ylab('Coordinate 3')
 ```
 
 ## Differential expression with Increasing sample size
@@ -1369,11 +1368,6 @@ ggplot(df_de_summary, aes(N, nDE_gt_1, color=Comparison)) + geom_point() + geom_
 
 
 
-
-
-```{r exit, cache=FALSE}
-knitr::knit_exit()
-```
 
 
 
