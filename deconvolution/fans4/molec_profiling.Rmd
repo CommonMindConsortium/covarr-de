@@ -285,7 +285,7 @@ kable(table(info$Individual.ID)) %>% kable_styling(bootstrap_options = "striped"
 
 
 # Per cell type analysus
-```{r preprocess}
+```{r preprocess.CT}
 
 for( CT in unique(info$CellType) ){
 
