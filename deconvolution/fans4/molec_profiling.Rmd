@@ -286,11 +286,6 @@ info = info[! info$Individual.ID %in% excludeIDs,]
 identical(rownames(info), colnames(geneCounts))
 ```
 
-```{r exit2, cache=FALSE}
-knitr::knit_exit()
-```
-
-
 
 ### Study Summary
 ```{r}
@@ -417,117 +412,6 @@ fig2 = ggplot(df_pca, aes(PC2, PC3, color=CellType, shape=Batch)) + geom_point()
 
 plot_grid(fig1, fig2 + theme(legend.position="none"), axis="tbr", align="v")
 ```      
-
-
-
-```{r cancor, eval=FALSE}
-
-pairwise_cca = function(fit){
-
-  exprResid = t(residuals(fit))
-
-  df = apply(combn(4, 2), 2, function(x){
-
-    CT1 = levels(info$CellType)[x[1]]
-    CT2 = levels(info$CellType)[x[2]]
-
-    X = exprResid[info$CellType == CT1,]
-    Y = exprResid[info$CellType == CT2,]
-
-    idx = match(rownames(X), rownames(info) )
-    rownames(X) = info$Individual.ID[idx]
-
-    idx = match(rownames(Y), rownames(info) )
-    rownames(Y) = info$Individual.ID[idx]
-
-    tab = table(c(rownames(X), rownames(Y)))
-    ids = names(tab[tab==2])
-
-    X = X[ids,]
-    Y = Y[ids,]  
-
-    mx = rowMeans(geneExpr[,info$CellType == CT1])
-    my = rowMeans(geneExpr[,info$CellType == CT2])
-
-    # idx = sample.int(length(ids), length(ids), replace=FALSE)
-
-    X2 = scale(X[,mx>6])
-    Y2 = scale(Y[,my>6])
-
-    X2 = apply(X2, 2, RankNorm)
-    Y2 = apply(Y2, 2, RankNorm)
-
-    incl = seq(1, 0.8*nrow(X2))   
-
-    fit = fastcca(X2[incl,],Y2[incl,])
-    X.pred = X2[-incl,] %*% fit$x.coef
-    Y.pred = Y2[-incl,] %*% fit$y.coef
-    rho.fastcca = cor(X.pred[,1], Y.pred[,1])^2
-    rho.fastcca
-
-    data.frame(CT1 = CT1, CT2 = CT2, rho = fit$cramer.V, rho.emp = rho.fastcca)
-  })
-  df = do.call(rbind, df)
-
-  df
-}
-
-dfToMatrix = function(df, V1, V2, value){
-
-  lvls = unique(c(df[,V1], df[,V2]))
-  C = diag(1, length(lvls))
-  C[C!=1] = NA
-  rownames(C) = lvls
-  colnames(C) = lvls
-
-  for(i in 1:nrow(df) ){
-    C[df[,V1][i], df[,V2][i]] = df[[value]][i]
-    C[df[,V2][i], df[,V1][i]] = df[[value]][i]
-  }
-
-  C
-}
-
-
-
-library(decorrelate)
-
-library(RNOmni)
-
-devtools::reload("/hpc/users/hoffmg01/build2/decorrelate")
-
-fit = dream(geneExpr, ~ Batch + Gender + Age.of.Death, info)
-fit = eBayes(fit)
-
-C = dfToMatrix(df, "CT1", "CT2", "rho.emp")
-
-
-plotCorrMatrix(C)
-
-
-
-
-cmd = cmdscale(dist(1-C^2))
-df_cmd = data.frame(CellType = rownames(cmd), data.frame(cmd))
-
-ggplot( df_cmd, aes(X1, X2, color=CellType)) + geom_point() + theme_classic() + theme(aspect.ratio=1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```
-
 
 
 #### Correlation between individuals
