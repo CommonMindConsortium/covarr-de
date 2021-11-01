@@ -16,7 +16,7 @@ output:
 # cd /hpc/users/hoffmg01/work/cmc_analysis/src
 cd /hpc/users/hoffmg01/work/CMC/covarr-de/deconvolution/fans4
 # rm -rf molec_profiling_cache/
-ml git pandoc
+ml git pandoc python
 git pull
 R
 
@@ -114,7 +114,7 @@ thisRepo <- getRepo(repository = "CommonMindConsortium/covarr-de", ref="branch",
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=paste0('deconvolution/fans4/',thisFileName))
 ```
 
-```{r}
+```{r storeData}
 CODE <- Folder(name = "results", parentId = "syn26433312")
 CODE <- synStore(CODE)
 
@@ -1629,6 +1629,7 @@ upset(lst, keep.order = FALSE, order.by="freq", sets.bar.color=colorCodes[a$Set_
 
 Correlation between cell types
 ```{r corr.celltype}
+library(corrplot)
 C = get_pairwise_sharing( resMash ) 
 
 corrplot( C, addCoef.col = "black", title = "Pairwise sharing",
