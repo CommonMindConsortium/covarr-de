@@ -264,11 +264,11 @@ ggplot(df, aes( x=CellType, y=value, fill=CellType)) + geom_boxplot() + facet_wr
 ```
 
 ```{r excludeIDs}
-# excludeIDs = c('CMC_MSSM_002')
-# info = info[! info$Individual.ID %in% excludeIDs,]
+excludeIDs = c('CMC_MSSM_002')
 
-# geneCounts
-
+incl = !colnames(geneCounts) %in% rownames(info[info$Individual.ID %in% excludeIDs,]
+geneCounts = geneCounts[,incl]
+info = info[! info$Individual.ID %in% excludeIDs,]
 ```
 
 ```{r exit2, cache=FALSE}
@@ -313,6 +313,12 @@ for( CT in unique(info$CellType) ){
 #               Olig.Dx = "IOlig.SCZ - IOlig.Control"))
 
 }
+
+
+system("git pull")
+rmarkdown::render("molec_profiling.Rmd", output_dir='./', intermediates_dir='./')
+
+
 
 ```
 
