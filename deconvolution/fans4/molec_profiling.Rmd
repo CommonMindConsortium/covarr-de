@@ -18,7 +18,6 @@ cd /hpc/users/hoffmg01/work/CMC/covarr-de/deconvolution/fans4
 # rm -rf molec_profiling_cache/
 ml git pandoc
 git pull
-export OMP_NUM_THREADS=2
 R
 
 system("git pull")
