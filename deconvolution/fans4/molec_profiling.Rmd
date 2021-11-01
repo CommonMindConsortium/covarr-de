@@ -298,14 +298,14 @@ kable(table(info$Individual.ID)) %>% kable_styling(bootstrap_options = "striped"
 
 ### Save processed data
 ```{r save.processed}
+ALL_USED_IDs= unique(c('syn22321012', 'syn22321013', 'syn22321014', 'syn22321016', 'syn2232101', 'syn26000845','syn25976117', 'syn25976127', 'syn22321013', 'syn22321014', 'syn22321016', 'syn26000850', 'syn25976122', 'syn25976136'))
+
 storeData( geneCounts, "geneCounts_merged.RDS", "Merged gene counts for Mol Prof data")
 storeData( info, "info_merged.RDS", "Merge metadata for Mol Prof data")
 ```
 
-
 # Per cell type analysus
 ```{r preprocess.CT}
-ALL_USED_IDs= unique(c('syn22321012', 'syn22321013', 'syn22321014', 'syn22321016', 'syn2232101', 'syn26000845','syn25976117', 'syn25976127', 'syn22321013', 'syn22321014', 'syn22321016', 'syn26000850', 'syn25976122', 'syn25976136'))
 
 resByCT = lapply(unique(info$CellType), function(CT){
 
