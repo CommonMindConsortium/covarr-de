@@ -266,7 +266,7 @@ ggplot(df, aes( x=CellType, y=value, fill=CellType)) + geom_boxplot() + facet_wr
 ```{r excludeIDs}
 excludeIDs = c('CMC_MSSM_002')
 
-incl = !colnames(geneCounts) %in% rownames(info[info$Individual.ID %in% excludeIDs,]
+incl = !colnames(geneCounts) %in% rownames(info[info$Individual.ID %in% excludeIDs,])
 geneCounts = geneCounts[,incl]
 info = info[! info$Individual.ID %in% excludeIDs,]
 ```
