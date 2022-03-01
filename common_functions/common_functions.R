@@ -583,7 +583,7 @@ run_zenith = function(fit, coefs, gs.collection, n_genes_min=10, n_genes_max=500
   # run zenith for each coefficient
   res = lapply( coefs, function(coef){
 
-    df = zenith(fit, coef, geneSets.index, squaredStats=FALSE)
+    df = zenith(fit, coef, geneSets.index)#, squaredStats=FALSE)
     df$Set = rownames(df)
     rownames(df) = c()
     df$Coef = coef
