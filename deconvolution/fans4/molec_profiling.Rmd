@@ -966,9 +966,9 @@ gtex_count = as.matrix(gtex_count)
 ```{r gtex.colors}
 # https://genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_track=hgFixed&hgta_group=allTables&hgta_table=hgFixed.gtexTissue
 
-# file= '/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Tissue_colors.csv'
-file = synGet('syn22321106')$path
-gtexColors = read.csv( file, header=TRUE)
+file= '/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Tissue_colors.tsv'
+# file = synGet('syn22321106')$path
+gtexColors = read.table( file, header=TRUE, sep="\t")
 ```
 
 
