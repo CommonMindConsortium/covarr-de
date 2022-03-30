@@ -911,14 +911,14 @@ boxplot_gene(ensIDs, tab) + ggtitle("FANS markers")
 # Compare to GTEx
 ```{r GTEX.voom}
 
-# file_SampleAttributesDS = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"
-file_SampleAttributesDS = synGet('syn22321103')$path
+file_SampleAttributesDS = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"
+# file_SampleAttributesDS = synGet('syn22321103')$path
 
-# file_SubjectPhenotypesDS= "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
-file_SubjectPhenotypesDS = synGet('syn22321104')$path
+file_SubjectPhenotypesDS= "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"
+# file_SubjectPhenotypesDS = synGet('syn22321104')$path
 
-# file_counts = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
-file_counts = synGet('syn22321107')$path
+file_counts = "/sc/arion/projects/CommonMind/data/resources/GTEx/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
+# file_counts = synGet('syn22321107')$path
 
 gtex_sample = read.delim(file_SampleAttributesDS, header = TRUE, stringsAsFactors = FALSE)
 # gtex_sample = gtex_sample[gtex_sample$SMTS == 'Brain',]
